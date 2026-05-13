@@ -289,14 +289,34 @@
     }
 
     .filter-btn[data-filter="fav"] {
-      background: #FFF8E1;
-      color: #B8860B;
-      border-color: #F5DFA0;
+      background: var(--surface2);
+      color: var(--text2);
+      border-color: var(--border);
     }
 
     .filter-btn[data-filter="fav"]:hover {
+      background: var(--border);
+      transform: scale(0.95);
+    }
+
+    /* Estado ON — cores iluminadas apenas quando o filtro está ativo */
+    .filter-btn[data-filter="fav"][data-active="true"] {
+      background: #FFF8E1;
+      color: #B8860B;
+      border-color: #F5DFA0;
+      box-shadow: 0 0 0 2px rgba(184, 134, 11, 0.18);
+    }
+
+    .filter-btn[data-filter="fav"][data-active="true"]:hover {
       background: #FFEFB5;
       transform: scale(0.95);
+    }
+
+    [data-theme="dark"] .filter-btn[data-filter="fav"][data-active="true"] {
+      background: #2A1E00;
+      color: #FFD54F;
+      border-color: #7A5500;
+      box-shadow: 0 0 0 2px rgba(255, 213, 79, 0.15);
     }
 
     .filter-btn[data-filter="warn"] {
@@ -617,12 +637,12 @@
 
     /* SECTION LABEL */
     .sec-label {
-      font-size: var(--fs-sm);
+      font-size: var(--fs-xs);
       font-weight: 700;
       letter-spacing: 0.12em;
       color: var(--accent);
-      padding: 10px 24px 6px;
-      text-transform:capitalize;
+      padding: 10px 16px 6px;
+      text-transform: uppercase;
       font-family: 'DM Mono', monospace;
       display: flex;
       justify-content: flex-start;
@@ -633,7 +653,7 @@
       opacity: 0.92;
     }
 
-    /* .sec-label::before {
+    .sec-label::before {
       content: '';
       display: inline-block;
       width: 3px;
@@ -642,7 +662,7 @@
       background: var(--accent);
       flex-shrink: 0;
       opacity: 0.7;
-    } */
+    }
 
     /* ITEM ROW */
     .item-row {
@@ -845,10 +865,8 @@
       color: #F5C518;
     }
 
-    [data-theme="dark"] .filter-btn[data-filter="fav"] {
-      background: #2E2A18;
-      color: #F5C518;
-    }
+    /* dark-mode fav button: OFF state inherits .filter-btn base (surface2 / text2 / border);
+       ON state is handled by [data-active="true"] selector above */
 
     /* Item row when favorited — star button only; no border-left (avoids conflict with status indicator) */
     /* .item-row.fav-on, .stock-row.fav-on, .buy-row.fav-on — border suppressed intentionally */
@@ -1917,7 +1935,7 @@
     };
 
     // ==================== CONSTANTES E VARIÁVEIS ====================
-    const STORAGE_KEY = 'Shop_List_v20260512';
+    const STORAGE_KEY = 'Shop_List_v20260513';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -2699,12 +2717,13 @@
     }
 
     function applyQuickFilter(type) {
-      const btn = document.querySelector(`.filter-btn[data-filter="${type}"]`);
       const wasActive = activeQuickFilter === type;
 
+      // Limpa estado ativo de todos os botões
       document.querySelectorAll('.filter-btn').forEach(b => {
         b.style.boxShadow = '';
         b.style.transform = '';
+        b.removeAttribute('data-active');
       });
 
       if (wasActive) {
@@ -2712,8 +2731,16 @@
         if (type === 'fav') toast('Favorites filter off');
       } else {
         activeQuickFilter = type;
-        btn.style.boxShadow = '0 0 0 2px var(--accent)';
-        btn.style.transform = 'scale(0.95)';
+        const btn = document.querySelector(`.filter-btn[data-filter="${type}"]`);
+        if (btn) {
+          btn.setAttribute('data-active', 'true');
+          // Para warn e crit o estado ativo já é intrínseco (cor temática permanente);
+          // o ring de foco adicional só se aplica a eles via inline — fav usa CSS puro.
+          if (type !== 'fav') {
+            btn.style.boxShadow = '0 0 0 2px var(--accent)';
+            btn.style.transform = 'scale(0.95)';
+          }
+        }
         if (type === 'fav') {
           const favCount = items.filter(i => i.fav).length;
           toast(favCount > 0
@@ -2941,7 +2968,7 @@
       toast(`${next === 'dark' ? 'Dark' : 'Light'} mode enabled`);
     }
 
-    function openConfig() { /* mantido por compatibilidade — ações migradas para o rodapé */ }
+    function openConfig() { closeModal(); }
 
     function showPWAInstructions() {
       openModal(`
@@ -3363,8 +3390,11 @@
     if (activeQuickFilter) {
       const btn = document.querySelector(`.filter-btn[data-filter="${activeQuickFilter}"]`);
       if (btn) {
-        btn.style.boxShadow = '0 0 0 2px var(--accent)';
-        btn.style.transform = 'scale(0.95)';
+        btn.setAttribute('data-active', 'true');
+        if (activeQuickFilter !== 'fav') {
+          btn.style.boxShadow = '0 0 0 2px var(--accent)';
+          btn.style.transform = 'scale(0.95)';
+        }
       }
     }
 
