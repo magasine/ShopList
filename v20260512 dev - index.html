@@ -1,0 +1,3492 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Shop List</title>
+  <meta name="theme-color" content="#00796B" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0E1621" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Shop List">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      /* ── Light Theme — MD3 Futuristic ── */
+
+      /* Base surfaces: fundo frio mineral com leve tint cyan */
+      --bg: #F2F5F8;
+      --surface: #FFFFFF;
+      --surface2: #EBF0F5;
+
+      /* Borders */
+      --border: #CDD8E0;
+      --border2: #AABBC8;
+
+      /* Typography */
+      --text: #0D1B2A;
+      --text2: #4A6070;
+      --text3: #8AA0AE;
+
+      /* Accent — Teal Esmeralda MD3 */
+      --accent: #00796B;
+      --accent-light: #E0F2F1;
+      --accent-text: #004D40;
+
+      /* Warn — âmbar dourado */
+      --warn: #B45309;
+      --warn-light: #FEF3C7;
+
+      /* Crit — coral-vermelho */
+      --crit: #C62828;
+      --crit-light: #FFEBEE;
+
+      /* Purple — Índigo elétrico para destaques UI */
+      --purple: #3F51B5;
+      --purple-light: #E8EAF6;
+
+      /* Radii & shadows */
+      --radius: 10px;
+      --radius-lg: 16px;
+      --shadow: 0 1px 4px rgba(13, 27, 42, 0.08);
+      --transition: 0.16s cubic-bezier(0.4, 0, 0.2, 1);
+
+      /* Row semantic tints */
+      --row-off: #FFF8F0;
+      --row-off-border: #F5D9B0;
+      --row-off-hover: #FDEFD6;
+      --row-ok: #E8F5F3;
+      --row-ok-border: #A7D7D2;
+      --row-ok-hover: #D0EDEA;
+      --row-crit: #FFEBEE;
+      --row-crit-border: #FFCDD2;
+      --row-crit-hover: #FFCDD2;
+
+      /* Filter badge fills */
+      --filter-ok-bg: #D0EDEA;
+      --filter-ok-hover: #B2DDD9;
+      --filter-warn-bg: #FDEFD6;
+      --filter-warn-hover: #FADDAA;
+      --filter-crit-bg: #FFCDD2;
+      --filter-crit-hover: #FFAAB3;
+
+      /* Header / Footer */
+      --header-bg: linear-gradient(135deg, #E4EEF5 0%, #EBF3F8 45%, #E2EBF5 100%);
+      --footer-bg: linear-gradient(135deg, #E2EBF5 0%, #EBF3F8 55%, #E4EEF5 100%);
+      --header-border: rgba(0, 121, 107, 0.14);
+
+      /* Typography Scaling */
+      --fs-xs: 11px;
+      --fs-sm: 13px;
+      --fs-base: 15px;
+      --fs-md: 17px;
+      --fs-lg: 19px;
+      --fs-xl: 24px;
+    }
+
+    [data-theme="dark"] {
+      /* ── Dark Theme — MD3 Futuristic ──
+         Cada camada tem matiz distinto (petróleo → slate → ardósia)
+         eliminando qualquer ambiguidade entre bg / surface / surface2.  */
+
+      --bg: #0E1621;
+      /* azul-noite profundo */
+      --surface: #162030;
+      /* slate com tint petróleo — claramente mais claro */
+      --surface2: #1E2D3E;
+      /* azul-ardósia — terceiro nível inequívoco */
+
+      --border: #2B3D52;
+      /* azul-grafite */
+      --border2: #3C5268;
+      /* azul-aço médio */
+
+      --text: #E6EFF6;
+      /* branco-azulado */
+      --text2: #7AABC6;
+      /* azul-gelo — muito distinto de --text */
+      --text3: #3F6178;
+      /* ardósia escura — guia / placeholder */
+
+      /* Accent — Teal vibrante no escuro */
+      --accent: #26C6BA;
+      --accent-light: #0A2826;
+      --accent-text: #80DEDB;
+
+      /* Warn — âmbar saturado */
+      --warn: #FFB300;
+      --warn-light: #261C00;
+
+      /* Crit — coral néon */
+      --crit: #EF5350;
+      --crit-light: #2A0808;
+
+      /* Purple — violeta elétrico */
+      --purple: #7C83FF;
+      --purple-light: #181B40;
+
+      /* Header / Footer — petróleo com shimmer index */
+      --header-bg: linear-gradient(135deg, #0E1820 0%, #122030 50%, #0E1620 100%);
+      --footer-bg: linear-gradient(135deg, #0E1620 0%, #122030 50%, #0E1820 100%);
+      --header-border: rgba(38, 198, 186, 0.15);
+
+      /* Rows — cores de fundo inconfundíveis entre si */
+      --row-off: #1E1200;
+      /* âmbar-bordô quentinho */
+      --row-off-border: #5C3800;
+      --row-off-hover: #261800;
+
+      --row-ok: #041E1C;
+      /* teal-verde profundo */
+      --row-ok-border: #0A4040;
+      --row-ok-hover: #082422;
+
+      --row-crit: #200608;
+      /* vermelho-bordô saturado */
+      --row-crit-border: #601010;
+      --row-crit-hover: #2A0808;
+
+      /* Filter badges vivos e distintos */
+      --filter-ok-bg: #0A3030;
+      --filter-ok-hover: #103C3A;
+      --filter-warn-bg: #281A00;
+      --filter-warn-hover: #342200;
+      --filter-crit-bg: #300808;
+      --filter-crit-hover: #3E1010;
+    }
+
+    /* Mobile Typography Adjustments */
+    @media (max-width: 480px) {
+      :root {
+        --fs-xs: 12px;
+        --fs-sm: 14px;
+        --fs-base: 16px;
+        --fs-md: 18px;
+        --fs-lg: 20px;
+        --fs-xl: 26px;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: background var(--transition), color var(--transition);
+    }
+
+    #app {
+      width: 100%;
+      max-width: 480px;
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+      background: var(--surface);
+      display: -webkit-flex;
+      display: flex;
+      -webkit-flex-direction: column;
+      flex-direction: column;
+      position: relative;
+      box-shadow: 0 0 60px rgba(13, 27, 42, 0.12);
+    }
+
+    #title-link {
+      color: inherit;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    #title-link:hover {
+      cursor: pointer;
+    }
+
+    /* HEADER */
+    #header {
+      padding: 14px 16px 0;
+      background: var(--header-bg);
+      border-bottom: 1px solid var(--header-border);
+      position: -webkit-sticky;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    #header-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-bottom: 12px;
+    }
+
+    #app-title {
+      font-size: var(--fs-md);
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-shrink: 0;
+    }
+
+    #app-title span {
+      color: var(--text3);
+      font-weight: 400;
+      font-size: var(--fs-xs);
+      font-family: 'DM Mono', monospace;
+    }
+
+    .filter-badge-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      justify-content: center;
+    }
+
+    /* Divider vertical dentro do grupo de filtros */
+    /* .filter-divider {
+      width: 1px;
+      height: 20px;
+      background: var(--border2);
+      flex-shrink: 0;
+      margin: 0 2px;
+    } */
+
+    .filter-btn {
+      width: 40px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: var(--fs-sm);
+      font-weight: 600;
+      font-family: 'DM Mono', monospace;
+      transition: all var(--transition);
+      flex-shrink: 0;
+      background: var(--surface2);
+      color: var(--text2);
+      box-shadow: 0 1px 3px rgba(13, 27, 42, 0.06);
+    }
+
+    .filter-btn[data-filter="fav"] {
+      background: #FFF8E1;
+      color: #B8860B;
+      border-color: #F5DFA0;
+    }
+
+    .filter-btn[data-filter="fav"]:hover {
+      background: #FFEFB5;
+      transform: scale(0.95);
+    }
+
+    .filter-btn[data-filter="warn"] {
+      background: var(--filter-warn-bg);
+      color: var(--warn);
+      border-color: var(--row-off-border);
+    }
+
+    .filter-btn[data-filter="warn"]:hover {
+      background: var(--filter-warn-hover);
+      transform: scale(0.95);
+    }
+
+    .filter-btn[data-filter="crit"] {
+      background: var(--filter-crit-bg);
+      color: var(--crit);
+      border-color: var(--row-crit-border);
+    }
+
+    .filter-btn[data-filter="crit"]:hover {
+      background: var(--filter-crit-hover);
+      transform: scale(0.95);
+    }
+
+    /* Botão de ordenação */
+    #btn-sort {
+      width: 40px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text2);
+      transition: all var(--transition);
+      flex-shrink: 0;
+      box-shadow: 0 1px 3px rgba(13, 27, 42, 0.06);
+    }
+
+    #btn-sort:hover {
+      background: var(--border);
+    }
+
+    #btn-sort.active {
+      background: var(--purple-light);
+      border-color: var(--purple);
+      color: var(--purple);
+      box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.15);
+    }
+
+    #btn-sort.fav-active {
+      background: var(--purple-light);
+      border-color: var(--purple);
+      color: var(--purple);
+      box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.15);
+    }
+
+    [data-theme="dark"] #btn-sort.active,
+    [data-theme="dark"] #btn-sort.fav-active {
+      background: var(--purple-light);
+      border-color: var(--purple);
+      color: var(--purple);
+      box-shadow: 0 0 0 2px rgba(124, 131, 255, 0.18);
+    }
+
+    .right-buttons {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .hbtn {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      color: var(--text2);
+      transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
+      flex-shrink: 0;
+      box-shadow: 0 1px 3px rgba(13, 27, 42, 0.06);
+    }
+
+    .hbtn:hover {
+      background: var(--border);
+      box-shadow: 0 2px 6px rgba(13, 27, 42, 0.10);
+    }
+
+    .hbtn.active {
+      background: var(--purple-light);
+      border-color: var(--purple);
+      color: var(--purple);
+      box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.15);
+    }
+
+    /* SEARCH BAR */
+    #search-bar {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.22s ease, padding 0.22s ease;
+      padding: 0;
+    }
+
+    #search-bar.open {
+      max-height: 64px;
+      /* era 52 — aumentado para acomodar padding-top */
+      padding: 6px 0 10px;
+      /* padding-top cria o espaço interno que evita o clip da borda */
+    }
+
+    #search-wrap {
+      display: flex;
+      align-items: center;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 0 12px;
+      gap: 8px;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+
+    #search-wrap:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 121, 107, 0.12);
+    }
+
+    [data-theme="dark"] #search-wrap:focus-within {
+      box-shadow: 0 0 0 3px rgba(38, 198, 186, 0.14);
+    }
+
+    #search-wrap svg {
+      color: var(--text3);
+      flex-shrink: 0;
+    }
+
+    #search-input {
+      -webkit-flex: 1;
+      flex: 1;
+      border: none;
+      background: transparent;
+      font-family: 'DM Sans', sans-serif;
+      font-size: var(--fs-sm);
+      /* iOS: impede zoom automático ao focar — font-size mínimo 16px no input */
+      font-size: max(16px, var(--fs-sm));
+      color: var(--text);
+      padding: 10px 0;
+      outline: none;
+      /* Remove aparência nativa no Safari */
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    #search-input::placeholder {
+      color: var(--text3);
+    }
+
+    #search-clear {
+      font-size: var(--fs-xs);
+      color: var(--purple);
+      font-weight: 500;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    /* TABS */
+    #tabs {
+      display: flex;
+      gap: 0;
+      padding-bottom: 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 11px 4px;
+      font-size: var(--fs-base);
+      font-weight: 600;
+      color: var(--text3);
+      cursor: pointer;
+      border-bottom: 2.5px solid transparent;
+      transition: color var(--transition), border-color var(--transition), background var(--transition);
+      user-select: none;
+      letter-spacing: 0.01em;
+    }
+
+    .tab:hover {
+      color: var(--text2);
+      background: var(--surface2);
+    }
+
+    .tab.active {
+      color: var(--accent);
+      border-bottom: 2.5px solid var(--accent);
+      background: transparent;
+    }
+
+    .tab-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-family: 'DM Mono', monospace;
+      background: var(--surface2);
+      color: var(--text3);
+      border-radius: 20px;
+      padding: 1px 6px;
+      margin-left: 3px;
+      border: 1px solid var(--border);
+    }
+
+    .tab.active .tab-badge {
+      background: var(--accent-light);
+      color: var(--accent-text);
+      border-color: var(--row-ok-border);
+    }
+
+    /* PANELS */
+    #panels {
+      -webkit-flex: 1;
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      /* Evita flash de borda no Safari ao scrollar */
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
+    }
+
+    .panel {
+      display: none;
+    }
+
+    .panel.active {
+      display: block;
+    }
+
+    /* Painel de Estoque: contexto de scroll para stock-header sticky */
+    #panel-1 {
+      display: none;
+      -webkit-flex-direction: column;
+      flex-direction: column;
+    }
+
+    #panel-1.active {
+      display: -webkit-flex;
+      display: flex;
+      -webkit-flex-direction: column;
+      flex-direction: column;
+    }
+
+    /* Remove aparência nativa do Safari em inputs de texto e número */
+    input[type="text"],
+    input[type="number"],
+    input[type="search"] {
+      -webkit-appearance: none;
+      appearance: none;
+      border-radius: 0;
+    }
+
+    /* EMPTY STATE */
+    .empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 56px 32px 40px;
+      gap: 10px;
+      min-height: 240px;
+    }
+
+    .empty-icon {
+      font-size: 40px;
+      line-height: 1;
+      margin-bottom: 4px;
+      opacity: 0.85;
+    }
+
+    .empty-title {
+      font-size: var(--fs-md);
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.2px;
+    }
+
+    .empty-sub {
+      font-size: var(--fs-sm);
+      color: var(--text3);
+      line-height: 1.5;
+      max-width: 240px;
+    }
+
+    .empty-action {
+      margin-top: 8px;
+      font-size: var(--fs-sm);
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--accent-light);
+      border: 1px solid var(--row-ok-border);
+      border-radius: 9px;
+      padding: 8px 18px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background var(--transition), transform var(--transition);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .empty-action:active {
+      transform: scale(0.94);
+    }
+
+    /* SECTION LABEL */
+    .sec-label {
+      font-size: var(--fs-sm);
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      padding: 10px 24px 6px;
+      text-transform: capitalize;
+      font-family: 'DM Mono', monospace;
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+      opacity: 0.92;
+    }
+
+    /* .sec-label::before {
+      content: '';
+      display: inline-block;
+      width: 3px;
+      height: 11px;
+      border-radius: 2px;
+      background: var(--accent);
+      flex-shrink: 0;
+      opacity: 0.7;
+    } */
+
+    /* ITEM ROW */
+    .item-row {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      /* border-bottom: 1px solid var(--border); */
+      gap: 12px;
+      transition: background var(--transition);
+    }
+
+    /* Status indicator: minimalist border-left only — no background tinting */
+    .stock-row.row-off,
+    .item-row.row-off {
+      border-left: 3px solid var(--warn);
+      padding-left: 13px;
+    }
+
+    .stock-row.row-ok,
+    .item-row.row-ok {
+      border-left: 3px solid var(--accent);
+      padding-left: 13px;
+    }
+
+    .stock-row.row-crit,
+    .item-row.row-crit {
+      border-left: 3px solid var(--crit);
+      padding-left: 13px;
+    }
+
+    .stock-row.row-warn,
+    .item-row.row-warn {
+      border-left: 3px solid var(--warn);
+      padding-left: 13px;
+    }
+
+    .item-cb {
+      width: 20px;
+      height: 20px;
+      border-radius: 7px;
+      border: 1.5px solid var(--border2);
+      background: var(--surface);
+      flex-shrink: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
+    }
+
+    .item-cb:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 121, 107, 0.10);
+    }
+
+    .item-cb.on {
+      background: var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 2px 6px rgba(0, 121, 107, 0.25);
+    }
+
+    [data-theme="dark"] .item-cb.on {
+      box-shadow: 0 2px 6px rgba(38, 198, 186, 0.25);
+    }
+
+    .item-cb svg {
+      display: none;
+      color: #fff;
+    }
+
+    .item-cb.on svg {
+      display: block;
+    }
+
+    .item-info {
+      flex: 1;
+      min-width: 0;
+      cursor: pointer;
+    }
+
+    .item-name {
+      font-size: var(--fs-base);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .item-sub {
+      font-size: var(--fs-xs);
+      color: var(--text2);
+      font-family: 'DM Mono', monospace;
+      margin-top: 2px;
+    }
+
+    /* .status-tag {
+      font-size: var(--fs-xs);
+      font-weight: 500;
+      border-radius: 6px;
+      padding: 2px 8px;
+      flex-shrink: 0;
+      font-family: 'DM Mono', monospace;
+    } */
+
+    .tag-ok {
+      background: var(--accent-light);
+      color: var(--accent-text);
+    }
+
+    .tag-warn {
+      background: var(--warn-light);
+      color: var(--warn);
+    }
+
+    .tag-crit {
+      background: var(--crit-light);
+      color: var(--crit);
+    }
+
+    /* ===================== SWIPE ROW SYSTEM ===================== */
+    .swipe-wrap {
+      position: relative;
+      overflow: hidden;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .swipe-bg {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      pointer-events: none;
+    }
+
+    .swipe-bg-left {
+      background: linear-gradient(90deg, var(--crit) 70%, transparent 100%);
+      justify-content: flex-start;
+      padding-left: 20px;
+      color: #fff;
+      font-size: 18px;
+      opacity: 0;
+      transition: opacity 0.12s ease;
+    }
+
+    .swipe-bg-right {
+      background: linear-gradient(270deg, var(--accent) 70%, transparent 100%);
+      justify-content: flex-end;
+      padding-right: 20px;
+      color: #fff;
+      font-size: 18px;
+      opacity: 0;
+      transition: opacity 0.12s ease;
+    }
+
+    .swipe-content {
+      position: relative;
+      z-index: 1;
+      background: inherit;
+      will-change: transform;
+      transition: transform 0.22s cubic-bezier(0.25, 1, 0.5, 1);
+      touch-action: pan-y;
+    }
+
+    .swipe-wrap.swiping .swipe-content {
+      transition: none;
+    }
+
+    .swipe-wrap.snap-back .swipe-content {
+      transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    /* ===================== FAVORITE BUTTON (ícone limpo) ===================== */
+    .fav-btn {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text3);
+      background: none;
+      border: none;
+      border-radius: 8px;
+      padding: 0;
+      flex-shrink: 0;
+      transition: color var(--transition), transform var(--transition);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    .fav-btn:active {
+      transform: scale(0.82);
+    }
+
+    .fav-btn.on {
+      color: #F5C518;
+    }
+
+    [data-theme="dark"] .fav-btn.on {
+      color: #F5C518;
+    }
+
+    [data-theme="dark"] .filter-btn[data-filter="fav"] {
+      background: #2E2A18;
+      color: #F5C518;
+    }
+
+    /* Item row when favorited — star button only; no border-left (avoids conflict with status indicator) */
+    /* .item-row.fav-on, .stock-row.fav-on, .buy-row.fav-on — border suppressed intentionally */
+
+    /* Sort button active state for fav mode */
+
+    /* STOCK ROWS */
+    .stock-header {
+      display: -webkit-flex;
+      display: flex;
+      -webkit-align-items: center;
+      align-items: center;
+      padding: 8px 16px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      position: -webkit-sticky;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      /* Sombra sutil ao ficar fixo */
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+
+    .stock-header-name {
+      flex: 1;
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      color: var(--text3);
+      text-transform: uppercase;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .stock-header-col {
+      width: 92px;
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      color: var(--text3);
+      text-align: center;
+      text-transform: uppercase;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .stock-row {
+      display: flex;
+      align-items: center;
+      padding: 10px 16px;
+      /* border-bottom: 1px solid var(--border); */
+      gap: 10px;
+    }
+
+    .stock-name {
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* STEPPER */
+    .stepper-wrap {
+      width: 92px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .stepper {
+      display: flex;
+      align-items: center;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--surface);
+      width: 100%;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+
+    .stepper:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2.5px rgba(0, 121, 107, 0.12);
+    }
+
+    [data-theme="dark"] .stepper:focus-within {
+      box-shadow: 0 0 0 2.5px rgba(38, 198, 186, 0.15);
+    }
+
+    .stepper-btn {
+      width: 30px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: 300;
+      color: var(--text2);
+      background: var(--surface2);
+      border: none;
+      flex-shrink: 0;
+      transition: background var(--transition), color var(--transition);
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    .stepper-btn:active {
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+
+    .stepper-btn.minus {
+      border-right: 1px solid var(--border);
+      border-radius: 0;
+    }
+
+    .stepper-btn.plus {
+      border-left: 1px solid var(--border);
+      border-radius: 0;
+    }
+
+    .stepper-val {
+      flex: 1;
+      text-align: center;
+      font-size: var(--fs-sm);
+      font-family: 'DM Mono', monospace;
+      font-weight: 600;
+      color: var(--text);
+      border: none;
+      background: transparent;
+      outline: none;
+      width: 0;
+      min-width: 0;
+      padding: 0;
+      cursor: text;
+    }
+
+    /* Remove native number spinners */
+    .stepper-val::-webkit-inner-spin-button,
+    .stepper-val::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .stepper-val[type=number] {
+      -moz-appearance: textfield;
+    }
+
+    .stepper-label {
+      font-size: 10px;
+      color: var(--text3);
+      text-transform: uppercase;
+      font-family: 'DM Mono', monospace;
+      letter-spacing: 0.05em;
+    }
+
+    /* COMPRAS */
+    .buy-row {
+      display: flex;
+      align-items: flex-start;
+      padding: 12px 16px;
+      /* border-bottom: 1px solid var(--row-crit-border); */
+      gap: 12px;
+      border-left: 3px solid var(--crit);
+    }
+
+    .buy-row.done {
+      opacity: 0.5;
+      background: var(--surface2);
+      border-bottom-color: var(--border);
+    }
+
+    .buy-row.done .item-name {
+      text-decoration: line-through;
+    }
+
+    .buy-cb {
+      width: 20px;
+      height: 20px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border2);
+      background: var(--surface);
+      flex-shrink: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .buy-cb.on {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .buy-cb svg {
+      display: none;
+      color: #fff;
+    }
+
+    .buy-cb.on svg {
+      display: block;
+    }
+
+    .buy-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .buy-deficit {
+      flex-shrink: 0;
+      margin-left: auto;
+      font-size: max(16px, var(--fs-sm));
+      font-family: 'DM Mono', monospace;
+      color: var(--crit);
+      font-weight: 700;
+      background: var(--crit-light);
+      border: 1.5px solid var(--row-crit-border);
+      border-radius: 8px;
+      padding: 3px 10px;
+      min-width: 38px;
+      text-align: center;
+    }
+
+    /* FOOTER */
+    #footer {
+      position: -webkit-sticky;
+      position: sticky;
+      bottom: 0;
+      background: var(--footer-bg);
+      border-top: 1px solid var(--header-border);
+      padding: 8px 12px;
+      padding-bottom: max(8px, calc(8px + env(safe-area-inset-bottom, 0px)));
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    /* Grupo de ícones à esquerda */
+    #footer-left {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    /* Separador vertical */
+    /* .footer-divider {
+      width: 1px;
+      height: 20px;
+      background: var(--border2, var(--border));
+      flex-shrink: 0;
+      margin: 0 4px;
+    } */
+
+    /* Botões de ícone no rodapé */
+    .fbtn {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text2);
+      flex-shrink: 0;
+      transition: background var(--transition), color var(--transition),
+        border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: 0 1px 3px rgba(13, 27, 42, 0.06);
+    }
+
+    .fbtn:active {
+      transform: scale(0.88);
+    }
+
+    .fbtn:hover {
+      background: var(--border);
+      box-shadow: 0 2px 6px rgba(13, 27, 42, 0.10);
+    }
+
+    /* Botão Compartilhar */
+    #share-btn {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: var(--fs-sm);
+      font-weight: 600;
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent) 0%, #00897B 100%);
+      border: none;
+      border-radius: 10px;
+      padding: 8px 16px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background var(--transition), transform var(--transition),
+        box-shadow var(--transition);
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: 0 3px 10px rgba(0, 121, 107, 0.30);
+    }
+
+    #share-btn:hover {
+      background: linear-gradient(135deg, #00695C 0%, #00796B 100%);
+      box-shadow: 0 4px 14px rgba(0, 121, 107, 0.38);
+    }
+
+    #share-btn:active {
+      transform: scale(0.93);
+      box-shadow: none;
+    }
+
+    [data-theme="dark"] #share-btn {
+      background: linear-gradient(135deg, #00897B 0%, #26C6BA 100%);
+      box-shadow: 0 3px 10px rgba(38, 198, 186, 0.28);
+    }
+
+    [data-theme="dark"] #share-btn:hover {
+      background: linear-gradient(135deg, #26C6BA 0%, #00BCD4 100%);
+    }
+
+    /* Botão Adicionar */
+    #add-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: var(--fs-sm);
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--accent-light);
+      border: 1.5px solid var(--row-ok-border);
+      border-radius: 10px;
+      padding: 8px 14px;
+      cursor: pointer;
+      flex-shrink: 0;
+      margin-left: auto;
+      transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: 0 1px 4px rgba(0, 121, 107, 0.12);
+    }
+
+    #add-btn:hover {
+      background: var(--filter-ok-bg);
+      box-shadow: 0 2px 8px rgba(0, 121, 107, 0.18);
+    }
+
+    #add-btn:active {
+      transform: scale(0.93);
+    }
+
+    /* MODAL */
+    #overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      background: rgba(13, 27, 42, 0.55);
+      z-index: 200;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-justify-content: center;
+      justify-content: center;
+      padding: 20px;
+      -webkit-backdrop-filter: blur(4px);
+      backdrop-filter: blur(4px);
+    }
+
+    #overlay.open {
+      display: -webkit-flex;
+      display: flex;
+    }
+
+    .modal {
+      background: var(--surface);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 360px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      animation: slideUp 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 20px 60px rgba(13, 27, 42, 0.22);
+    }
+
+    [data-theme="dark"] .modal {
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+    }
+
+    @keyframes slideUp {
+      from {
+        -webkit-transform: translateY(24px) scale(0.97);
+        transform: translateY(24px) scale(0.97);
+        opacity: 0;
+      }
+
+      to {
+        -webkit-transform: translateY(0) scale(1);
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+    }
+
+    @-webkit-keyframes slideUp {
+      from {
+        -webkit-transform: translateY(24px) scale(0.97);
+        opacity: 0;
+      }
+
+      to {
+        -webkit-transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+    }
+
+    .modal-header {
+      padding: 22px 22px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+    }
+
+    .modal-title {
+      font-size: var(--fs-md);
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+
+    .modal-sub {
+      font-size: var(--fs-xs);
+      color: var(--text2);
+      font-family: 'DM Mono', monospace;
+      margin-top: 5px;
+      line-height: 1.4;
+    }
+
+    .modal-body {
+      padding: 16px 22px 20px;
+    }
+
+    .modal-label {
+      font-size: var(--fs-sm);
+      color: var(--text2);
+      margin-bottom: 8px;
+      display: block;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+    }
+
+    .modal-input-big {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      font-size: var(--fs-xl);
+      font-family: 'DM Mono', monospace;
+      font-weight: 500;
+      text-align: center;
+      background: var(--surface2);
+      color: var(--text);
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+
+    .modal-input-big:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 121, 107, 0.12);
+    }
+
+    [data-theme="dark"] .modal-input-big:focus {
+      box-shadow: 0 0 0 3px rgba(38, 198, 186, 0.14);
+    }
+
+    .modal-foot {
+      display: flex;
+      border-top: 1px solid var(--border);
+    }
+
+    .modal-btn {
+      flex: 1;
+      padding: 16px;
+      text-align: center;
+      font-size: var(--fs-sm);
+      cursor: pointer;
+      font-weight: 600;
+      transition: background var(--transition);
+    }
+
+    .modal-btn:hover {
+      background: var(--surface2);
+    }
+
+    .modal-btn.cancel {
+      color: var(--text2);
+      border-right: 1px solid var(--border);
+    }
+
+    .modal-btn.confirm {
+      color: var(--accent);
+    }
+
+    .modal-btn.danger-btn {
+      color: var(--crit);
+    }
+
+    /* CONFIG PANEL */
+    .cfg-row {
+      display: flex;
+      align-items: center;
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      gap: 14px;
+      cursor: pointer;
+    }
+
+    .cfg-row:hover {
+      background: var(--surface2);
+    }
+
+    .cfg-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .cfg-icon.exp {
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+
+    .cfg-icon.imp {
+      background: #E3F0FC;
+      color: #1565C0;
+    }
+
+    [data-theme="dark"] .cfg-icon.imp {
+      background: #0D1E3A;
+      color: #64B5F6;
+    }
+
+    .cfg-icon.cpy {
+      background: var(--purple-light);
+      color: var(--purple);
+    }
+
+    .cfg-icon.theme {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .cfg-text {
+      flex: 1;
+    }
+
+    .cfg-title {
+      font-size: var(--fs-base);
+      font-weight: 500;
+    }
+
+    .cfg-desc {
+      font-size: var(--fs-xs);
+      color: var(--text2);
+      margin-top: 2px;
+    }
+
+    .cfg-note {
+      font-size: 10px;
+      color: var(--text3);
+      padding: 16px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* TOAST */
+    #toast {
+      position: fixed;
+      bottom: 88px;
+      left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      background: var(--text);
+      color: var(--surface);
+      font-size: var(--fs-sm);
+      font-weight: 500;
+      border-radius: 24px;
+      padding: 11px 22px;
+      opacity: 0;
+      transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 300;
+      white-space: nowrap;
+      pointer-events: none;
+      box-shadow: 0 8px 24px rgba(13, 27, 42, 0.22);
+      letter-spacing: 0.01em;
+    }
+
+    [data-theme="dark"] #toast {
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.40);
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* BACKUP BANNER */
+    #backup-banner {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: var(--warn-light);
+      border-bottom: 1px solid var(--row-off-border);
+      padding: 10px 16px;
+      font-size: var(--fs-xs);
+      color: var(--warn);
+      font-weight: 500;
+      font-family: 'DM Mono', monospace;
+      cursor: pointer;
+      transition: background var(--transition);
+    }
+
+    #backup-banner.visible {
+      display: flex;
+    }
+
+    #backup-banner:hover {
+      background: var(--filter-warn-hover);
+    }
+
+    #backup-banner .banner-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    #backup-banner .banner-text {
+      flex: 1;
+    }
+
+    #backup-banner .banner-close {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+      color: var(--warn);
+    }
+
+    /* INSTALL BANNER (PWA) */
+    #install-banner {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: var(--accent-light);
+      border-bottom: 1px solid var(--row-ok-border);
+      padding: 10px 16px;
+      font-size: var(--fs-xs);
+      color: var(--accent);
+      font-weight: 500;
+      cursor: pointer;
+      transition: background var(--transition);
+    }
+
+    #install-banner.visible {
+      display: flex;
+    }
+
+    #install-banner:hover {
+      background: var(--filter-ok-hover, #c8dfc9);
+    }
+
+    #install-banner .banner-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    #install-banner .banner-text {
+      flex: 1;
+      line-height: 1.4;
+    }
+
+    #install-banner .banner-text strong {
+      display: block;
+      font-size: var(--fs-sm);
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    #install-banner .install-cta {
+      background: var(--accent);
+      color: #fff;
+      border-radius: 7px;
+      padding: 5px 12px;
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    #install-banner .banner-close {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+      color: var(--accent);
+    }
+
+    /* SW update banner */
+    #update-banner {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: #ECEDFF;
+      border-bottom: 1px solid #C5C8F0;
+      padding: 10px 16px;
+      font-size: var(--fs-xs);
+      color: var(--purple);
+      font-weight: 500;
+      cursor: pointer;
+      transition: background var(--transition);
+    }
+
+    [data-theme="dark"] #update-banner {
+      background: #181C42;
+      border-color: #2A2E68;
+    }
+
+    #update-banner.visible {
+      display: flex;
+    }
+
+    #update-banner .banner-text {
+      flex: 1;
+    }
+
+    #update-banner .update-cta {
+      background: var(--purple);
+      color: #fff;
+      border-radius: 7px;
+      padding: 5px 12px;
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* SHARE BUTTON (cfg-icon.share) */
+    .cfg-icon.share {
+      background: var(--filter-ok-bg);
+      color: var(--accent);
+    }
+
+    /* AUTOCOMPLETE DROPDOWN */
+    #ac-dropdown {
+      position: fixed;
+      background: var(--surface);
+      border: 1.5px solid var(--accent);
+      border-radius: 14px;
+      box-shadow: 0 10px 32px rgba(13, 27, 42, 0.16);
+      z-index: 9999;
+      min-width: 160px;
+      max-width: 320px;
+      overflow: hidden;
+      display: none;
+      flex-direction: column;
+      animation: acFadeIn 0.14s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    [data-theme="dark"] #ac-dropdown {
+      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.35);
+    }
+
+    #ac-dropdown.open {
+      display: flex;
+    }
+
+    @keyframes acFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.98);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .ac-header {
+      font-size: 10px;
+      font-family: 'DM Mono', monospace;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: var(--accent);
+      padding: 8px 12px 6px;
+      border-bottom: 1px solid var(--border);
+      background: var(--accent-light);
+    }
+
+    .ac-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      font-size: var(--fs-sm);
+      font-family: 'DM Mono', monospace;
+      color: var(--text);
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background var(--transition);
+      user-select: none;
+    }
+
+    .ac-item:last-child {
+      border-bottom: none;
+    }
+
+    .ac-item:hover,
+    .ac-item.focused {
+      background: var(--accent-light);
+      color: var(--accent-text);
+    }
+
+    .ac-item .ac-icon {
+      font-size: 14px;
+      flex-shrink: 0;
+      width: 20px;
+      text-align: center;
+    }
+
+    .ac-item .ac-label {
+      font-weight: 600;
+    }
+
+    .ac-item .ac-match {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .ac-empty {
+      padding: 10px 12px;
+      font-size: var(--fs-xs);
+      font-family: 'DM Mono', monospace;
+      color: var(--text3);
+      font-style: italic;
+    }
+
+    @media (min-width: 520px) {
+      body {
+        padding: 24px 0;
+        background: linear-gradient(160deg, #D4E8ED 0%, #E8EEF5 50%, #D8E4F0 100%);
+      }
+
+      [data-theme="dark"] body {
+        background: linear-gradient(160deg, #070E18 0%, #0B1520 50%, #070D18 100%);
+      }
+
+      #app {
+        border-radius: 24px;
+        min-height: auto;
+        max-height: 90vh;
+        box-shadow: 0 24px 80px rgba(13, 27, 42, 0.20);
+      }
+
+      [data-theme="dark"] #app {
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.50);
+      }
+
+      #panels {
+        max-height: calc(90vh - 180px);
+      }
+    }
+
+    /* Safari: stepper-val font-size para evitar zoom */
+    .stepper-val {
+      font-size: max(16px, var(--fs-sm));
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <div id="header">
+      <div id="header-top">
+        <div id="app-title"><a href="https://linktr.ee/magasine" target="_blank" rel="noopener" id="title-link"
+            title="Credits: @magasine">Shop List</a> <span id="title-sub"></span></div>
+
+        <div class="filter-badge-group">
+          <!-- Ordenação -->
+          <div id="btn-sort" title="Sort (A-Z, #-Z, ⭐)" onclick="toggleSortMode()">
+            <span id="sort-icon"><span
+                style="font-size:12px;font-family:'DM Mono',monospace;font-weight:700;letter-spacing:-0.5px">A·Z</span></span>
+          </div>
+
+          <!-- Filtros rápidos -->
+          <div class="filter-btn" data-filter="fav" title="Filter favorites" onclick="applyQuickFilter('fav')">⭐</div>
+          <!-- <div class="filter-btn" data-filter="warn" title="No limite" onclick="applyQuickFilter('warn')">🟡</div>
+          <div class="filter-btn" data-filter="crit" title="Faltando" onclick="applyQuickFilter('crit')">🔴</div> -->
+
+          <!-- Divisor -->
+          <!-- <div class="filter-divider"></div> -->
+
+          <!-- Busca -->
+          <div class="hbtn" id="btn-search" title="Search" onclick="toggleSearch()">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </div>
+        </div>
+
+        <div class="right-buttons">
+          <div class="hbtn" id="btn-close" title="Close" onclick="closeApp()">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div id="search-bar">
+        <div id="search-wrap">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input id="search-input" type="text" placeholder="search by name, #category…" oninput="onSearch()"
+            autocomplete="off" onkeydown="acOnKeydown(event)" onblur="setTimeout(acClose,150)" />
+          <span id="search-clear" onclick="clearSearch()">clear</span>
+        </div>
+      </div>
+
+      <div id="tabs">
+        <div class="tab active" onclick="switchTab(0)">All<span class="tab-badge" id="badge-0">0</span></div>
+        <div class="tab" onclick="switchTab(1)">Selected<span class="tab-badge" id="badge-1">0</span></div>
+        <div class="tab" onclick="switchTab(2)">Refill<span class="tab-badge" id="badge-2">0</span></div>
+      </div>
+    </div>
+
+    <div id="backup-banner" onclick="exportDataFromBanner()">
+      <span class="banner-icon">💾</span>
+      <span class="banner-text">Many changes made — save a backup now!</span>
+      <span class="banner-close" onclick="dismissBanner(event)">✕</span>
+    </div>
+
+    <div id="install-banner">
+      <span class="banner-icon">📲</span>
+      <span class="banner-text">
+        <strong>Install Shop List</strong>
+        Use offline, like a native app
+      </span>
+      <span class="install-cta" onclick="triggerInstall(event)">Install</span>
+      <span class="banner-close" onclick="dismissInstallBanner(event)">✕</span>
+    </div>
+
+    <div id="update-banner">
+      <span class="banner-icon">🔄</span>
+      <span class="banner-text">New version available!</span>
+      <span class="update-cta" onclick="applyUpdate()">Update</span>
+    </div>
+
+    <div id="panels">
+      <div class="panel active" id="panel-0"></div>
+      <div class="panel" id="panel-1"></div>
+      <div class="panel" id="panel-2"></div>
+    </div>
+
+    <div id="footer">
+
+      <!-- Grupo de ícones esquerdo -->
+      <div id="footer-left">
+
+        <!-- Alternar tema -->
+        <div class="fbtn" id="footer-theme-btn" title="Toggle theme" onclick="toggleTheme()">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+        </div>
+
+        <!-- Exportar dados -->
+        <div class="fbtn" title="Export data (.json)" onclick="exportData()">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        </div>
+
+        <!-- Importar dados -->
+        <div class="fbtn" title="Import data (.json)" onclick="triggerImport()">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+        </div>
+
+        <!-- Instalar PWA -->
+        <div class="fbtn" title="Install on device" onclick="showPWAInstructions()">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+            <line x1="12" y1="18" x2="12.01" y2="18" stroke-width="3" stroke-linecap="round" />
+          </svg>
+        </div>
+      </div>
+
+      <!-- <div class="footer-divider"></div> -->
+
+      <!-- Adicionar -->
+      <div id="add-btn" onclick="openAddModal()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        Add
+      </div>
+
+      <!-- Compartilhar — pill destacado -->
+      <div id="share-btn" title="Share shopping list" onclick="copyBuyList()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <circle cx="18" cy="5" r="3" />
+          <circle cx="6" cy="12" r="3" />
+          <circle cx="18" cy="19" r="3" />
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+        </svg>
+        Share
+      </div>
+
+    </div>
+  </div>
+
+  <div id="overlay" onclick="overlayClick(event)">
+    <div class="modal" id="modal-box"></div>
+  </div>
+
+  <div id="ac-dropdown"></div>
+  <div id="toast"></div>
+  <input type="file" id="file-input" accept=".json" style="display:none" onchange="importFile(event)">
+
+  <script>
+    // ==================== ICONS CENTRALIZADOS ====================
+    const ICONS = {
+      check: `<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`,
+      chevron: `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>`,
+      search: `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>`,
+      edit: `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+      trash: `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`,
+      plus: `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>`,
+      settings: `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>`,
+      close: `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>`,
+      starOff: `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
+      starOn: `<svg width="14" height="14" fill="currentColor" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
+    };
+
+    // ==================== CONSTANTES E VARIÁVEIS ====================
+    const STORAGE_KEY = 'Shop_List_v20260512';
+    const THEME_KEY = 'Shop_List_theme';
+    const UI_KEY = 'Shop_List_ui';
+    const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
+    let items = [];
+    let currentTab = 0;
+    let searchQuery = '';
+    let pendingDoneId = null;
+    let changeCounter = 0;
+    let bannerDismissed = false;
+    let sortMode = 'az';          // 'az' | 'cat' | 'fav'
+    let activeQuickFilter = '';   // '' | 'fav' | 'warn' | 'crit'
+
+    // ==================== UTILITÁRIOS ====================
+    function uid() {
+      return 'id-' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36);
+    }
+
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(el._t);
+      el._t = setTimeout(() => el.classList.remove('show'), 2200);
+    }
+
+    // ==================== LOCALSTORAGE COM TRATAMENTO DE ERRO ====================
+    let startupSavedAt = null; // timestamp da base encontrada no storage
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          // Suporte aos dois formatos: legado (array direto) e novo (objeto com .data)
+          if (Array.isArray(parsed)) {
+            items = parsed;
+            startupSavedAt = null; // base legada sem timestamp
+          } else if (parsed && Array.isArray(parsed.data)) {
+            items = parsed.data;
+            startupSavedAt = parsed.savedAt || null;
+          } else {
+            throw new Error('Formato de dados desconhecido');
+          }
+        } else {
+          items = defaultItems();
+          startupSavedAt = null;
+        }
+      } catch (e) {
+        console.error('Erro ao carregar dados do localStorage:', e);
+        toast('Corrupted data. Starting with default values.');
+        items = defaultItems();
+        startupSavedAt = null;
+        try { localStorage.removeItem(STORAGE_KEY); } catch (_) { }
+      }
+
+      // Carregar tema
+      try {
+        const savedTheme = localStorage.getItem(THEME_KEY) || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      } catch (e) {
+        console.warn('Erro ao carregar tema:', e);
+      }
+
+      // Carregar preferências de UI (sortMode, filtro ativo)
+      try {
+        const rawUI = localStorage.getItem(UI_KEY);
+        if (rawUI) {
+          const ui = JSON.parse(rawUI);
+          if (['az', 'cat', 'fav'].includes(ui.sortMode)) sortMode = ui.sortMode;
+          if (['', 'fav', 'warn', 'crit'].includes(ui.activeQuickFilter)) activeQuickFilter = ui.activeQuickFilter;
+        }
+      } catch (e) {
+        console.warn('Erro ao carregar preferências de UI:', e);
+      }
+    }
+
+    // Formata o timestamp salvo de forma legível e calcula a idade da base
+    function formatSavedAt(isoStr) {
+      if (!isoStr) return { label: 'unknown date', age: '' };
+      const d = new Date(isoStr);
+      if (isNaN(d)) return { label: 'invalid date', age: '' };
+
+      const now = new Date();
+      const diffMs = now - d;
+      const diffMin = Math.floor(diffMs / 60000);
+      const diffH = Math.floor(diffMs / 3600000);
+      const diffD = Math.floor(diffMs / 86400000);
+
+      const pad = n => String(n).padStart(2, '0');
+      const label = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`
+        + ` às ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+      let age;
+      if (diffMin < 2) age = 'just now';
+      else if (diffMin < 60) age = `${diffMin} minutes ago`;
+      else if (diffH < 24) age = `${diffH} hour${diffH > 1 ? 's' : ''} ago`;
+      else if (diffD === 1) age = 'yesterday';
+      else if (diffD < 7) age = `${diffD} days ago`;
+      else if (diffD < 30) age = `${Math.floor(diffD / 7)} week${Math.floor(diffD / 7) > 1 ? 's' : ''} ago`;
+      else age = `${Math.floor(diffD / 30)} month(s) ago`;
+
+      return { label, age };
+    }
+
+    function showStartupDialog() {
+      if (!startupSavedAt && items !== defaultItems()) {
+        // Legacy base without timestamp — don't block the user
+        return;
+      }
+      if (!startupSavedAt) return; // first run, no prior data
+
+      const { label, age } = formatSavedAt(startupSavedAt);
+      const count = items.length;
+      const inStock = items.filter(i => i.inStock).length;
+
+      const diffD = Math.floor((new Date() - new Date(startupSavedAt)) / 86400000);
+      const ageColor = diffD < 7 ? 'var(--accent)' : diffD < 30 ? 'var(--warn)' : 'var(--crit)';
+      const ageIcon = diffD < 7 ? '🟢' : diffD < 30 ? '🟡' : '🔴';
+
+      openModal(`
+        <div class="modal-header">
+          <div class="modal-title">Local database</div>
+          <div class="modal-sub">Startup check</div>
+        </div>
+        <div class="modal-body">
+          <div style="
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 4px;
+          ">
+            <div style="font-size:var(--fs-xs);color:var(--text3);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.06em">Last saved</div>
+            <div style="font-size:var(--fs-md);font-weight:600;color:var(--text)">${label}</div>
+            <div style="font-size:var(--fs-sm);color:${ageColor};font-weight:500">${ageIcon} ${age}</div>
+          </div>
+          <div style="
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+          ">
+            <div style="
+              flex: 1;
+              background: var(--surface2);
+              border: 1px solid var(--border);
+              border-radius: 8px;
+              padding: 10px 12px;
+              text-align: center;
+            ">
+              <div style="font-size:20px;font-weight:700;color:var(--text)">${count}</div>
+              <div style="font-size:var(--fs-xs);color:var(--text3);font-family:'DM Mono',monospace">items</div>
+            </div>
+            <div style="
+              flex: 1;
+              background: var(--accent-light);
+              border: 1px solid var(--row-ok-border);
+              border-radius: 8px;
+              padding: 10px 12px;
+              text-align: center;
+            ">
+              <div style="font-size:20px;font-weight:700;color:var(--accent)">${inStock}</div>
+              <div style="font-size:var(--fs-xs);color:var(--accent);font-family:'DM Mono',monospace">in stock</div>
+            </div>
+          </div>
+          <div style="font-size:var(--fs-xs);color:var(--text3);margin-top:12px;line-height:1.5">
+            Continue with this data or replace it by importing a more recent backup?
+          </div>
+        </div>
+        <div class="modal-foot">
+          <div class="modal-btn cancel" onclick="closeModal()">Use this data</div>
+          <div class="modal-btn confirm" onclick="closeModal(); triggerImport()">Import new data</div>
+        </div>
+      `);
+    }
+
+    function save() {
+      try {
+        // Remove _done antes de persistir — é estado de sessão, não de dados
+        const toSave = items.map(({ _done, ...rest }) => rest);
+        const payload = { savedAt: new Date().toISOString(), data: toSave };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        changeCounter++;
+        if (changeCounter >= BACKUP_THRESHOLD && !bannerDismissed) {
+          document.getElementById('backup-banner').classList.add('visible');
+        }
+      } catch (e) {
+        console.error('Erro ao salvar no localStorage:', e);
+        toast('Error saving data locally');
+      }
+    }
+
+    function saveUI() {
+      try {
+        localStorage.setItem(UI_KEY, JSON.stringify({ sortMode, activeQuickFilter }));
+      } catch (e) {
+        console.warn('Erro ao salvar preferências de UI:', e);
+      }
+    }
+
+    function exportDataFromBanner() {
+      exportDataSilent();
+      document.getElementById('backup-banner').classList.remove('visible');
+      changeCounter = 0;
+      bannerDismissed = false;
+      toast('Backup saved successfully!');
+    }
+
+    function dismissBanner(e) {
+      e.stopPropagation();
+      document.getElementById('backup-banner').classList.remove('visible');
+      bannerDismissed = true;
+      changeCounter = 0;
+      // Reativa o banner após 5 minutos (300 000 ms)
+      setTimeout(() => { bannerDismissed = false; }, 5 * 60 * 1000);
+    }
+
+    function exportDataSilent() {
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}.${pad(now.getHours())}${pad(now.getMinutes())}`;
+      const filename = `${ts}-Shop-List.json`;
+      const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function defaultItems() {
+      return [
+        { id: uid(), name: 'Sugar', desc: 'kg #grains', inStock: true, min: 2, qty: 4, fav: false },
+        { id: uid(), name: 'White rice', desc: 'kg #grains', inStock: true, min: 3, qty: 1, fav: false },
+        { id: uid(), name: 'Olive oil', desc: '500ml #condiments', inStock: false, min: 1, qty: 0, fav: false },
+        { id: uid(), name: 'Wheat flour', desc: 'kg #grains', inStock: true, min: 2, qty: 2, fav: false },
+        { id: uid(), name: 'Black beans', desc: 'kg #grains', inStock: false, min: 2, qty: 0, fav: false },
+        { id: uid(), name: 'Whole milk', desc: 'Lt #dairy', inStock: true, min: 4, qty: 5, fav: false },
+        { id: uid(), name: 'Butter', desc: '200g #dairy', inStock: true, min: 1, qty: 3, fav: false },
+        { id: uid(), name: 'Soybean oil', desc: '900ml #condiments', inStock: true, min: 2, qty: 2, fav: false },
+        { id: uid(), name: 'Table salt', desc: '200g #spices', inStock: true, min: 1, qty: 3, fav: false },
+        { id: uid(), name: 'Ground coffee', desc: '500g #beverages', inStock: true, min: 2, qty: 1, fav: false },
+      ];
+    }
+
+    // ==================== STATUS ====================
+    function getStatus(item) {
+      if (!item.inStock) return 'off';
+      if (item.qty > item.min) return 'ok';
+      if (item.qty === item.min) return 'warn';
+      return 'crit';
+    }
+
+    function statusLabel(s) {
+      if (s === 'ok') return '🟢';
+      if (s === 'warn') return '🟡';
+      if (s === 'crit') return '🔴';
+      return '';
+    }
+
+    function fuzzyMatch(text, query) {
+      if (!query) return true;
+      const t = text.toLowerCase();
+      const q = query.toLowerCase();
+      let qi = 0;
+      for (let i = 0; i < t.length && qi < q.length; i++) {
+        if (t[i] === q[qi]) qi++;
+      }
+      return qi === q.length;
+    }
+
+    function filteredItems() {
+      let result = [...items];
+
+      // filtro rápido
+      if (activeQuickFilter === 'fav') {
+        result = result.filter(it => it.fav);
+      } else if (activeQuickFilter) {
+        result = result.filter(it => getStatus(it) === activeQuickFilter);
+      }
+
+      // busca textual
+      const q = searchQuery.trim();
+
+      if (q) {
+        result = result.filter(it => {
+          const s = getStatus(it);
+          const statusText = s === 'off' ? 'inactive' : statusLabel(s);
+
+          return fuzzyMatch(
+            it.name + ' ' + it.desc + ' ' + statusText,
+            q
+          );
+        });
+      }
+
+      return result;
+    }
+
+    function stockItems() { return filteredItems().filter(it => it.inStock); }
+    function buyItems() { return filteredItems().filter(it => it.inStock && it.qty < it.min); }
+
+    // Extrai a primeira categoria (#tag) do campo desc de um item
+    function getCategoryOf(it) {
+      if (!it.desc) return '—';
+      const m = it.desc.match(/#([^\s·,]+)/);
+      return m ? m[1].toLowerCase() : '—';
+    }
+
+    // Ordena conforme o modo atual
+    function sorted(arr) {
+      const collator = new Intl.Collator('en', { sensitivity: 'base' });
+      if (sortMode === 'az') {
+        return [...arr].sort((a, b) => collator.compare(a.name, b.name));
+      }
+      if (sortMode === 'cat') {
+        return [...arr].sort((a, b) => {
+          const ca = getCategoryOf(a), cb = getCategoryOf(b);
+          if (ca !== cb) return collator.compare(ca, cb);
+          return collator.compare(a.name, b.name);
+        });
+      }
+      // Modo fav: favoritos primeiro, depois A-Z dentro de cada grupo
+      return [...arr].sort((a, b) => {
+        const fa = a.fav ? 0 : 1, fb = b.fav ? 0 : 1;
+        if (fa !== fb) return fa - fb;
+        return collator.compare(a.name, b.name);
+      });
+    }
+
+    // Retorna o "rótulo de seção" do item conforme o modo de ordenação
+    function sectionKeyOf(it) {
+      if (sortMode === 'az') {
+        // Normalize to remove diacritics so accented chars group with their base letter
+        const firstChar = it.name[0] || '';
+        const normalized = firstChar.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+        return normalized || firstChar.toUpperCase();
+      }
+      if (sortMode === 'cat') {
+        const cat = getCategoryOf(it);
+        return cat === '—' ? '—' : '#' + cat;
+      }
+      // Modo fav: duas seções — favoritos e o resto
+      return it.fav ? '★ Favorites' : '· Other items';
+    }
+
+    function toggleSortMode() {
+      // Cicla entre os três estados
+      if (sortMode === 'az') sortMode = 'cat';
+      else if (sortMode === 'cat') sortMode = 'fav';
+      else sortMode = 'az';
+
+      const btn = document.getElementById('btn-sort');
+      const icon = document.getElementById('sort-icon');
+
+      btn.classList.remove('active', 'fav-active');
+
+      if (sortMode === 'cat') {
+        icon.innerHTML = '<span style="font-size:12px;font-family:\'DM Mono\',monospace;font-weight:700;letter-spacing:-0.5px">#·Z</span>';
+        btn.classList.add('active');
+        toast('Sorting by category');
+      } else if (sortMode === 'fav') {
+        // Ícone ★↕ — diferencia visualmente do filtro ⭐ no badge amarelo
+        icon.innerHTML = '<span style="font-size:11px;font-family:\'DM Mono\',monospace;font-weight:700;letter-spacing:-1px">★↕</span>';
+        btn.classList.add('fav-active');
+        toast('Sorting by favorites');
+      } else {
+        icon.innerHTML = '<span style="font-size:12px;font-family:\'DM Mono\',monospace;font-weight:700;letter-spacing:-0.5px">A·Z</span>';
+        toast('Sorting A–Z');
+      }
+      render();
+      saveUI();
+    }
+
+    // ==================== SWIPE GESTURE ====================
+    function attachSwipe(wrap, itemId) {
+      const content = wrap.querySelector('.swipe-content');
+      const bgLeft = wrap.querySelector('.swipe-bg-left');
+      const bgRight = wrap.querySelector('.swipe-bg-right');
+
+      const THRESHOLD = 72;   // px para confirmar ação
+      const MAX_DRAG = 110;  // px máximo de arrasto visual
+
+      let startX = 0, startY = 0, dx = 0;
+      let dragging = false, dirLocked = false, isHorizontal = false;
+
+      function onStart(e) {
+        const t = e.touches ? e.touches[0] : e;
+        startX = t.clientX;
+        startY = t.clientY;
+        dx = 0;
+        dragging = true;
+        dirLocked = false;
+        isHorizontal = false;
+        wrap.classList.add('swiping');
+      }
+
+      function onMove(e) {
+        if (!dragging) return;
+        const t = e.touches ? e.touches[0] : e;
+        const curDx = t.clientX - startX;
+        const curDy = t.clientY - startY;
+
+        // Determina direção dominante na primeira oportunidade
+        if (!dirLocked && (Math.abs(curDx) > 6 || Math.abs(curDy) > 6)) {
+          dirLocked = true;
+          isHorizontal = Math.abs(curDx) > Math.abs(curDy);
+        }
+
+        if (!isHorizontal) return; // scroll vertical — não interfere
+
+        e.preventDefault(); // impede scroll enquanto arrasta na horizontal
+        dx = Math.sign(curDx) * Math.min(Math.abs(curDx), MAX_DRAG);
+
+        // Resistência suave próximo ao limite
+        const ratio = Math.abs(dx) / MAX_DRAG;
+        const visual = dx * (1 - 0.3 * ratio);
+
+        content.style.transform = `translateX(${visual}px)`;
+
+        // Intensidade dos backgrounds
+        const intensity = Math.min(Math.abs(dx) / THRESHOLD, 1);
+        bgLeft.style.opacity = dx < 0 ? intensity : 0;
+        bgRight.style.opacity = dx > 0 ? intensity : 0;
+      }
+
+      function onEnd() {
+        if (!dragging) return;
+        dragging = false;
+        wrap.classList.remove('swiping');
+
+        const confirmed = Math.abs(dx) >= THRESHOLD;
+
+        if (confirmed) {
+          // Flash do fundo e snap de volta
+          content.style.transform = `translateX(${dx < 0 ? -MAX_DRAG : MAX_DRAG}px)`;
+          wrap.classList.add('snap-back');
+
+          setTimeout(() => {
+            content.style.transform = '';
+            bgLeft.style.opacity = 0;
+            bgRight.style.opacity = 0;
+            wrap.classList.remove('snap-back');
+
+            if (dx < 0) {
+              confirmDelete(itemId);  // swipe left → delete
+            } else {
+              toggleStock(itemId);    // swipe right → toggle stock
+            }
+          }, 180);
+        } else {
+          // Cancela — retorna suavemente
+          content.style.transform = '';
+          bgLeft.style.opacity = 0;
+          bgRight.style.opacity = 0;
+        }
+      }
+
+      // Touch
+      content.addEventListener('touchstart', onStart, { passive: true });
+      content.addEventListener('touchmove', onMove, { passive: false });
+      content.addEventListener('touchend', onEnd);
+      content.addEventListener('touchcancel', onEnd);
+
+      // Mouse (desktop preview)
+      content.addEventListener('mousedown', e => { onStart(e); });
+      window.addEventListener('mousemove', e => { if (dragging) onMove(e); });
+      window.addEventListener('mouseup', e => { if (dragging) onEnd(); });
+    }
+
+    // ==================== RENDERIZAÇÃO COM DOCUMENTFRAGMENT ====================
+    function createElement(tag, className = '', innerHTML = '') {
+      const el = document.createElement(tag);
+      if (className) el.className = className;
+      if (innerHTML) el.innerHTML = innerHTML;
+      return el;
+    }
+
+    function renderPanel0() {
+      const container = document.getElementById('panel-0');
+      container.innerHTML = '';
+
+      const list = sorted(filteredItems());
+      if (!list.length) {
+        const hasFilter = searchQuery || activeQuickFilter;
+        container.innerHTML = hasFilter
+          ? emptyState('🔍', 'No results', 'Try different terms or remove the active filter')
+          : emptyState('🛒', 'Empty list', 'Add the first item using the button below', '+ Add item', 'openAddModal()');
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+      let lastSection = '';
+
+      for (const it of list) {
+        const section = sectionKeyOf(it);
+        if (section !== lastSection) {
+          const label = createElement('div', 'sec-label', section);
+          fragment.appendChild(label);
+          lastSection = section;
+        }
+
+        const s = getStatus(it);
+        const rowClass = !it.inStock ? 'row-off' : s === 'ok' ? 'row-ok' : s === 'warn' ? 'row-warn' : 'row-crit';
+        const favClass = it.fav ? 'fav-on' : '';
+
+        // Wrapper de swipe
+        const wrap = createElement('div', 'swipe-wrap');
+
+        // Fundo esquerdo — delete
+        const bgLeft = createElement('div', 'swipe-bg swipe-bg-left');
+        bgLeft.innerHTML = ICONS.trash;
+        wrap.appendChild(bgLeft);
+
+        // Fundo direito — toggle stock
+        const bgRight = createElement('div', 'swipe-bg swipe-bg-right');
+        bgRight.innerHTML = it.inStock ? ICONS.check : ICONS.plus;
+        wrap.appendChild(bgRight);
+
+        // Conteúdo deslizável
+        const row = createElement('div', `swipe-content item-row ${rowClass} ${favClass}`);
+
+        // Checkbox (mantido para acessibilidade desktop)
+        const cb = createElement('div', `item-cb ${it.inStock ? 'on' : ''}`);
+        cb.innerHTML = it.inStock ? ICONS.check : '';
+        cb.onclick = () => toggleStock(it.id);
+        row.appendChild(cb);
+
+        // Info — clique abre edição
+        const info = createElement('div', 'item-info');
+        info.innerHTML = `
+          <div class="item-name">${esc(it.name)}</div>
+          <div class="item-sub">${esc(it.desc)}</div>
+        `;
+        info.onclick = () => openEditModal(it.id);
+        row.appendChild(info);
+
+        // Fav — estrela limpa
+        const favBtn = createElement('div', `fav-btn ${it.fav ? 'on' : ''}`);
+        favBtn.dataset.favId = it.id;
+        favBtn.innerHTML = it.fav ? ICONS.starOn : ICONS.starOff;
+        favBtn.title = it.fav ? 'Remove from favorites' : 'Add to favorites';
+        favBtn.onclick = () => toggleFav(it.id);
+        row.appendChild(favBtn);
+
+        wrap.appendChild(row);
+        attachSwipe(wrap, it.id);
+        fragment.appendChild(wrap);
+      }
+
+      container.appendChild(fragment);
+    }
+
+    function renderPanel1() {
+      const container = document.getElementById('panel-1');
+      container.innerHTML = '';
+
+      const list = sorted(stockItems());
+      if (!list.length) {
+        container.innerHTML = emptyState(
+          '📦',
+          'Empty stock',
+          'Swipe an item to the right on the All tab to add it to stock'
+        );
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+
+      // Header
+      // const header = createElement('div', 'stock-header', `
+      //   <div class="stock-header-name">Item</div>
+      //   <div class="stock-header-col">Mín.</div>
+      //   <div class="stock-header-col">Atual</div>
+      // `);
+      // fragment.appendChild(header);
+
+      let lastSection = '';
+
+      for (const it of list) {
+        const section = sectionKeyOf(it);
+        if (section !== lastSection) {
+          const label = createElement('div', 'sec-label', section);
+          fragment.appendChild(label);
+          lastSection = section;
+        }
+
+        const s = getStatus(it);
+        const rowClass = s === 'ok' ? 'row-ok' : s === 'warn' ? 'row-warn' : 'row-crit';
+        const row = createElement('div', `stock-row ${rowClass}`);
+
+        // Name
+        const nameDiv = createElement('div', 'stock-name');
+        nameDiv.innerHTML = `
+          <div class="item-name">${esc(it.name)}</div>
+          <div class="item-sub">${esc(it.desc)}</div>
+        `;
+        row.appendChild(nameDiv);
+
+        // Fav
+        const favBtn = createElement('div', `fav-btn ${it.fav ? 'on' : ''}`);
+        favBtn.dataset.favId = it.id;
+        favBtn.innerHTML = it.fav ? ICONS.starOn : ICONS.starOff;
+        favBtn.title = it.fav ? 'Remove from favorites' : 'Add to favorites';
+        favBtn.onclick = () => toggleFav(it.id);
+        row.appendChild(favBtn);
+
+        // Min stepper
+        const minWrap = createElement('div', 'stepper-wrap');
+        minWrap.innerHTML = `
+          <div class="stepper" id="stepper-min-${it.id}">
+            <div class="stepper-btn minus" ontouchstart="" onmousedown="stepperChange('min','${it.id}',-1)">−</div>
+            <input class="stepper-val" type="number" min="0" value="${it.min}" inputmode="numeric" />
+            <div class="stepper-btn plus"  ontouchstart="" onmousedown="stepperChange('min','${it.id}',+1)">+</div>
+          </div>
+          <div class="stepper-label">min.</div>
+        `;
+        minWrap.querySelector('input').onchange = (e) => updateMin(it.id, e.target.value);
+        row.appendChild(minWrap);
+
+        // Qty stepper
+        const qtyWrap = createElement('div', 'stepper-wrap');
+        qtyWrap.innerHTML = `
+          <div class="stepper" id="stepper-qty-${it.id}">
+            <div class="stepper-btn minus" ontouchstart="" onmousedown="stepperChange('qty','${it.id}',-1)">−</div>
+            <input class="stepper-val" type="number" min="0" value="${it.qty}" inputmode="numeric" />
+            <div class="stepper-btn plus"  ontouchstart="" onmousedown="stepperChange('qty','${it.id}',+1)">+</div>
+          </div>
+          <div class="stepper-label">current</div>
+        `;
+        qtyWrap.querySelector('input').onchange = (e) => updateQty(it.id, e.target.value);
+        row.appendChild(qtyWrap);
+
+        fragment.appendChild(row);
+      }
+
+      container.appendChild(fragment);
+    }
+
+    function renderPanel2() {
+      const container = document.getElementById('panel-2');
+      container.innerHTML = '';
+
+      const list = sorted(buyItems());
+      if (!list.length) {
+        const hasStock = stockItems().length > 0;
+        container.innerHTML = hasStock
+          ? emptyState('✅', 'All stocked up!', 'No item below minimum right now')
+          : emptyState('📦', 'No items in stock', 'Add items on the All tab and enable them in Stock to track refills');
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+      let lastSection = '';
+
+      for (const it of list) {
+        const section = sectionKeyOf(it);
+        if (section !== lastSection) {
+          const label = createElement('div', 'sec-label', section);
+          fragment.appendChild(label);
+          lastSection = section;
+        }
+
+        const row = createElement('div', `buy-row ${it._done ? 'done' : ''} ${it.fav ? 'fav-on' : ''}`);
+
+        // Checkbox
+        const cb = createElement('div', `buy-cb ${it._done ? 'on' : ''}`);
+        cb.innerHTML = it._done ? ICONS.check : '';
+        cb.onclick = () => toggleDone(it.id);
+        row.appendChild(cb);
+
+        // Info
+        const info = createElement('div', 'buy-info');
+        info.innerHTML = `
+          <div class="item-name">${esc(it.name)}</div>
+          <div class="item-sub">${esc(it.desc)}</div>
+        `;
+        row.appendChild(info);
+
+        // Fav
+        const favBtn = createElement('div', `fav-btn ${it.fav ? 'on' : ''}`);
+        favBtn.dataset.favId = it.id;
+        favBtn.innerHTML = it.fav ? ICONS.starOn : ICONS.starOff;
+        favBtn.title = it.fav ? 'Remove from favorites' : 'Add to favorites';
+        favBtn.onclick = () => toggleFav(it.id);
+        row.appendChild(favBtn);
+
+        // Deficit
+        const deficit = createElement('div', 'buy-deficit', `+${it.min - it.qty}`);
+        row.appendChild(deficit);
+
+        fragment.appendChild(row);
+      }
+
+      container.appendChild(fragment);
+    }
+
+    function emptyState(icon, title, sub, actionLabel = '', actionFn = '') {
+      const btn = actionLabel
+        ? `<div class="empty-action" onclick="${actionFn}">${actionLabel}</div>`
+        : '';
+      return `
+        <div class="empty">
+          <div class="empty-icon">${icon}</div>
+          <div class="empty-title">${title}</div>
+          <div class="empty-sub">${sub}</div>
+          ${btn}
+        </div>`;
+    }
+
+    function render() {
+      updateBadges();
+      updateFooter();
+      renderPanel0();
+      renderPanel1();
+      renderPanel2();
+    }
+
+    // Salva e re-renderiza — use em mutações de dados reais
+    function saveAndRender() {
+      save();
+      render();
+    }
+
+    function updateBadges() {
+      const all = filteredItems();
+      document.getElementById('badge-0').textContent = all.length;
+      document.getElementById('badge-1').textContent = stockItems().length;
+      document.getElementById('badge-2').textContent = buyItems().length;
+      document.getElementById('title-sub').textContent = '';
+    }
+
+    function updateFooter() {
+      const addBtn = document.getElementById('add-btn');
+      addBtn.style.display = currentTab === 0 ? 'flex' : 'none';
+    }
+
+    // ==================== EVENTOS E AÇÕES ====================
+    function switchTab(idx) {
+      currentTab = idx;
+      document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+      document.querySelectorAll('.panel').forEach((p, i) => p.classList.toggle('active', i === idx));
+      render();
+    }
+
+    function toggleSearch() {
+      const bar = document.getElementById('search-bar');
+      const btn = document.getElementById('btn-search');
+      bar.classList.toggle('open');
+      btn.classList.toggle('active');
+      if (bar.classList.contains('open')) {
+        document.getElementById('search-input').focus();
+      } else {
+        clearSearch();
+      }
+    }
+
+    function onSearch() {
+      const input = document.getElementById('search-input');
+      searchQuery = input.value;
+      // Autocomplete de categoria no campo de busca
+      acOnInputSearch(input);
+      render();
+    }
+
+    function clearSearch() {
+      document.getElementById('search-input').value = '';
+      searchQuery = '';
+      render();
+    }
+
+    function applyQuickFilter(type) {
+      const btn = document.querySelector(`.filter-btn[data-filter="${type}"]`);
+      const wasActive = activeQuickFilter === type;
+
+      document.querySelectorAll('.filter-btn').forEach(b => {
+        b.style.boxShadow = '';
+        b.style.transform = '';
+      });
+
+      if (wasActive) {
+        activeQuickFilter = '';
+        if (type === 'fav') toast('Favorites filter off');
+      } else {
+        activeQuickFilter = type;
+        btn.style.boxShadow = '0 0 0 2px var(--accent)';
+        btn.style.transform = 'scale(0.95)';
+        if (type === 'fav') {
+          const favCount = items.filter(i => i.fav).length;
+          toast(favCount > 0
+            ? `⭐ ${favCount} favorite${favCount !== 1 ? 's' : ''} shown`
+            : '⭐ No favorites added yet');
+        }
+      }
+
+      saveUI();
+      render();
+    }
+    function toggleStock(id) {
+      const it = items.find(i => i.id === id);
+      if (!it) return;
+      it.inStock = !it.inStock;
+      if (!it.inStock) {
+        it.qty = 0;
+        it._done = false;
+      }
+      saveAndRender();
+    }
+
+    function toggleFav(id) {
+      const it = items.find(i => i.id === id);
+      if (!it) return;
+      it.fav = !it.fav;
+
+      // Micro-feedback: atualiza TODOS os botões fav deste item em qualquer painel renderizado
+      document.querySelectorAll(`[data-fav-id="${id}"]`).forEach(btn => {
+        btn.classList.toggle('on', !!it.fav);
+        btn.innerHTML = it.fav ? ICONS.starOn : ICONS.starOff;
+        btn.title = it.fav ? 'Remove from favorites' : 'Add to favorites';
+        const row = btn.closest('.item-row, .stock-row, .buy-row');
+        if (row) row.classList.toggle('fav-on', !!it.fav);
+      });
+
+      // Re-render completo apenas se o modo fav estiver ativo (para reordenar)
+      if (sortMode === 'fav' || activeQuickFilter === 'fav') {
+        saveAndRender();
+      } else {
+        save();
+      }
+    }
+
+    function stepperChange(field, id, delta) {
+      // Lê o valor atual do input dentro do stepper
+      const stepper = document.getElementById(`stepper-${field}-${id}`);
+      if (!stepper) return;
+      const input = stepper.querySelector('input');
+      const current = parseInt(input.value, 10) || 0;
+      const next = Math.max(0, current + delta);
+      input.value = next;
+      if (field === 'min') updateMin(id, next);
+      else updateQty(id, next);
+    }
+
+    function updateMin(id, val) {
+      const it = items.find(i => i.id === id);
+      if (it) {
+        it.min = Math.max(0, parseInt(val) || 0);
+        saveAndRender();
+      }
+    }
+
+    function updateQty(id, val) {
+      const it = items.find(i => i.id === id);
+      if (it) {
+        it.qty = Math.max(0, parseInt(val) || 0);
+        saveAndRender();
+      }
+    }
+
+    function toggleDone(id) {
+      const it = items.find(i => i.id === id);
+      if (!it) return;
+
+      if (it._done) {
+        it._done = false;
+        saveAndRender();
+        return;
+      }
+
+      pendingDoneId = id;
+      const deficit = Math.max(0, it.min - it.qty);
+
+      openModal(`
+        <div class="modal-header">
+          <div class="modal-title">${esc(it.name)}</div>
+          <div class="modal-sub">${esc(it.desc)} · current stock: <strong>${it.qty}</strong> · minimum: <strong>${it.min}</strong></div>
+        </div>
+        <div class="modal-body">
+          <label class="modal-label">How many units did you acquire?</label>
+          <div style="display:flex;justify-content:center;margin-top:8px">
+            <div class="stepper-wrap" style="width:160px">
+              <div class="stepper">
+                <div class="stepper-btn minus" ontouchstart="" onmousedown="doneStepperChange(-1)">−</div>
+                <input class="stepper-val" id="done-qty" type="number" min="0" value="${deficit}" />
+                <div class="stepper-btn plus" ontouchstart="" onmousedown="doneStepperChange(+1)">+</div>
+              </div>
+              <div class="stepper-label">units acquired</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <div class="modal-btn cancel" onclick="closeModal()">Cancel</div>
+          <div class="modal-btn confirm" onclick="confirmDone()">Confirm</div>
+        </div>
+      `);
+    }
+
+    function doneStepperChange(delta) {
+      const input = document.getElementById('done-qty');
+      if (!input) return;
+      input.value = Math.max(0, (parseInt(input.value, 10) || 0) + delta);
+    }
+
+    function confirmDone() {
+      const val = parseInt(document.getElementById('done-qty').value || 0) || 0;
+      if (val <= 0) {
+        closeModal();
+        return;
+      }
+      const it = items.find(i => i.id === pendingDoneId);
+      if (it) {
+        it.qty += val;
+        it._done = true;
+      }
+      closeModal();
+      saveAndRender();
+      toast(`+${val} added to stock`);
+    }
+
+    function openAddModal() {
+      openModal(`
+        <div class="modal-header"><div class="modal-title">New item</div></div>
+        <div class="modal-body">
+          <label class="modal-label">Item name</label>
+          <input class="modal-input-big" style="font-size:18px;text-align:left" id="add-name" type="text" placeholder="e.g.: Butter" autofocus />
+          <label class="modal-label" style="margin-top:12px">Description (Unit/#Category)</label>
+          <input class="modal-input-big" style="font-size:14px;text-align:left" id="add-desc" type="text" placeholder="e.g.: 500g - #dairy" />
+        </div>
+        <div class="modal-foot">
+          <div class="modal-btn cancel" onclick="closeModal()">Cancel</div>
+          <div class="modal-btn confirm" onclick="confirmAdd()">Add</div>
+        </div>
+      `);
+    }
+
+    function confirmAdd() {
+      const name = (document.getElementById('add-name').value || '').trim();
+      const desc = (document.getElementById('add-desc').value || '').trim();
+      if (!name) return;
+      items.push({ id: uid(), name, desc, inStock: false, min: 1, qty: 0, fav: false });
+      closeModal();
+      saveAndRender();
+      toast('Item added');
+    }
+
+    function openEditModal(id) {
+      const it = items.find(i => i.id === id);
+      if (!it) return;
+      openModal(`
+        <div class="modal-header"><div class="modal-title">Edit item</div></div>
+        <div class="modal-body">
+          <label class="modal-label">Item name</label>
+          <input class="modal-input-big" style="font-size:18px;text-align:left" id="edit-name" type="text" value="${esc(it.name)}" />
+          <label class="modal-label" style="margin-top:12px">Description</label>
+          <input class="modal-input-big" style="font-size:14px;text-align:left" id="edit-desc" type="text" value="${esc(it.desc)}" />
+        </div>
+        <div class="modal-foot">
+          <div class="modal-btn cancel" onclick="closeModal()">Cancel</div>
+          <div class="modal-btn confirm" onclick="confirmEdit('${id}')">Save</div>
+        </div>
+      `);
+    }
+
+    function confirmEdit(id) {
+      const name = (document.getElementById('edit-name').value || '').trim();
+      const desc = (document.getElementById('edit-desc').value || '').trim();
+      if (!name) return;
+      const it = items.find(i => i.id === id);
+      if (it) {
+        it.name = name;
+        it.desc = desc;
+      }
+      closeModal();
+      saveAndRender();
+    }
+
+    function confirmDelete(id) {
+      const it = items.find(i => i.id === id);
+      if (!it) return;
+      openModal(`
+        <div class="modal-header">
+          <div class="modal-title">Remove item?</div>
+          <div class="modal-sub">${esc(it.name)} will be permanently deleted.</div>
+        </div>
+        <div class="modal-foot">
+          <div class="modal-btn cancel" onclick="closeModal()">Cancel</div>
+          <div class="modal-btn danger-btn" onclick="doDelete('${id}')">Remove</div>
+        </div>
+      `);
+    }
+
+    function doDelete(id) {
+      items = items.filter(i => i.id !== id);
+      closeModal();
+      saveAndRender();
+      toast('Item removed');
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem(THEME_KEY, next);
+      // Atualiza ícone do botão no rodapé
+      const btn = document.getElementById('footer-theme-btn');
+      if (btn) {
+        btn.title = next === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+        btn.innerHTML = next === 'dark'
+          ? `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`
+          : `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+      }
+      toast(`${next === 'dark' ? 'Dark' : 'Light'} mode enabled`);
+    }
+
+    function openConfig() { /* mantido por compatibilidade — ações migradas para o rodapé */ }
+
+    function showPWAInstructions() {
+      openModal(`
+        <div class="modal-header"><div class="modal-title">Install App</div></div>
+        <div class="modal-body" style="font-size:14px;line-height:1.5;color:var(--text2)">
+          <p>To use as an app with <strong>offline</strong> access:</p>
+          <div style="margin-top:12px">
+            <strong>On iPhone (Safari):</strong><br>
+            1. Tap the <strong>Share</strong> icon (square with arrow)<br>
+            2. Scroll and tap <strong>"Add to Home Screen"</strong>.
+          </div>
+          <div style="margin-top:12px">
+            <strong>On Android (Chrome):</strong><br>
+            1. Tap the <strong>three-dot menu</strong> in the top corner<br>
+            2. Tap <strong>"Install app"</strong> or "Add to home screen".
+          </div>
+        </div>
+        <div class="modal-foot">
+          <div class="modal-btn confirm" onclick="openConfig()">Back</div>
+        </div>
+      `);
+    }
+
+    function exportData() {
+      exportDataSilent();
+      changeCounter = 0;
+      bannerDismissed = false;
+      document.getElementById('backup-banner').classList.remove('visible');
+      closeModal();
+      toast('Data exported');
+    }
+
+    function triggerImport() {
+      document.getElementById('file-input').click();
+    }
+
+    function importFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const parsed = JSON.parse(ev.target.result);
+          // Suporte a arquivo exportado com payload ou array legado
+          const data = Array.isArray(parsed) ? parsed
+            : Array.isArray(parsed.data) ? parsed.data
+              : null;
+          if (!data) throw new Error('Invalid format');
+          items = data;
+          save();
+          closeModal();
+          render();
+          toast('Data imported successfully');
+        } catch (err) {
+          toast('Error: invalid file');
+        }
+        e.target.value = '';
+      };
+      reader.readAsText(file);
+    }
+
+    function copyBuyList() {
+      // Usa buyItems() para respeitar activeQuickFilter e searchQuery ativos
+      const base = buyItems();
+      if (!base.length) {
+        toast('No pending items');
+        return;
+      }
+
+      // Aplica a mesma ordenação visível na aba Reposição
+      const list = sorted(base);
+
+      // ── Helper: descrição limpa (sem a #tag, mantém anotações extras) ──
+      function cleanDesc(it) {
+        if (!it.desc) return '';
+        // Remove a #hashtag de categoria mas preserva o resto (ex: "· 500g")
+        return it.desc.replace(/#[^\s·,]+\s*/g, '').replace(/^[\s·,]+|[\s·,]+$/g, '').trim();
+      }
+
+      // ── Helper: linha de item ──
+      function itemLine(it, showFavStar = true) {
+        const star = (showFavStar && it.fav) ? '⭐ ' : '';
+        const qty = `+${it.min - it.qty}`;
+        const desc = cleanDesc(it);
+        const detail = desc ? ` _(${desc})_` : '';
+        return `- ${star}*${it.name}*: ${qty}${detail}`;
+      }
+
+      // ── Cabeçalho dinâmico reflete o modo ativo ──
+      const modeLabel = {
+        az: 'A–Z',
+        cat: 'by category',
+        fav: 'favorites first',
+      }[sortMode];
+
+      const filterLabel = activeQuickFilter === 'fav' ? ' · favorites only' : '';
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const datestamp = `${pad(now.getDate())}/${pad(now.getMonth() + 1)} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+      let lines = [];
+      lines.push(`🛒 *SHOP LIST* · ${modeLabel}${filterLabel}`);
+      lines.push(`_${datestamp} · ${list.length} ite${list.length !== 1 ? 'ns' : 'm'}_`);
+
+      // ── Corpo: espelha exatamente a renderização do painel ──
+      if (sortMode === 'cat') {
+        // Agrupa por categoria com cabeçalho *#categoria* em negrito
+        let lastSection = null;
+        list.forEach(it => {
+          const section = sectionKeyOf(it); // ex: "#laticínios" ou "—"
+          if (section !== lastSection) {
+            lines.push('');
+            lines.push(`*${section}*`);
+            lastSection = section;
+          }
+          lines.push(itemLine(it));
+        });
+
+      } else if (sortMode === 'fav') {
+        // Dois blocos: ⭐ Favoritos e · Demais itens
+        const favs = list.filter(it => it.fav);
+        const others = list.filter(it => !it.fav);
+
+        if (favs.length) {
+          lines.push('');
+          lines.push('*⭐ Favorites*');
+          favs.forEach(it => lines.push(itemLine(it, false)));
+        }
+        if (others.length) {
+          lines.push('');
+          lines.push('*· Other items*');
+          others.forEach(it => lines.push(itemLine(it, false)));
+        }
+
+      } else {
+        // A–Z: lista simples; favoritos recebem ⭐ inline
+        lines.push('');
+        list.forEach(it => lines.push(itemLine(it)));
+      }
+
+      const text = lines.join('\n');
+
+      // ── Disparo: Web Share API (mobile) ou clipboard (desktop) ──
+      if (navigator.share) {
+        closeModal();
+        navigator.share({ title: 'Shop List', text: text.trim() })
+          .then(() => toast('List shared!'))
+          .catch(err => {
+            if (err.name !== 'AbortError')
+              navigator.clipboard.writeText(text.trim()).then(() => toast('List copied!'));
+          });
+      } else {
+        navigator.clipboard.writeText(text.trim()).then(() => {
+          closeModal();
+          toast('List copied to clipboard!');
+        }).catch(() => toast('Error copying list'));
+      }
+    }
+
+    function openModal(html) {
+      document.getElementById('modal-box').innerHTML = html;
+      document.getElementById('overlay').classList.add('open');
+      // Vincula autocomplete nos inputs de descrição sempre que um modal abre
+      requestAnimationFrame(() => {
+        ['add-desc', 'edit-desc'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el && !el._acBound) {
+            el.addEventListener('input', acOnInput);
+            el.addEventListener('keydown', acOnKeydown);
+            el.addEventListener('blur', () => setTimeout(acClose, 150));
+            el._acBound = true;
+          }
+        });
+      });
+    }
+
+    function closeModal() {
+      document.getElementById('overlay').classList.remove('open');
+      pendingDoneId = null;
+    }
+
+    function overlayClick(e) {
+      if (e.target === document.getElementById('overlay')) closeModal();
+    }
+
+    function closeApp() {
+      if (window.history.length > 1) window.history.back();
+      else window.close();
+    }
+
+    function acOnInputSearch(input) {
+      const val = input.value;
+      const hashPos = val.lastIndexOf('#');
+      if (hashPos !== -1) {
+        const afterHash = val.slice(hashPos + 1);
+        if (!/\s/.test(afterHash)) {
+          const cats = getExistingCategories(afterHash);
+          if (cats.length) {
+            acOpen(input, 'search-cat', cats, '🏷️ Filter by category');
+            return;
+          }
+        }
+      }
+      acClose();
+    }
+
+    // ==================== AUTOCOMPLETE ====================
+    const UNIT_SUGGESTIONS = [
+      { label: 'bx', icon: '📦', desc: 'box' },
+      { label: 'dz', icon: '🔢', desc: 'dozen' },
+      { label: 'jar', icon: '🫙', desc: 'jar' },
+      { label: 'g', icon: '⚖️', desc: 'grams' },
+      { label: 'kg', icon: '⚖️', desc: 'kilograms' },
+      { label: 'can', icon: '🥛', desc: 'can' },
+      { label: 'l', icon: '🧴', desc: 'liters' },
+      { label: 'ml', icon: '🧴', desc: 'milliliters' },
+      { label: 'pkg', icon: '📦', desc: 'package' },
+      { label: 'bag', icon: '📦', desc: 'bag' },
+      { label: 'bar', icon: '📦', desc: 'bar/tablet' },
+      { label: 'un', icon: '🔢', desc: 'unit' },
+    ];
+
+    // De-duplica por label para lista limpa
+    const UNITS = [...new Map(UNIT_SUGGESTIONS.map(u => [u.label, u])).values()];
+
+    let acTarget = null;       // input sendo monitorado
+    let acMode = null;         // 'category' | 'unit'
+    let acFocusIdx = -1;       // índice do item com foco de teclado
+
+    function getExistingCategories(query = '') {
+      const cats = new Set();
+      items.forEach(it => {
+        if (!it.desc) return;
+        // Extrai todos os tokens #palavra do desc, ignorando o que vier depois
+        const matches = it.desc.matchAll(/#([^\s·,;#]+)/g);
+        for (const m of matches) {
+          const cat = m[1].trim().toLowerCase();
+          if (cat) cats.add(cat);
+        }
+      });
+      const q = query.toLowerCase();
+      return [...cats]
+        .filter(c => !q || c.startsWith(q))
+        .sort()
+        .map(c => ({ label: c, icon: '🏷️', desc: '' }));
+    }
+
+    function getUnitSuggestions(query = '') {
+      const q = query.toLowerCase();
+      // Unidades padrão filtradas
+      const defaults = UNITS.filter(u => !q || u.label.startsWith(q));
+      // Unidades já usadas nos itens
+      const usedSet = new Set();
+      items.forEach(it => {
+        if (!it.desc) return;
+        const m = it.desc.match(/\d+\s*([a-zA-Záàãéíóú]+)/g);
+        if (m) m.forEach(tok => {
+          const unit = tok.replace(/\d+\s*/, '').toLowerCase();
+          if (unit && unit.length <= 5) usedSet.add(unit);
+        });
+      });
+      const extra = [...usedSet]
+        .filter(u => !UNITS.find(d => d.label === u) && (!q || u.startsWith(q)))
+        .map(u => ({ label: u, icon: '📐', desc: 'used before' }));
+      return [...defaults, ...extra];
+    }
+
+    function acPositionBelow(input) {
+      const rect = input.getBoundingClientRect();
+      const drop = document.getElementById('ac-dropdown');
+      drop.style.top = (rect.bottom + 4) + 'px';
+      drop.style.left = rect.left + 'px';
+      drop.style.width = rect.width + 'px';
+    }
+
+    function acOpen(input, mode, suggestions, headerLabel) {
+      acTarget = input;
+      acMode = mode;
+      acFocusIdx = -1;
+      const drop = document.getElementById('ac-dropdown');
+
+      if (!suggestions.length) {
+        acClose();
+        return;
+      }
+
+      const itemsHtml = suggestions.map((s, i) => {
+        const descHtml = s.desc ? `<span style="font-size:10px;color:var(--text3);margin-left:4px">${s.desc}</span>` : '';
+        return `<div class="ac-item" data-idx="${i}" onmousedown="acPick(${i})" onmouseover="acHover(${i})">
+          <span class="ac-icon">${s.icon}</span>
+          <span class="ac-label">${s.label}</span>${descHtml}
+        </div>`;
+      }).join('');
+
+      drop.innerHTML = `<div class="ac-header">${headerLabel}</div>${itemsHtml}`;
+      acPositionBelow(input);
+      drop.classList.add('open');
+
+      // Guarda sugestões no dataset para acPick
+      drop._suggestions = suggestions;
+    }
+
+    function acClose() {
+      const drop = document.getElementById('ac-dropdown');
+      drop.classList.remove('open');
+      drop._suggestions = null;
+      acTarget = null;
+      acMode = null;
+      acFocusIdx = -1;
+    }
+
+    function acHover(idx) {
+      acFocusIdx = idx;
+      document.querySelectorAll('#ac-dropdown .ac-item').forEach((el, i) =>
+        el.classList.toggle('focused', i === idx)
+      );
+    }
+
+    function acPick(idx) {
+      const drop = document.getElementById('ac-dropdown');
+      const sugs = drop._suggestions;
+      if (!sugs || !acTarget) return;
+      const val = acTarget.value;
+
+      if (acMode === 'category') {
+        // Substitui o #token sendo digitado pelo término selecionado
+        const hashPos = val.lastIndexOf('#');
+        acTarget.value = val.slice(0, hashPos) + '#' + sugs[idx].label;
+      } else if (acMode === 'search-cat') {
+        // No campo de busca: substitui tudo após o # pelo termo e dispara busca
+        const hashPos = val.lastIndexOf('#');
+        acTarget.value = val.slice(0, hashPos) + '#' + sugs[idx].label;
+        searchQuery = acTarget.value;
+        render();
+      } else if (acMode === 'unit') {
+        // Substitui "NNN " pelo "NNN sugestão"
+        acTarget.value = val.replace(/(\d+)\s*$/, '$1') + sugs[idx].label;
+      }
+
+      acClose();
+      acTarget.focus();
+    }
+
+    function acOnInput(e) {
+      const input = e.target;
+      const val = input.value;
+      const drop = document.getElementById('ac-dropdown');
+
+      // --- MODO CATEGORIA: disparado por "#" ---
+      const hashPos = val.lastIndexOf('#');
+      if (hashPos !== -1) {
+        const afterHash = val.slice(hashPos + 1);
+        // Só dispara se não há espaço após o # (ainda digitando a categoria)
+        if (!/\s/.test(afterHash)) {
+          const cats = getExistingCategories(afterHash);
+          if (cats.length) {
+            acOpen(input, 'category', cats, '🏷️ Categories');
+            return;
+          }
+        }
+      }
+
+      // --- MODO UNIDADE: disparado por "NNN " (número seguido de espaço) ---
+      const unitMatch = val.match(/(\d+)\s(\S*)$/);
+      if (unitMatch) {
+        const typed = unitMatch[2] || '';
+        const units = getUnitSuggestions(typed);
+        if (units.length) {
+          acOpen(input, 'unit', units, '📐 Units');
+          return;
+        }
+      }
+
+      acClose();
+    }
+
+    function acOnKeydown(e) {
+      const drop = document.getElementById('ac-dropdown');
+      if (!drop.classList.contains('open')) return;
+      const items = drop.querySelectorAll('.ac-item');
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        acFocusIdx = Math.min(acFocusIdx + 1, items.length - 1);
+        acHover(acFocusIdx);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        acFocusIdx = Math.max(acFocusIdx - 1, 0);
+        acHover(acFocusIdx);
+      } else if (e.key === 'Enter' || e.key === 'Tab') {
+        if (acFocusIdx >= 0) {
+          e.preventDefault();
+          acPick(acFocusIdx);
+        } else if (items.length === 1) {
+          e.preventDefault();
+          acPick(0);
+        }
+      } else if (e.key === 'Escape') {
+        acClose();
+      }
+    }
+
+    // Fecha ao clicar fora
+    document.addEventListener('mousedown', e => {
+      if (!document.getElementById('ac-dropdown').contains(e.target) &&
+        e.target !== acTarget) {
+        acClose();
+      }
+    });
+
+    // ==================== INICIALIZAÇÃO ====================
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    load();
+
+    // Restaura visual do filtro ativo persistido
+    if (activeQuickFilter) {
+      const btn = document.querySelector(`.filter-btn[data-filter="${activeQuickFilter}"]`);
+      if (btn) {
+        btn.style.boxShadow = '0 0 0 2px var(--accent)';
+        btn.style.transform = 'scale(0.95)';
+      }
+    }
+
+    // Restaura visual do botão de ordenação persistido
+    (function restoreSortBtn() {
+      const btn = document.getElementById('btn-sort');
+      const icon = document.getElementById('sort-icon');
+      if (!btn || !icon) return;
+      btn.classList.remove('active', 'fav-active');
+      if (sortMode === 'cat') {
+        icon.innerHTML = '<span style="font-size:12px;font-family:\'DM Mono\',monospace;font-weight:700;letter-spacing:-0.5px">#·Z</span>';
+        btn.classList.add('active');
+      } else if (sortMode === 'fav') {
+        icon.innerHTML = '<span style="font-size:11px;font-family:\'DM Mono\',monospace;font-weight:700;letter-spacing:-1px">★↕</span>';
+        btn.classList.add('fav-active');
+      } else {
+        icon.innerHTML = '<span style="font-size:12px;font-family:\'DM Mono\',monospace;font-weight:700;letter-spacing:-0.5px">A·Z</span>';
+      }
+    })();
+
+    render();
+
+    // Sincroniza ícone do tema no rodapé com o tema carregado
+    (function syncThemeIcon() {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const btn = document.getElementById('footer-theme-btn');
+      if (!btn) return;
+      if (isDark) {
+        btn.title = 'Switch to light mode';
+        btn.innerHTML = `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+      }
+    })();
+
+    // Exibe diálogo de validade dos dados após o primeiro render
+    showStartupDialog();
+
+    // ── Query params: ?tab=N e ?action=add ──────────────────
+    (function handleQueryParams() {
+      const params = new URLSearchParams(location.search);
+      const tab = parseInt(params.get('tab'), 10);
+      if (!isNaN(tab) && tab >= 0 && tab <= 2) switchTab(tab);
+      if (params.get('action') === 'add') setTimeout(openAddModal, 350);
+    })();
+
+    // ── Service Worker ───────────────────────────────────────
+    let swRegistration = null;
+    let newWorker = null;
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => {
+          swRegistration = reg;
+
+          // Detecta atualização disponível
+          reg.addEventListener('updatefound', () => {
+            newWorker = reg.installing;
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // Há um SW novo esperando — exibe banner de update
+                document.getElementById('update-banner').classList.add('visible');
+              }
+            });
+          });
+        })
+        .catch(err => console.warn('SW: falha no registro:', err));
+
+      // Quando o SW novo tomar controle, recarrega para aplicar atualização
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      });
+    }
+
+    function applyUpdate() {
+      if (newWorker) newWorker.postMessage('SKIP_WAITING');
+    }
+
+    // ── Install Prompt (Android/Chrome) ──────────────────────
+    let deferredInstallPrompt = null;
+
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      // Só exibe o banner se o usuário ainda não instalou
+      if (!window.matchMedia('(display-mode: standalone)').matches) {
+        document.getElementById('install-banner').classList.add('visible');
+      }
+    });
+
+    // Esconde o banner se o app for instalado
+    window.addEventListener('appinstalled', () => {
+      document.getElementById('install-banner').classList.remove('visible');
+      deferredInstallPrompt = null;
+      toast('✅ Shop List installed successfully!');
+    });
+
+    function triggerInstall(e) {
+      e.stopPropagation();
+      if (!deferredInstallPrompt) {
+        // Fallback: abre instruções manuais (iOS Safari não suporta beforeinstallprompt)
+        showPWAInstructions();
+        return;
+      }
+      deferredInstallPrompt.prompt();
+      deferredInstallPrompt.userChoice.then(result => {
+        if (result.outcome === 'accepted') toast('Installing Shop List…');
+        deferredInstallPrompt = null;
+        document.getElementById('install-banner').classList.remove('visible');
+      });
+    }
+
+    function dismissInstallBanner(e) {
+      e.stopPropagation();
+      document.getElementById('install-banner').classList.remove('visible');
+      // Não exibe de novo nessa sessão
+      sessionStorage.setItem('install-dismissed', '1');
+    }
+
+    // Não reexibe o banner se foi dispensado nessa sessão
+    if (sessionStorage.getItem('install-dismissed')) {
+      document.getElementById('install-banner').classList.remove('visible');
+    }
+  </script>
+</body>
+
+</html>

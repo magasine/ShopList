@@ -1,0 +1,221 @@
+[
+  {
+    "id": "id-4eqpo2bmp1ssdt8",
+    "name": "Açúcar",
+    "desc": "kg #grãos",
+    "inStock": true,
+    "min": 2,
+    "qty": 1,
+    "fav": true
+  },
+  {
+    "id": "id-wpyolw8mp1ssdt8",
+    "name": "Arroz branco",
+    "desc": "5-kg #grãos",
+    "inStock": true,
+    "min": 2,
+    "qty": 1,
+    "fav": true
+  },
+  {
+    "id": "id-jp54q08mp1ssdt8",
+    "name": "Azeite",
+    "desc": "500-ml #condimentos",
+    "inStock": true,
+    "min": 1,
+    "qty": 1,
+    "fav": true
+  },
+  {
+    "id": "id-wlzqt7pmp1ssdt8",
+    "name": "Farinha de trigo",
+    "desc": "kg #grãos",
+    "inStock": true,
+    "min": 1,
+    "qty": 0,
+    "fav": false
+  },
+  {
+    "id": "id-u54s9v0mp1ssdt8",
+    "name": "Feijão carioca",
+    "desc": "kg #grãos",
+    "inStock": true,
+    "min": 1,
+    "qty": 1,
+    "fav": false
+  },
+  {
+    "id": "id-x86fw56mp1ssdt8",
+    "name": "Leite integral",
+    "desc": "12-Lt #laticínios",
+    "inStock": true,
+    "min": 12,
+    "qty": 6,
+    "fav": true
+  },
+  {
+    "id": "id-qoctujzmp1ssdt8",
+    "name": "Manteiga",
+    "desc": "250g #laticínios",
+    "inStock": true,
+    "min": 1,
+    "qty": 1,
+    "fav": true
+  },
+  {
+    "id": "id-u0ebfshmp1ssdt8",
+    "name": "Óleo de soja",
+    "desc": "900-ml #condimentos",
+    "inStock": true,
+    "min": 1,
+    "qty": 1,
+    "fav": false
+  },
+  {
+    "id": "id-w4zib5gmp1ssdt8",
+    "name": "Sal refinado",
+    "desc": "500-g #condimentos",
+    "inStock": true,
+    "min": 1,
+    "qty": 1,
+    "fav": true
+  },
+  {
+    "id": "id-k14s79hmp1ssdt8",
+    "name": "Café liofilizado (Iguaçu)",
+    "desc": "50-g #mercearia",
+    "inStock": true,
+    "min": 3,
+    "qty": 2,
+    "fav": true
+  },
+  {
+    "id": "id-9gggnyump1u6wbd",
+    "name": "Cerveja",
+    "desc": "unid #bebidas",
+    "inStock": true,
+    "min": 12,
+    "qty": 12,
+    "fav": true
+  },
+  {
+    "id": "id-f8dnlrqmp1u7x51",
+    "name": "Limão",
+    "desc": "8-unid #hortifruti",
+    "inStock": true,
+    "min": 12,
+    "qty": 2,
+    "fav": true
+  },
+  {
+    "id": "id-qjd20semp1u99mq",
+    "name": "Óleo de coco",
+    "desc": "250-ml #condimentos",
+    "inStock": true,
+    "min": 1,
+    "qty": 1,
+    "fav": true
+  },
+  {
+    "id": "id-mcy62vimp1uamtq",
+    "name": "Papel alumínio",
+    "desc": "unid #embalagem",
+    "inStock": true,
+    "min": 1,
+    "qty": 1,
+    "fav": false
+  },
+  {
+    "id": "id-7uj3v8xmp1ud6j9",
+    "name": "Água mineral",
+    "desc": "5-Lt #bebidas",
+    "inStock": true,
+    "min": 4,
+    "qty": 4,
+    "fav": true,
+    "_done": true
+  },
+  {
+    "id": "id-yc6peqymp1uepwh",
+    "name": "Chá mate",
+    "desc": "1,5-Lt #bebidas",
+    "inStock": true,
+    "min": 5,
+    "qty": 6,
+    "fav": true,
+    "_done": true
+  },
+  {
+    "id": "id-hasqm1smp1uft4m",
+    "name": "Laranja",
+    "desc": "unid #hortifruti",
+    "inStock": true,
+    "min": 6,
+    "qty": 6,
+    "fav": false,
+    "_done": true
+  },
+  {
+    "id": "id-0d4o37imp1uh40r",
+    "name": "Banana",
+    "desc": "unid #hortifruti",
+    "inStock": true,
+    "min": 1,
+    "qty": 1,
+    "fav": true
+  },
+  {
+    "id": "id-a295d7xmp1uhw0i",
+    "name": "Maçã",
+    "desc": "6-unid #hortifruti",
+    "inStock": true,
+    "min": 6,
+    "qty": 2,
+    "fav": false
+  },
+  {
+    "id": "id-zimhy1ump1uivjs",
+    "name": "Tangerina",
+    "desc": "9-unid #hortifruti",
+    "inStock": true,
+    "min": 8,
+    "qty": 0,
+    "fav": false
+  },
+  {
+    "id": "id-jwltpr5mp1ukt0n",
+    "name": "Papel alumínio fogão",
+    "desc": "2-unid #higiene",
+    "inStock": true,
+    "min": 1,
+    "qty": 1,
+    "fav": false
+  },
+  {
+    "id": "id-oma1tmhmp1ulu3n",
+    "name": "Sabonete phebo",
+    "desc": "8-unid #higiene",
+    "inStock": true,
+    "min": 8,
+    "qty": 8,
+    "fav": true
+  },
+  {
+    "id": "id-1zxgxdfmp1umu0j",
+    "name": "Creme dental",
+    "desc": "cx #higiene",
+    "inStock": true,
+    "min": 4,
+    "qty": 4,
+    "fav": true
+  },
+  {
+    "id": "id-u0ddpqimp1uofzw",
+    "name": "Cotonete",
+    "desc": "2-cx/150-unid #higiene",
+    "inStock": true,
+    "min": 1,
+    "qty": 1,
+    "fav": true
+  }
+]
