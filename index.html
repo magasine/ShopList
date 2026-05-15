@@ -2140,7 +2140,7 @@
     };
 
     // ==================== CONSTANTES E VARIÁVEIS ====================
-    const STORAGE_KEY = 'Shop_List_v20260515';
+    const STORAGE_KEY = 'Shop_List_v20260515b';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -2803,51 +2803,103 @@
         favBtn.onclick = () => toggleFav(it.id);
         row.appendChild(favBtn);
 
-        // Min stepper — Req 1: oculto por padrão, revelado ao focar "current"
-        const minWrap = createElement('div', 'stepper-wrap stepper-min-wrap');
-        minWrap.innerHTML = `
-          <div class="stepper" id="stepper-min-${it.id}">
-            <div class="stepper-btn minus" ontouchstart="" onmousedown="stepperChange('min','${it.id}',-1)">−</div>
-            <input class="stepper-val" type="number" min="0" value="${it.min}" inputmode="numeric" />
-            <div class="stepper-btn plus"  ontouchstart="" onmousedown="stepperChange('min','${it.id}',+1)">+</div>
-          </div>
-          <div class="stepper-label">min.</div>
-        `;
-        minWrap.querySelector('input').onchange = (e) => updateMin(it.id, e.target.value);
+        // ── Helper: constrói um stepper sem handlers inline ──────────────────
+        function buildStepper({ wrapClass, stepperId, initialVal, label, onChange, onStepChange }) {
+          const wrap = createElement('div', `stepper-wrap ${wrapClass}`);
+          const stepperEl = createElement('div', 'stepper');
+          stepperEl.id = stepperId;
+
+          const btnMinus = createElement('div', 'stepper-btn minus', '−');
+          const input = createElement('input', 'stepper-val');
+          const btnPlus = createElement('div', 'stepper-btn plus', '+');
+
+          input.type = 'number';
+          input.min = '0';
+          input.value = initialVal;
+          input.inputMode = 'numeric';
+          input.onchange = (e) => onChange(e.target.value);
+
+          stepperEl.appendChild(btnMinus);
+          stepperEl.appendChild(input);
+          stepperEl.appendChild(btnPlus);
+
+          const labelEl = createElement('div', 'stepper-label', label);
+          wrap.appendChild(stepperEl);
+          wrap.appendChild(labelEl);
+
+          // ── Controle de foco robusto ──────────────────────────────────────
+          // Impede que o pointerdown nos botões roube o foco do input:
+          // o foco permanece no input durante todo o ciclo de incremento.
+          [btnMinus, btnPlus].forEach(btn => {
+            btn.addEventListener('pointerdown', (e) => {
+              e.preventDefault(); // evita blur do input ativo
+            });
+          });
+
+          // Incremento/decremento via pointer (mouse + touch unificado)
+          // Atualiza o input visualmente e chama onStepChange com o novo valor
+          function doStep(delta) {
+            const cur = parseInt(input.value, 10) || 0;
+            const next = Math.max(0, cur + delta);
+            input.value = next;
+            onStepChange(next);  // passa o valor já calculado
+          }
+          btnMinus.addEventListener('pointerup', () => doStep(-1));
+          btnPlus.addEventListener('pointerup', () => doStep(+1));
+
+          return { wrap, input };
+        }
+
+        // Min stepper — oculto por padrão (stepper-min-wrap)
+        const { wrap: minWrap, input: minInput } = buildStepper({
+          wrapClass: 'stepper-min-wrap',
+          stepperId: `stepper-min-${it.id}`,
+          initialVal: it.min,
+          label: 'min.',
+          onChange: (v) => updateMin(it.id, v),
+          onStepChange: (v) => updateMin(it.id, v, { silent: true }),
+        });
         row.appendChild(minWrap);
 
-        // Qty stepper — Req 1: ao focar/blur, exibe/oculta o minWrap
-        const qtyWrap = createElement('div', 'stepper-wrap');
-        qtyWrap.innerHTML = `
-          <div class="stepper" id="stepper-qty-${it.id}">
-            <div class="stepper-btn minus" ontouchstart="" onmousedown="stepperChange('qty','${it.id}',-1)">−</div>
-            <input class="stepper-val" type="number" min="0" value="${it.qty}" inputmode="numeric" />
-            <div class="stepper-btn plus"  ontouchstart="" onmousedown="stepperChange('qty','${it.id}',+1)">+</div>
-          </div>
-          <div class="stepper-label">current</div>
-        `;
-        const qtyInput = qtyWrap.querySelector('input');
-        qtyInput.onchange = (e) => updateQty(it.id, e.target.value);
-        // Req 1 — revelar/ocultar min stepper dinamicamente
-        qtyInput.addEventListener('focus', () => minWrap.classList.add('min-visible'));
-        qtyInput.addEventListener('blur', () => {
-          // Pequeno delay para não ocultar antes do mousedown nos botões do minWrap
-          setTimeout(() => {
-            if (!minWrap.contains(document.activeElement)) {
+        // Qty stepper — sempre visível; controla exibição do minWrap
+        const { wrap: qtyWrap, input: qtyInput } = buildStepper({
+          wrapClass: '',
+          stepperId: `stepper-qty-${it.id}`,
+          initialVal: it.qty,
+          label: 'current',
+          onChange: (v) => updateQty(it.id, v),
+          onStepChange: (v) => updateQty(it.id, v, { silent: true }),
+        });
+
+        // ── Visibilidade do minWrap: baseada em foco real nos dois wrappers ──
+        // Um único timer compartilhado evita race conditions entre focus/blur events.
+        let hideTimer = null;
+
+        function scheduleHide() {
+          clearTimeout(hideTimer);
+          hideTimer = setTimeout(() => {
+            const active = document.activeElement;
+            if (!minWrap.contains(active) && !qtyWrap.contains(active)) {
               minWrap.classList.remove('min-visible');
             }
-          }, 200);
-        });
-        // Ao interagir com o próprio minWrap, mantém visível enquanto houver foco
-        minWrap.addEventListener('focusin', () => minWrap.classList.add('min-visible'));
-        minWrap.addEventListener('focusout', () => {
-          setTimeout(() => {
-            if (!minWrap.contains(document.activeElement) &&
-              !qtyWrap.contains(document.activeElement)) {
-              minWrap.classList.remove('min-visible');
-            }
-          }, 200);
-        });
+          }, 250);
+        }
+
+        function cancelHide() {
+          clearTimeout(hideTimer);
+          minWrap.classList.add('min-visible');
+        }
+
+        qtyInput.addEventListener('focus', cancelHide);
+        qtyInput.addEventListener('blur', scheduleHide);
+        minInput.addEventListener('focus', cancelHide);
+        minInput.addEventListener('blur', scheduleHide);
+
+        // pointerdown nos botões ±  também cancela o timer de ocultação
+        // (o preventDefault já está no buildStepper, aqui só garantimos o cancelHide)
+        minWrap.querySelectorAll('.stepper-btn').forEach(b => b.addEventListener('pointerdown', cancelHide));
+        qtyWrap.querySelectorAll('.stepper-btn').forEach(b => b.addEventListener('pointerdown', cancelHide));
+
         row.appendChild(qtyWrap);
 
         fragment.appendChild(row);
@@ -3078,19 +3130,19 @@
       else updateQty(id, next);
     }
 
-    function updateMin(id, val) {
+    function updateMin(id, val, { silent = false } = {}) {
       const it = items.find(i => i.id === id);
       if (it) {
         it.min = Math.max(0, parseInt(val) || 0);
-        saveAndRender();
+        silent ? save() : saveAndRender();
       }
     }
 
-    function updateQty(id, val) {
+    function updateQty(id, val, { silent = false } = {}) {
       const it = items.find(i => i.id === id);
       if (it) {
         it.qty = Math.max(0, parseInt(val) || 0);
-        saveAndRender();
+        silent ? save() : saveAndRender();
       }
     }
 
