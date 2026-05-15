@@ -289,14 +289,34 @@
     }
 
     .filter-btn[data-filter="fav"] {
-      background: #FFF8E1;
-      color: #B8860B;
-      border-color: #F5DFA0;
+      background: var(--surface2);
+      color: var(--text2);
+      border-color: var(--border);
     }
 
     .filter-btn[data-filter="fav"]:hover {
+      background: var(--border);
+      transform: scale(0.95);
+    }
+
+    /* Estado ON — cores iluminadas apenas quando o filtro está ativo */
+    .filter-btn[data-filter="fav"][data-active="true"] {
+      background: #FFF8E1;
+      color: #B8860B;
+      border-color: #F5DFA0;
+      box-shadow: 0 0 0 2px rgba(184, 134, 11, 0.18);
+    }
+
+    .filter-btn[data-filter="fav"][data-active="true"]:hover {
       background: #FFEFB5;
       transform: scale(0.95);
+    }
+
+    [data-theme="dark"] .filter-btn[data-filter="fav"][data-active="true"] {
+      background: #2A1E00;
+      color: #FFD54F;
+      border-color: #7A5500;
+      box-shadow: 0 0 0 2px rgba(255, 213, 79, 0.15);
     }
 
     .filter-btn[data-filter="warn"] {
@@ -321,7 +341,51 @@
       transform: scale(0.95);
     }
 
-    /* Botão de ordenação */
+    /* Req 2 — Botão fav minimalista dentro do search-wrap */
+    #search-fav-btn {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 15px;
+      color: var(--text3);
+      background: none;
+      border: none;
+      border-radius: 7px;
+      transition: color var(--transition), transform var(--transition);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      line-height: 1;
+    }
+
+    #search-fav-btn:active {
+      transform: scale(0.82);
+    }
+
+    #search-fav-btn.on {
+      color: #F5C518;
+    }
+
+    [data-theme="dark"] #search-fav-btn.on {
+      color: #F5C518;
+    }
+
+    /* Req 3 — sec-label-count herda a cor de sec-label-text (accent) */
+    .sec-label-count {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--accent);
+      background: var(--accent-light);
+      border: 1px solid var(--row-ok-border);
+      border-radius: 20px;
+      padding: 1px 7px;
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+    }
+
     #btn-sort {
       width: 40px;
       height: 34px;
@@ -617,11 +681,11 @@
 
     /* SECTION LABEL */
     .sec-label {
-      font-size: var(--fs-sm);
-      font-weight: 700;
-      letter-spacing: 0.12em;
+      font-size: var(--fs-base);
+      font-weight: 500;
+      letter-spacing: 0.10em;
       color: var(--accent);
-      padding: 10px 24px 6px;
+      padding: 10px 16px 6px;
       text-transform: capitalize;
       font-family: 'DM Mono', monospace;
       display: flex;
@@ -643,6 +707,148 @@
       flex-shrink: 0;
       opacity: 0.7;
     } */
+
+    /* Texto da seção — ocupa espaço disponível */
+    .sec-label-text {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Pill com contagem de itens na seção — ver Req 3 abaixo */
+
+    /* Botão ⋯ de ações da seção */
+    .sec-menu-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 7px;
+      border: 1px solid transparent;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text3);
+      font-size: 15px;
+      font-family: 'DM Mono', monospace;
+      flex-shrink: 0;
+      transition: background var(--transition), color var(--transition), border-color var(--transition);
+      -webkit-tap-highlight-color: transparent;
+      letter-spacing: -1px;
+    }
+
+    .sec-menu-btn:hover {
+      background: var(--border);
+      color: var(--text2);
+      border-color: var(--border2);
+    }
+
+    /* Sec-label variante: busca textual ativa */
+    .sec-label.sec-search {
+      color: var(--purple);
+      background: var(--purple-light);
+      border-bottom-color: var(--border);
+      opacity: 1;
+    }
+
+    .sec-label.sec-search::before {
+      background: var(--purple);
+    }
+
+    /* Dropdown de ações da seção */
+    .sec-action-menu {
+      position: fixed;
+      z-index: 500;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 10px 32px rgba(13, 27, 42, 0.18);
+      min-width: 210px;
+      overflow: hidden;
+      animation: acFadeIn 0.14s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    [data-theme="dark"] .sec-action-menu {
+      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.40);
+    }
+
+    .sec-action-header {
+      font-size: 10px;
+      font-family: 'DM Mono', monospace;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: var(--accent);
+      padding: 9px 14px 7px;
+      background: var(--accent-light);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sec-action-header.danger-header {
+      color: var(--crit);
+      background: var(--crit-light);
+    }
+
+    .sec-action-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      font-size: var(--fs-sm);
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background var(--transition);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .sec-action-item:last-child {
+      border-bottom: none;
+    }
+
+    .sec-action-item:hover {
+      background: var(--surface2);
+    }
+
+    .sec-action-item.danger {
+      color: var(--crit);
+    }
+
+    .sec-action-item.danger:hover {
+      background: var(--crit-light);
+    }
+
+    .sec-action-icon {
+      font-size: 15px;
+      width: 22px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    /* Inline rename input dentro do sec-label */
+    .sec-label-input {
+      flex: 1;
+      border: none;
+      background: var(--surface);
+      color: var(--text);
+      font-size: var(--fs-xs);
+      font-weight: 700;
+      font-family: 'DM Mono', monospace;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      border-radius: 5px;
+      padding: 2px 6px;
+      outline: none;
+      border: 1.5px solid var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 121, 107, 0.12);
+    }
+
+    [data-theme="dark"] .sec-label-input {
+      box-shadow: 0 0 0 3px rgba(38, 198, 186, 0.14);
+    }
 
     /* ITEM ROW */
     .item-row {
@@ -845,10 +1051,8 @@
       color: #F5C518;
     }
 
-    [data-theme="dark"] .filter-btn[data-filter="fav"] {
-      background: #2E2A18;
-      color: #F5C518;
-    }
+    /* dark-mode fav button: OFF state inherits .filter-btn base (surface2 / text2 / border);
+       ON state is handled by [data-active="true"] selector above */
 
     /* Item row when favorited — star button only; no border-left (avoids conflict with status indicator) */
     /* .item-row.fav-on, .stock-row.fav-on, .buy-row.fav-on — border suppressed intentionally */
@@ -911,6 +1115,25 @@
       flex-direction: column;
       align-items: center;
       gap: 3px;
+    }
+
+    /* Req 1 — Min stepper: oculto por padrão, revelado quando "current" ganha foco */
+    .stepper-wrap.stepper-min-wrap {
+      max-width: 0;
+      width: 0;
+      overflow: hidden;
+      opacity: 0;
+      pointer-events: none;
+      transition: max-width 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+        width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .stepper-wrap.stepper-min-wrap.min-visible {
+      max-width: 92px;
+      width: 92px;
+      opacity: 1;
+      pointer-events: auto;
     }
 
     .stepper {
@@ -1754,8 +1977,7 @@
                 style="font-size:12px;font-family:'DM Mono',monospace;font-weight:700;letter-spacing:-0.5px">A·Z</span></span>
           </div>
 
-          <!-- Filtros rápidos -->
-          <div class="filter-btn" data-filter="fav" title="Filter favorites" onclick="applyQuickFilter('fav')">⭐</div>
+          <!-- Filtros rápidos — ⭐ movido para #search-wrap (req 2) -->
           <!-- <div class="filter-btn" data-filter="warn" title="No limite" onclick="applyQuickFilter('warn')">🟡</div>
           <div class="filter-btn" data-filter="crit" title="Faltando" onclick="applyQuickFilter('crit')">🔴</div> -->
 
@@ -1789,6 +2011,7 @@
           </svg>
           <input id="search-input" type="text" placeholder="search by name, #category…" oninput="onSearch()"
             autocomplete="off" onkeydown="acOnKeydown(event)" onblur="setTimeout(acClose,150)" />
+          <div id="search-fav-btn" title="Filter favorites" onclick="applyQuickFilter('fav')">☆</div>
           <span id="search-clear" onclick="clearSearch()">clear</span>
         </div>
       </div>
@@ -2419,13 +2642,59 @@
       }
 
       const fragment = document.createDocumentFragment();
+
+      // ── sec-label de busca textual ─────────────────────────────────────────
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim();
+        const label = createElement('div', 'sec-label sec-search');
+        label.innerHTML = `
+          <span class="sec-label-text" style="text-transform:none;letter-spacing:0.04em">
+            🔍 "${esc(q)}"
+          </span>
+          <span class="sec-label-count">${list.length}</span>
+          <div class="sec-menu-btn" title="Actions for this search" onclick="openSearchSectionMenu(this,'${esc(q).replace(/'/g, "\\'")}',${list.length})">···</div>
+        `;
+        fragment.appendChild(label);
+      }
+
+      // ── sec-labels por modo de ordenação ──────────────────────────────────
       let lastSection = '';
+      // Pré-computa contagem por seção
+      const sectionCounts = {};
+      for (const it of list) {
+        const k = sectionKeyOf(it);
+        sectionCounts[k] = (sectionCounts[k] || 0) + 1;
+      }
 
       for (const it of list) {
         const section = sectionKeyOf(it);
-        if (section !== lastSection) {
-          const label = createElement('div', 'sec-label', section);
+
+        // Emite sec-label somente quando a seção muda
+        // (suprimido se já emitimos o search-label acima e não há agrupamento real)
+        if (section !== lastSection && !searchQuery.trim()) {
+          const isCat = sortMode === 'cat';
+          const rawCat = isCat ? getCategoryOf(it) : null; // null para A-Z e fav
+
+          const label = createElement('div', 'sec-label');
+
+          let menuOnclick = '';
+          if (isCat && rawCat && rawCat !== '—') {
+            menuOnclick = `openCatSectionMenu(this,'${rawCat.replace(/'/g, "\\'")}')`;
+          } else if (!isCat) {
+            menuOnclick = `openGenericSectionMenu(this,'${section.replace(/'/g, "\\'")}')`;
+          }
+
+          label.innerHTML = `
+            <span class="sec-label-text">${esc(section)}</span>
+            <span class="sec-label-count">${sectionCounts[section]}</span>
+            ${menuOnclick
+              ? `<div class="sec-menu-btn" title="Section actions" onclick="${menuOnclick}">···</div>`
+              : ''}
+          `;
           fragment.appendChild(label);
+          lastSection = section;
+        } else if (section !== lastSection && searchQuery.trim()) {
+          // Com busca ativa não repetimos cabeçalhos, já temos o search-label
           lastSection = section;
         }
 
@@ -2449,13 +2718,13 @@
         // Conteúdo deslizável
         const row = createElement('div', `swipe-content item-row ${rowClass} ${favClass}`);
 
-        // Checkbox (mantido para acessibilidade desktop)
+        // Checkbox
         const cb = createElement('div', `item-cb ${it.inStock ? 'on' : ''}`);
         cb.innerHTML = it.inStock ? ICONS.check : '';
         cb.onclick = () => toggleStock(it.id);
         row.appendChild(cb);
 
-        // Info — clique abre edição
+        // Info
         const info = createElement('div', 'item-info');
         info.innerHTML = `
           <div class="item-name">${esc(it.name)}</div>
@@ -2464,7 +2733,7 @@
         info.onclick = () => openEditModal(it.id);
         row.appendChild(info);
 
-        // Fav — estrela limpa
+        // Fav
         const favBtn = createElement('div', `fav-btn ${it.fav ? 'on' : ''}`);
         favBtn.dataset.favId = it.id;
         favBtn.innerHTML = it.fav ? ICONS.starOn : ICONS.starOff;
@@ -2534,8 +2803,8 @@
         favBtn.onclick = () => toggleFav(it.id);
         row.appendChild(favBtn);
 
-        // Min stepper
-        const minWrap = createElement('div', 'stepper-wrap');
+        // Min stepper — Req 1: oculto por padrão, revelado ao focar "current"
+        const minWrap = createElement('div', 'stepper-wrap stepper-min-wrap');
         minWrap.innerHTML = `
           <div class="stepper" id="stepper-min-${it.id}">
             <div class="stepper-btn minus" ontouchstart="" onmousedown="stepperChange('min','${it.id}',-1)">−</div>
@@ -2547,7 +2816,7 @@
         minWrap.querySelector('input').onchange = (e) => updateMin(it.id, e.target.value);
         row.appendChild(minWrap);
 
-        // Qty stepper
+        // Qty stepper — Req 1: ao focar/blur, exibe/oculta o minWrap
         const qtyWrap = createElement('div', 'stepper-wrap');
         qtyWrap.innerHTML = `
           <div class="stepper" id="stepper-qty-${it.id}">
@@ -2557,7 +2826,28 @@
           </div>
           <div class="stepper-label">current</div>
         `;
-        qtyWrap.querySelector('input').onchange = (e) => updateQty(it.id, e.target.value);
+        const qtyInput = qtyWrap.querySelector('input');
+        qtyInput.onchange = (e) => updateQty(it.id, e.target.value);
+        // Req 1 — revelar/ocultar min stepper dinamicamente
+        qtyInput.addEventListener('focus', () => minWrap.classList.add('min-visible'));
+        qtyInput.addEventListener('blur', () => {
+          // Pequeno delay para não ocultar antes do mousedown nos botões do minWrap
+          setTimeout(() => {
+            if (!minWrap.contains(document.activeElement)) {
+              minWrap.classList.remove('min-visible');
+            }
+          }, 200);
+        });
+        // Ao interagir com o próprio minWrap, mantém visível enquanto houver foco
+        minWrap.addEventListener('focusin', () => minWrap.classList.add('min-visible'));
+        minWrap.addEventListener('focusout', () => {
+          setTimeout(() => {
+            if (!minWrap.contains(document.activeElement) &&
+              !qtyWrap.contains(document.activeElement)) {
+              minWrap.classList.remove('min-visible');
+            }
+          }, 200);
+        });
         row.appendChild(qtyWrap);
 
         fragment.appendChild(row);
@@ -2699,12 +2989,13 @@
     }
 
     function applyQuickFilter(type) {
-      const btn = document.querySelector(`.filter-btn[data-filter="${type}"]`);
       const wasActive = activeQuickFilter === type;
 
+      // Limpa estado ativo de todos os botões
       document.querySelectorAll('.filter-btn').forEach(b => {
         b.style.boxShadow = '';
         b.style.transform = '';
+        b.removeAttribute('data-active');
       });
 
       if (wasActive) {
@@ -2712,14 +3003,31 @@
         if (type === 'fav') toast('Favorites filter off');
       } else {
         activeQuickFilter = type;
-        btn.style.boxShadow = '0 0 0 2px var(--accent)';
-        btn.style.transform = 'scale(0.95)';
+        const btn = document.querySelector(`.filter-btn[data-filter="${type}"]`);
+        if (btn) {
+          btn.setAttribute('data-active', 'true');
+          // Para warn e crit o estado ativo já é intrínseco (cor temática permanente);
+          // o ring de foco adicional só se aplica a eles via inline — fav usa CSS puro.
+          if (type !== 'fav') {
+            btn.style.boxShadow = '0 0 0 2px var(--accent)';
+            btn.style.transform = 'scale(0.95)';
+          }
+        }
         if (type === 'fav') {
           const favCount = items.filter(i => i.fav).length;
           toast(favCount > 0
             ? `⭐ ${favCount} favorite${favCount !== 1 ? 's' : ''} shown`
             : '⭐ No favorites added yet');
         }
+      }
+
+      // Req 2 — Sincroniza ícone do #search-fav-btn
+      const sfBtn = document.getElementById('search-fav-btn');
+      if (sfBtn) {
+        const isFavOn = activeQuickFilter === 'fav';
+        sfBtn.classList.toggle('on', isFavOn);
+        sfBtn.innerHTML = isFavOn ? '⭐' : '☆';
+        sfBtn.title = isFavOn ? 'Favorites filter ON — click to disable' : 'Filter favorites';
       }
 
       saveUI();
@@ -2925,6 +3233,272 @@
       toast('Item removed');
     }
 
+    // ══════════════════════════════════════════════════════════════
+    // SECTION MENU SYSTEM
+    // ══════════════════════════════════════════════════════════════
+
+    let _secMenuEl = null;
+
+    function closeSectionMenu() {
+      if (_secMenuEl) {
+        _secMenuEl.remove();
+        _secMenuEl = null;
+      }
+    }
+
+    // Posiciona e exibe o dropdown próximo ao botão ⋯
+    function _showSectionMenu(triggerEl, html) {
+      closeSectionMenu();
+
+      const menu = document.createElement('div');
+      menu.className = 'sec-action-menu';
+      menu.innerHTML = html;
+      document.body.appendChild(menu);
+      _secMenuEl = menu;
+
+      // Posicionamento: abaixo do trigger, alinhado à direita
+      const rect = triggerEl.getBoundingClientRect();
+      const menuW = 220;
+      let left = rect.right - menuW;
+      let top = rect.bottom + 6;
+
+      // Garante que não sai da tela
+      if (left < 8) left = 8;
+      if (top + 220 > window.innerHeight) top = rect.top - 220;
+
+      menu.style.left = left + 'px';
+      menu.style.top = top + 'px';
+      menu.style.width = menuW + 'px';
+
+      // Fecha ao clicar fora
+      setTimeout(() => {
+        document.addEventListener('mousedown', _outsideMenuHandler);
+        document.addEventListener('touchstart', _outsideMenuHandler, { passive: true });
+      }, 0);
+    }
+
+    function _outsideMenuHandler(e) {
+      if (_secMenuEl && !_secMenuEl.contains(e.target)) {
+        closeSectionMenu();
+        document.removeEventListener('mousedown', _outsideMenuHandler);
+        document.removeEventListener('touchstart', _outsideMenuHandler);
+      }
+    }
+
+    // ── Menu para categoria (sortMode === 'cat') ───────────────────────────
+    function openCatSectionMenu(triggerEl, cat) {
+      const catItems = items.filter(i => getCategoryOf(i) === cat);
+      const count = catItems.length;
+      const key = _registerBulk(catItems.map(i => i.id));
+
+      _showSectionMenu(triggerEl, `
+        <div class="sec-action-header">#${esc(cat)} · ${count} item${count !== 1 ? 's' : ''}</div>
+        <div class="sec-action-item" data-action="rename-cat" data-cat="${esc(cat)}">
+          <span class="sec-action-icon">✏️</span> Rename category
+        </div>
+        <div class="sec-action-item danger" data-action="delete-cat" data-key="${key}" data-cat="${esc(cat)}">
+          <span class="sec-action-icon">🗑️</span> Delete all ${count} item${count !== 1 ? 's' : ''}
+        </div>
+      `);
+
+      // Listener delegado no menu — evita onclick inline com dados interpolados
+      _secMenuEl.addEventListener('click', e => {
+        const item = e.target.closest('[data-action]');
+        if (!item) return;
+        const action = item.dataset.action;
+        closeSectionMenu();
+        if (action === 'rename-cat') {
+          startCatRename(item.dataset.cat);
+        } else if (action === 'delete-cat') {
+          confirmBulkDeleteByKey(item.dataset.key, item.dataset.cat);
+        }
+      });
+    }
+
+    // ── Menu genérico (sortMode A-Z ou fav) ───────────────────────────────
+    function openGenericSectionMenu(triggerEl, sectionKey) {
+      const secItems = sorted(filteredItems()).filter(i => sectionKeyOf(i) === sectionKey);
+      const count = secItems.length;
+      const key = _registerBulk(secItems.map(i => i.id));
+      const label = sectionKey;
+
+      _showSectionMenu(triggerEl, `
+        <div class="sec-action-header">${esc(sectionKey)} · ${count} item${count !== 1 ? 's' : ''}</div>
+        <div class="sec-action-item danger" data-action="bulk-delete" data-key="${key}" data-label="${esc(label)}">
+          <span class="sec-action-icon">🗑️</span> Delete all ${count} item${count !== 1 ? 's' : ''}
+        </div>
+      `);
+
+      _secMenuEl.addEventListener('click', e => {
+        const item = e.target.closest('[data-action]');
+        if (!item) return;
+        closeSectionMenu();
+        confirmBulkDeleteByKey(item.dataset.key, item.dataset.label);
+      });
+    }
+
+    // ── Menu para resultado de busca ───────────────────────────────────────
+    function openSearchSectionMenu(triggerEl, query, count) {
+      const matchIds = sorted(filteredItems()).map(i => i.id);
+      const key = _registerBulk(matchIds);
+      const label = `search results for "${query}"`;
+
+      _showSectionMenu(triggerEl, `
+        <div class="sec-action-header">Search: &ldquo;${esc(query)}&rdquo; · ${count} result${count !== 1 ? 's' : ''}</div>
+        <div class="sec-action-item danger" data-action="bulk-delete" data-key="${key}" data-label="${esc(label)}">
+          <span class="sec-action-icon">🗑️</span> Delete all ${count} result${count !== 1 ? 's' : ''}
+        </div>
+      `);
+
+      _secMenuEl.addEventListener('click', e => {
+        const item = e.target.closest('[data-action]');
+        if (!item) return;
+        closeSectionMenu();
+        confirmBulkDeleteByKey(item.dataset.key, item.dataset.label);
+      });
+    }
+
+    // ── Rename de categoria inline ─────────────────────────────────────────
+    // Substitui o sec-label pelo campo de edição inline; confirma com Enter/blur
+    function startCatRename(cat) {
+      // Acha o sec-label cujo texto começa com #cat
+      const labels = document.querySelectorAll('.sec-label');
+      let targetLabel = null;
+      for (const l of labels) {
+        const txt = l.querySelector('.sec-label-text');
+        if (txt && txt.textContent.trim().toLowerCase() === ('#' + cat).toLowerCase()) {
+          targetLabel = l;
+          break;
+        }
+      }
+      if (!targetLabel) return;
+
+      // Guarda innerHTML original para cancelar
+      const originalHTML = targetLabel.innerHTML;
+
+      // Remove o ::before pseudo via classe temporária
+      targetLabel.style.setProperty('--before-opacity', '0');
+
+      // Cria input inline
+      const input = document.createElement('input');
+      input.className = 'sec-label-input';
+      input.value = cat;
+      input.maxLength = 40;
+      input.spellcheck = false;
+
+      targetLabel.innerHTML = '';
+      // Mantém o pseudo ::before visual mas o sec-label vira container do input
+      const bar = document.createElement('span');
+      bar.style.cssText = 'width:3px;height:11px;border-radius:2px;background:var(--accent);flex-shrink:0;opacity:0.5';
+      targetLabel.appendChild(bar);
+      targetLabel.appendChild(input);
+
+      const hint = document.createElement('span');
+      hint.style.cssText = 'font-size:10px;color:var(--text3);font-weight:400;letter-spacing:0.02em;flex-shrink:0';
+      hint.textContent = 'Enter ↵ to save';
+      targetLabel.appendChild(hint);
+
+      input.focus();
+      input.select();
+
+      function applyRename() {
+        const newCat = input.value.trim().toLowerCase().replace(/\s+/g, '-');
+        if (!newCat || newCat === cat) {
+          targetLabel.innerHTML = originalHTML;
+          return;
+        }
+        // Atualiza o campo desc de todos os itens da categoria
+        items.forEach(it => {
+          if (getCategoryOf(it) === cat) {
+            it.desc = it.desc.replace(new RegExp('#' + cat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '#' + newCat);
+          }
+        });
+        saveAndRender();
+        toast(`Category renamed to #${newCat}`);
+      }
+
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); applyRename(); }
+        if (e.key === 'Escape') { targetLabel.innerHTML = originalHTML; }
+      });
+      input.addEventListener('blur', applyRename);
+    }
+
+    // ── Executa bulk delete ───────────────────────────────────────────────
+    // Registro temporário de lotes — evita serialização de arrays em atributos HTML
+    const _bulkRegistry = {};
+
+    function _registerBulk(ids) {
+      const key = 'b' + Date.now();
+      _bulkRegistry[key] = ids;
+      return key;
+    }
+
+    function doBulkDelete(key) {
+      const ids = _bulkRegistry[key];
+      if (!ids) return;
+      delete _bulkRegistry[key];
+      const idSet = new Set(ids);
+      const before = items.length;
+      items = items.filter(i => !idSet.has(i.id));
+      const removed = before - items.length;
+      closeModal();
+      saveAndRender();
+      toast(`${removed} item${removed !== 1 ? 's' : ''} deleted`);
+    }
+
+    // ── Confirm delete de categoria inteira ───────────────────────────────
+    function confirmDeleteCategory(cat) {
+      const catItems = items.filter(i => getCategoryOf(i) === cat);
+      const count = catItems.length;
+      const key = _registerBulk(catItems.map(i => i.id));
+
+      openModal(`
+        <div class="modal-header">
+          <div class="modal-title">Delete category?</div>
+          <div class="modal-sub">#${esc(cat)} · ${count} item${count !== 1 ? 's' : ''} will be permanently removed.</div>
+        </div>
+        <div class="modal-body" style="padding-top:4px">
+          <div style="background:var(--crit-light);border:1px solid var(--row-crit-border);border-radius:10px;padding:10px 14px;font-size:var(--fs-xs);color:var(--crit);line-height:1.5">
+            ⚠️ This will delete every item tagged <strong>#${esc(cat)}</strong>. This action cannot be undone.
+          </div>
+        </div>
+        <div class="modal-foot">
+          <div class="modal-btn cancel" onclick="closeModal()">Cancel</div>
+          <div class="modal-btn danger-btn" onclick="doBulkDelete('${key}')">Delete ${count} item${count !== 1 ? 's' : ''}</div>
+        </div>
+      `);
+    }
+
+    // ── Confirm bulk delete por chave do registry ─────────────────────────
+    function confirmBulkDeleteByKey(key, label) {
+      const ids = _bulkRegistry[key];
+      if (!ids) return;
+      confirmBulkDelete(ids, label);
+    }
+
+    // ── Confirm bulk delete genérico ──────────────────────────────────────
+    function confirmBulkDelete(ids, label) {
+      const count = ids.length;
+      const key = _registerBulk(ids);
+
+      openModal(`
+        <div class="modal-header">
+          <div class="modal-title">Delete ${count} item${count !== 1 ? 's' : ''}?</div>
+          <div class="modal-sub">${esc(label)}</div>
+        </div>
+        <div class="modal-body" style="padding-top:4px">
+          <div style="background:var(--crit-light);border:1px solid var(--row-crit-border);border-radius:10px;padding:10px 14px;font-size:var(--fs-xs);color:var(--crit);line-height:1.5">
+            ⚠️ ${count} item${count !== 1 ? 's' : ''} will be permanently deleted. This action cannot be undone.
+          </div>
+        </div>
+        <div class="modal-foot">
+          <div class="modal-btn cancel" onclick="closeModal()">Cancel</div>
+          <div class="modal-btn danger-btn" onclick="doBulkDelete('${key}')">Delete ${count} item${count !== 1 ? 's' : ''}</div>
+        </div>
+      `);
+    }
+
     function toggleTheme() {
       const current = document.documentElement.getAttribute('data-theme');
       const next = current === 'dark' ? 'light' : 'dark';
@@ -2941,7 +3515,7 @@
       toast(`${next === 'dark' ? 'Dark' : 'Light'} mode enabled`);
     }
 
-    function openConfig() { /* mantido por compatibilidade — ações migradas para o rodapé */ }
+    function openConfig() { closeModal(); }
 
     function showPWAInstructions() {
       openModal(`
@@ -3363,10 +3937,23 @@
     if (activeQuickFilter) {
       const btn = document.querySelector(`.filter-btn[data-filter="${activeQuickFilter}"]`);
       if (btn) {
-        btn.style.boxShadow = '0 0 0 2px var(--accent)';
-        btn.style.transform = 'scale(0.95)';
+        btn.setAttribute('data-active', 'true');
+        if (activeQuickFilter !== 'fav') {
+          btn.style.boxShadow = '0 0 0 2px var(--accent)';
+          btn.style.transform = 'scale(0.95)';
+        }
       }
     }
+
+    // Req 2 — Restaura estado inicial do #search-fav-btn
+    (function syncFavSearchBtn() {
+      const sfBtn = document.getElementById('search-fav-btn');
+      if (!sfBtn) return;
+      const isFavOn = activeQuickFilter === 'fav';
+      sfBtn.classList.toggle('on', isFavOn);
+      sfBtn.innerHTML = isFavOn ? '⭐' : '☆';
+      sfBtn.title = isFavOn ? 'Favorites filter ON — click to disable' : 'Filter favorites';
+    })();
 
     // Restaura visual do botão de ordenação persistido
     (function restoreSortBtn() {
