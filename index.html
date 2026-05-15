@@ -3204,46 +3204,75 @@
 
     // ── Menu para categoria (sortMode === 'cat') ───────────────────────────
     function openCatSectionMenu(triggerEl, cat) {
-      // Itens da categoria
       const catItems = items.filter(i => getCategoryOf(i) === cat);
       const count = catItems.length;
+      const key = _registerBulk(catItems.map(i => i.id));
 
       _showSectionMenu(triggerEl, `
         <div class="sec-action-header">#${esc(cat)} · ${count} item${count !== 1 ? 's' : ''}</div>
-        <div class="sec-action-item" onclick="closeSectionMenu(); startCatRename('${cat.replace(/'/g, "\\'")}')">
+        <div class="sec-action-item" data-action="rename-cat" data-cat="${esc(cat)}">
           <span class="sec-action-icon">✏️</span> Rename category
         </div>
-        <div class="sec-action-item danger" onclick="closeSectionMenu(); confirmDeleteCategory('${cat.replace(/'/g, "\\'")}')">
+        <div class="sec-action-item danger" data-action="delete-cat" data-key="${key}" data-cat="${esc(cat)}">
           <span class="sec-action-icon">🗑️</span> Delete all ${count} item${count !== 1 ? 's' : ''}
         </div>
       `);
+
+      // Listener delegado no menu — evita onclick inline com dados interpolados
+      _secMenuEl.addEventListener('click', e => {
+        const item = e.target.closest('[data-action]');
+        if (!item) return;
+        const action = item.dataset.action;
+        closeSectionMenu();
+        if (action === 'rename-cat') {
+          startCatRename(item.dataset.cat);
+        } else if (action === 'delete-cat') {
+          confirmBulkDeleteByKey(item.dataset.key, item.dataset.cat);
+        }
+      });
     }
 
     // ── Menu genérico (sortMode A-Z ou fav) ───────────────────────────────
     function openGenericSectionMenu(triggerEl, sectionKey) {
-      // Descobre itens pertencentes a esta seção
       const secItems = sorted(filteredItems()).filter(i => sectionKeyOf(i) === sectionKey);
       const count = secItems.length;
-      const ids = secItems.map(i => i.id);
+      const key = _registerBulk(secItems.map(i => i.id));
+      const label = sectionKey;
 
       _showSectionMenu(triggerEl, `
         <div class="sec-action-header">${esc(sectionKey)} · ${count} item${count !== 1 ? 's' : ''}</div>
-        <div class="sec-action-item danger" onclick="closeSectionMenu(); confirmBulkDelete(${JSON.stringify(ids)}, '${esc(sectionKey).replace(/'/g, "\\'")}')">
+        <div class="sec-action-item danger" data-action="bulk-delete" data-key="${key}" data-label="${esc(label)}">
           <span class="sec-action-icon">🗑️</span> Delete all ${count} item${count !== 1 ? 's' : ''}
         </div>
       `);
+
+      _secMenuEl.addEventListener('click', e => {
+        const item = e.target.closest('[data-action]');
+        if (!item) return;
+        closeSectionMenu();
+        confirmBulkDeleteByKey(item.dataset.key, item.dataset.label);
+      });
     }
 
     // ── Menu para resultado de busca ───────────────────────────────────────
     function openSearchSectionMenu(triggerEl, query, count) {
       const matchIds = sorted(filteredItems()).map(i => i.id);
+      const key = _registerBulk(matchIds);
+      const label = `search results for "${query}"`;
 
       _showSectionMenu(triggerEl, `
-        <div class="sec-action-header">Search: "${esc(query)}" · ${count} result${count !== 1 ? 's' : ''}</div>
-        <div class="sec-action-item danger" onclick="closeSectionMenu(); confirmBulkDelete(${JSON.stringify(matchIds)}, 'search results for &quot;${esc(query)}&quot;')">
+        <div class="sec-action-header">Search: &ldquo;${esc(query)}&rdquo; · ${count} result${count !== 1 ? 's' : ''}</div>
+        <div class="sec-action-item danger" data-action="bulk-delete" data-key="${key}" data-label="${esc(label)}">
           <span class="sec-action-icon">🗑️</span> Delete all ${count} result${count !== 1 ? 's' : ''}
         </div>
       `);
+
+      _secMenuEl.addEventListener('click', e => {
+        const item = e.target.closest('[data-action]');
+        if (!item) return;
+        closeSectionMenu();
+        confirmBulkDeleteByKey(item.dataset.key, item.dataset.label);
+      });
     }
 
     // ── Rename de categoria inline ─────────────────────────────────────────
@@ -3312,11 +3341,34 @@
       input.addEventListener('blur', applyRename);
     }
 
+    // ── Executa bulk delete ───────────────────────────────────────────────
+    // Registro temporário de lotes — evita serialização de arrays em atributos HTML
+    const _bulkRegistry = {};
+
+    function _registerBulk(ids) {
+      const key = 'b' + Date.now();
+      _bulkRegistry[key] = ids;
+      return key;
+    }
+
+    function doBulkDelete(key) {
+      const ids = _bulkRegistry[key];
+      if (!ids) return;
+      delete _bulkRegistry[key];
+      const idSet = new Set(ids);
+      const before = items.length;
+      items = items.filter(i => !idSet.has(i.id));
+      const removed = before - items.length;
+      closeModal();
+      saveAndRender();
+      toast(`${removed} item${removed !== 1 ? 's' : ''} deleted`);
+    }
+
     // ── Confirm delete de categoria inteira ───────────────────────────────
     function confirmDeleteCategory(cat) {
       const catItems = items.filter(i => getCategoryOf(i) === cat);
       const count = catItems.length;
-      const ids = catItems.map(i => i.id);
+      const key = _registerBulk(catItems.map(i => i.id));
 
       openModal(`
         <div class="modal-header">
@@ -3330,14 +3382,23 @@
         </div>
         <div class="modal-foot">
           <div class="modal-btn cancel" onclick="closeModal()">Cancel</div>
-          <div class="modal-btn danger-btn" onclick="doBulkDelete(${JSON.stringify(ids)})">Delete ${count} item${count !== 1 ? 's' : ''}</div>
+          <div class="modal-btn danger-btn" onclick="doBulkDelete('${key}')">Delete ${count} item${count !== 1 ? 's' : ''}</div>
         </div>
       `);
+    }
+
+    // ── Confirm bulk delete por chave do registry ─────────────────────────
+    function confirmBulkDeleteByKey(key, label) {
+      const ids = _bulkRegistry[key];
+      if (!ids) return;
+      confirmBulkDelete(ids, label);
     }
 
     // ── Confirm bulk delete genérico ──────────────────────────────────────
     function confirmBulkDelete(ids, label) {
       const count = ids.length;
+      const key = _registerBulk(ids);
+
       openModal(`
         <div class="modal-header">
           <div class="modal-title">Delete ${count} item${count !== 1 ? 's' : ''}?</div>
@@ -3350,20 +3411,9 @@
         </div>
         <div class="modal-foot">
           <div class="modal-btn cancel" onclick="closeModal()">Cancel</div>
-          <div class="modal-btn danger-btn" onclick="doBulkDelete(${JSON.stringify(ids)})">Delete ${count} item${count !== 1 ? 's' : ''}</div>
+          <div class="modal-btn danger-btn" onclick="doBulkDelete('${key}')">Delete ${count} item${count !== 1 ? 's' : ''}</div>
         </div>
       `);
-    }
-
-    // ── Executa bulk delete ───────────────────────────────────────────────
-    function doBulkDelete(ids) {
-      const idSet = new Set(ids);
-      const before = items.length;
-      items = items.filter(i => !idSet.has(i.id));
-      const removed = before - items.length;
-      closeModal();
-      saveAndRender();
-      toast(`${removed} item${removed !== 1 ? 's' : ''} deleted`);
     }
 
     function toggleTheme() {
