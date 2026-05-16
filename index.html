@@ -1236,8 +1236,9 @@
     }
 
     .buy-row.done {
-      opacity: 0.5;
+      opacity: 0.72;
       background: var(--surface2);
+      border-left-color: var(--accent);
       border-bottom-color: var(--border);
     }
 
@@ -2140,7 +2141,7 @@
     };
 
     // ==================== CONSTANTES E VARIÁVEIS ====================
-    const STORAGE_KEY = 'Shop_List_v20260515b';
+    const STORAGE_KEY = 'Shop_List_v20260515c';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -2450,7 +2451,7 @@
     }
 
     function stockItems() { return filteredItems().filter(it => it.inStock); }
-    function buyItems() { return filteredItems().filter(it => it.inStock && it.qty < it.min); }
+    function buyItems() { return filteredItems().filter(it => it.inStock && (it.qty < it.min || it._done)); }
 
     // Extrai a primeira categoria (#tag) do campo desc de um item
     function getCategoryOf(it) {
@@ -2616,6 +2617,100 @@
 
       // Mouse (desktop preview)
       content.addEventListener('mousedown', e => { onStart(e); });
+      window.addEventListener('mousemove', e => { if (dragging) onMove(e); });
+      window.addEventListener('mouseup', e => { if (dragging) onEnd(); });
+    }
+
+    // Swipe para aba Refill: right = toggle done, left = desmarcar (se done)
+    function attachSwipeRefill(wrap, itemId) {
+      const content = wrap.querySelector('.swipe-content');
+      const bgLeft = wrap.querySelector('.swipe-bg-left');
+      const bgRight = wrap.querySelector('.swipe-bg-right');
+
+      const THRESHOLD = 68;
+      const MAX_DRAG = 100;
+
+      let startX = 0, startY = 0, dx = 0;
+      let dragging = false, dirLocked = false, isHorizontal = false;
+
+      function getItem() { return items.find(i => i.id === itemId); }
+
+      function onStart(e) {
+        const t = e.touches ? e.touches[0] : e;
+        startX = t.clientX; startY = t.clientY;
+        dx = 0; dragging = true; dirLocked = false; isHorizontal = false;
+        wrap.classList.add('swiping');
+      }
+
+      function onMove(e) {
+        if (!dragging) return;
+        const t = e.touches ? e.touches[0] : e;
+        const curDx = t.clientX - startX;
+        const curDy = t.clientY - startY;
+        if (!dirLocked && (Math.abs(curDx) > 6 || Math.abs(curDy) > 6)) {
+          dirLocked = true;
+          isHorizontal = Math.abs(curDx) > Math.abs(curDy);
+        }
+        if (!isHorizontal) return;
+        e.preventDefault();
+        dx = Math.sign(curDx) * Math.min(Math.abs(curDx), MAX_DRAG);
+        const ratio = Math.abs(dx) / MAX_DRAG;
+        const visual = dx * (1 - 0.3 * ratio);
+        content.style.transform = `translateX(${visual}px)`;
+        const intensity = Math.min(Math.abs(dx) / THRESHOLD, 1);
+        // right → check; left → uncheck
+        bgRight.style.opacity = dx > 0 ? intensity : 0;
+        bgLeft.style.opacity = dx < 0 ? intensity : 0;
+      }
+
+      function onEnd() {
+        if (!dragging) return;
+        dragging = false;
+        wrap.classList.remove('swiping');
+        const confirmed = Math.abs(dx) >= THRESHOLD;
+
+        if (confirmed) {
+          content.style.transform = `translateX(${dx < 0 ? -MAX_DRAG : MAX_DRAG}px)`;
+          wrap.classList.add('snap-back');
+          setTimeout(() => {
+            content.style.transform = '';
+            bgLeft.style.opacity = 0;
+            bgRight.style.opacity = 0;
+            wrap.classList.remove('snap-back');
+
+            const it = getItem();
+            if (!it) return;
+
+            if (dx > 0) {
+              // Swipe right: abre modal "units acquired" (mesmo fluxo do toque no checkbox)
+              toggleDone(it.id);
+            } else {
+              // Swipe left: desmarcar
+              if (it._done) {
+                it._done = false;
+                save();
+                const row = content;
+                row.classList.remove('done');
+                const cb = row.querySelector('.buy-cb');
+                if (cb) { cb.classList.remove('on'); cb.innerHTML = ''; }
+                const nameEl = row.querySelector('.item-name');
+                if (nameEl) nameEl.style.textDecoration = '';
+                toast('↩ Unmarked');
+              }
+            }
+          }, 180);
+        } else {
+          content.style.transform = '';
+          bgLeft.style.opacity = 0;
+          bgRight.style.opacity = 0;
+        }
+      }
+
+      content.addEventListener('touchstart', onStart, { passive: true });
+      content.addEventListener('touchmove', onMove, { passive: false });
+      content.addEventListener('touchend', onEnd);
+      content.addEventListener('touchcancel', onEnd);
+      content.addEventListener('mousedown', e => onStart(e));
       window.addEventListener('mousemove', e => { if (dragging) onMove(e); });
       window.addEventListener('mouseup', e => { if (dragging) onEnd(); });
     }
@@ -2932,9 +3027,24 @@
           lastSection = section;
         }
 
-        const row = createElement('div', `buy-row ${it._done ? 'done' : ''} ${it.fav ? 'fav-on' : ''}`);
+        // ── Swipe wrapper ─────────────────────────────────────────────────
+        const wrap = createElement('div', 'swipe-wrap');
 
-        // Checkbox
+        // Bg esquerdo: desmarcar (cinza/undo)
+        const bgLeft = createElement('div', 'swipe-bg swipe-bg-left');
+        bgLeft.style.background = 'linear-gradient(90deg, var(--text3) 70%, transparent 100%)';
+        bgLeft.innerHTML = '↩';
+        wrap.appendChild(bgLeft);
+
+        // Bg direito: marcar como done (verde/check)
+        const bgRight = createElement('div', 'swipe-bg swipe-bg-right');
+        bgRight.style.background = 'linear-gradient(270deg, var(--accent) 70%, transparent 100%)';
+        bgRight.innerHTML = '✅';
+        wrap.appendChild(bgRight);
+
+        const row = createElement('div', `swipe-content buy-row ${it._done ? 'done' : ''} ${it.fav ? 'fav-on' : ''}`);
+
+        // Checkbox — toque abre modal de quantidade
         const cb = createElement('div', `buy-cb ${it._done ? 'on' : ''}`);
         cb.innerHTML = it._done ? ICONS.check : '';
         cb.onclick = () => toggleDone(it.id);
@@ -2943,7 +3053,7 @@
         // Info
         const info = createElement('div', 'buy-info');
         info.innerHTML = `
-          <div class="item-name">${esc(it.name)}</div>
+          <div class="item-name" style="${it._done ? 'text-decoration:line-through' : ''}">${esc(it.name)}</div>
           <div class="item-sub">${esc(it.desc)}</div>
         `;
         row.appendChild(info);
@@ -2960,7 +3070,9 @@
         const deficit = createElement('div', 'buy-deficit', `+${it.min - it.qty}`);
         row.appendChild(deficit);
 
-        fragment.appendChild(row);
+        wrap.appendChild(row);
+        attachSwipeRefill(wrap, it.id);
+        fragment.appendChild(wrap);
       }
 
       container.appendChild(fragment);
@@ -2997,7 +3109,7 @@
       const all = filteredItems();
       document.getElementById('badge-0').textContent = all.length;
       document.getElementById('badge-1').textContent = stockItems().length;
-      document.getElementById('badge-2').textContent = buyItems().length;
+      document.getElementById('badge-2').textContent = buyItems().filter(it => !it._done).length;
       document.getElementById('title-sub').textContent = '';
     }
 
@@ -3037,7 +3149,23 @@
     function clearSearch() {
       document.getElementById('search-input').value = '';
       searchQuery = '';
+      // Ao fechar o search, desativa o filtro fav junto — botão oculto não deve manter estado ativo
+      if (activeQuickFilter === 'fav') {
+        activeQuickFilter = '';
+        syncFavBtn();
+        saveUI();
+      }
       render();
+    }
+
+    // Sincroniza o botão ⭐ do search-wrap com o estado real de activeQuickFilter
+    function syncFavBtn() {
+      const sfBtn = document.getElementById('search-fav-btn');
+      if (!sfBtn) return;
+      const on = activeQuickFilter === 'fav';
+      sfBtn.classList.toggle('on', on);
+      sfBtn.innerHTML = on ? '⭐' : '☆';
+      sfBtn.title = on ? 'Favorites filter ON — click to disable' : 'Filter favorites';
     }
 
     function applyQuickFilter(type) {
@@ -3058,8 +3186,6 @@
         const btn = document.querySelector(`.filter-btn[data-filter="${type}"]`);
         if (btn) {
           btn.setAttribute('data-active', 'true');
-          // Para warn e crit o estado ativo já é intrínseco (cor temática permanente);
-          // o ring de foco adicional só se aplica a eles via inline — fav usa CSS puro.
           if (type !== 'fav') {
             btn.style.boxShadow = '0 0 0 2px var(--accent)';
             btn.style.transform = 'scale(0.95)';
@@ -3073,15 +3199,7 @@
         }
       }
 
-      // Req 2 — Sincroniza ícone do #search-fav-btn
-      const sfBtn = document.getElementById('search-fav-btn');
-      if (sfBtn) {
-        const isFavOn = activeQuickFilter === 'fav';
-        sfBtn.classList.toggle('on', isFavOn);
-        sfBtn.innerHTML = isFavOn ? '⭐' : '☆';
-        sfBtn.title = isFavOn ? 'Favorites filter ON — click to disable' : 'Filter favorites';
-      }
-
+      syncFavBtn();
       saveUI();
       render();
     }
@@ -3116,6 +3234,8 @@
       } else {
         save();
       }
+      // Garante sincronização do #search-fav-btn se o filtro fav estiver ativo
+      syncFavBtn();
     }
 
     function stepperChange(field, id, delta) {
@@ -3142,6 +3262,8 @@
       const it = items.find(i => i.id === id);
       if (it) {
         it.qty = Math.max(0, parseInt(val) || 0);
+        // Qualquer ajuste no current sugere nova necessidade de refill — restaura estado
+        if (it._done) it._done = false;
         silent ? save() : saveAndRender();
       }
     }
@@ -3997,15 +4119,8 @@
       }
     }
 
-    // Req 2 — Restaura estado inicial do #search-fav-btn
-    (function syncFavSearchBtn() {
-      const sfBtn = document.getElementById('search-fav-btn');
-      if (!sfBtn) return;
-      const isFavOn = activeQuickFilter === 'fav';
-      sfBtn.classList.toggle('on', isFavOn);
-      sfBtn.innerHTML = isFavOn ? '⭐' : '☆';
-      sfBtn.title = isFavOn ? 'Favorites filter ON — click to disable' : 'Filter favorites';
-    })();
+    // Restaura estado inicial do #search-fav-btn
+    syncFavBtn();
 
     // Restaura visual do botão de ordenação persistido
     (function restoreSortBtn() {
