@@ -211,6 +211,7 @@
       color: inherit;
       text-decoration: none;
       cursor: pointer;
+      text-overflow: ellipsis;
     }
 
     #title-link:hover {
@@ -233,6 +234,12 @@
       align-items: center;
       gap: 8px;
       padding-bottom: 12px;
+      justify-content: flex-end;
+      flex-wrap: nowrap;
+      /* linha única; botões não somem */
+      min-width: 0;
+      /* permite shrink interno */
+      overflow: visible;
     }
 
     #app-title {
@@ -240,23 +247,93 @@
       font-weight: 600;
       letter-spacing: -0.3px;
       display: flex;
-      align-items: center;
-      gap: 7px;
-      flex-shrink: 0;
+      align-items: baseline;
+      gap: 5px;
+      flex-shrink: 1;
+      /* pode encolher se necessário */
+      min-width: 0;
+      flex-wrap: wrap;
+      /* timestamp quebra p/ 2ª linha se não couber */
     }
 
-    #app-title span {
-      color: var(--text3);
+    /* "Shop List" — nome principal, opacidade plena */
+    .title-main {
+      opacity: 1;
+    }
+
+    /* "Semaphore" — sufixo do app, mais discreto */
+    .title-suffix {
+      opacity: 0.42;
       font-weight: 400;
-      font-size: var(--fs-xs);
+    }
+
+    /* Timestamp de dados — mais contrastado que antes */
+    #app-title span#title-sub {
+      color: var(--text2);
+      font-weight: 500;
+      font-size: 9.5px;
       font-family: 'DM Mono', monospace;
+      white-space: nowrap;
+      opacity: 0.88;
+      letter-spacing: 0.02em;
+    }
+
+    /* ─── Grupo de controles na linha 1 (sort · traffic · search · close) ─── */
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      margin-left: auto;
+      /* empurra para a direita sem flex:1 no título */
+    }
+
+    /* ─── Botão toggle 🚦 ───────────────────────────────────────────────── */
+    #btn-traffic {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      transition: all var(--transition);
+      flex-shrink: 0;
+      box-shadow: 0 1px 3px rgba(13, 27, 42, 0.06);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #btn-traffic:hover {
+      background: var(--border);
+    }
+
+    #btn-traffic.active {
+      background: var(--surface2);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(0, 121, 107, 0.18);
+    }
+
+    /* ─── Segunda linha: filtros crit/warn/ok ────────────────────────────── */
+    #filter-bar {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.22s ease, padding 0.22s ease;
+      padding: 0;
+    }
+
+    #filter-bar.open {
+      max-height: 56px;
+      padding: 4px 0 10px;
     }
 
     .filter-badge-group {
       display: flex;
       align-items: center;
-      gap: 6px;
-      flex: 1;
+      gap: 8px;
       justify-content: center;
     }
 
@@ -269,6 +346,7 @@
       margin: 0 2px;
     } */
 
+    /* ── Botões de filtro: mesma base visual que .hbtn ── */
     .filter-btn {
       width: 40px;
       height: 34px;
@@ -279,66 +357,32 @@
       justify-content: center;
       cursor: pointer;
       font-size: var(--fs-sm);
-      font-weight: 600;
-      font-family: 'DM Mono', monospace;
       transition: all var(--transition);
       flex-shrink: 0;
       background: var(--surface2);
       color: var(--text2);
       box-shadow: 0 1px 3px rgba(13, 27, 42, 0.06);
+      -webkit-tap-highlight-color: transparent;
     }
 
-    .filter-btn[data-filter="fav"] {
-      background: var(--surface2);
-      color: var(--text2);
-      border-color: var(--border);
-    }
-
-    .filter-btn[data-filter="fav"]:hover {
+    .filter-btn:hover {
       background: var(--border);
       transform: scale(0.95);
     }
 
-    /* Estado ON — cores iluminadas apenas quando o filtro está ativo */
-    .filter-btn[data-filter="fav"][data-active="true"] {
-      background: #FFF8E1;
-      color: #B8860B;
-      border-color: #F5DFA0;
-      box-shadow: 0 0 0 2px rgba(184, 134, 11, 0.18);
+    /* Estado ativo: ring de foco accent (igual ao .hbtn.active) */
+    .filter-btn[data-active="true"] {
+      background: var(--surface2);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(0, 121, 107, 0.18);
     }
 
-    .filter-btn[data-filter="fav"][data-active="true"]:hover {
-      background: #FFEFB5;
-      transform: scale(0.95);
+    [data-theme="dark"] .filter-btn[data-active="true"] {
+      box-shadow: 0 0 0 2px rgba(38, 198, 186, 0.18);
     }
 
-    [data-theme="dark"] .filter-btn[data-filter="fav"][data-active="true"] {
-      background: #2A1E00;
-      color: #FFD54F;
-      border-color: #7A5500;
-      box-shadow: 0 0 0 2px rgba(255, 213, 79, 0.15);
-    }
-
-    .filter-btn[data-filter="warn"] {
-      background: var(--filter-warn-bg);
-      color: var(--warn);
-      border-color: var(--row-off-border);
-    }
-
-    .filter-btn[data-filter="warn"]:hover {
-      background: var(--filter-warn-hover);
-      transform: scale(0.95);
-    }
-
-    .filter-btn[data-filter="crit"] {
-      background: var(--filter-crit-bg);
-      color: var(--crit);
-      border-color: var(--row-crit-border);
-    }
-
-    .filter-btn[data-filter="crit"]:hover {
-      background: var(--filter-crit-hover);
-      transform: scale(0.95);
+    .filter-btn[data-active="true"]:hover {
+      background: var(--border);
     }
 
     /* Req 2 — Botão fav minimalista dentro do search-wrap */
@@ -1968,39 +2012,45 @@
   <div id="app">
     <div id="header">
       <div id="header-top">
-        <div id="app-title"><a href="https://linktr.ee/magasine" target="_blank" rel="noopener" id="title-link"
-            title="Credits: @magasine">Shop List</a> <span id="title-sub"></span></div>
+        <!-- Título + timestamp sempre visível -->
+        <div id="app-title">
+          <a href="https://linktr.ee/magasine" target="_blank" rel="noopener" id="title-link"
+            title="Credits: @magasine"><span class="title-main">Shop List</span><span class="title-suffix">
+              Semaphore</span></a>
+          <span id="title-sub"></span>
+        </div>
 
-        <div class="filter-badge-group">
-          <!-- Ordenação -->
+        <!-- Controles fixos da linha 1: sort · 🚦 · search · close -->
+        <div class="header-controls">
           <div id="btn-sort" title="Sort (A-Z, #-Z, ⭐)" onclick="toggleSortMode()">
             <span id="sort-icon"><span
                 style="font-size:12px;font-family:'DM Mono',monospace;font-weight:700;letter-spacing:-0.5px">A·Z</span></span>
           </div>
 
-          <!-- Filtros rápidos — ⭐ movido para #search-wrap (req 2) -->
-          <!-- <div class="filter-btn" data-filter="warn" title="No limite" onclick="applyQuickFilter('warn')">🟡</div>
-          <div class="filter-btn" data-filter="crit" title="Faltando" onclick="applyQuickFilter('crit')">🔴</div> -->
+          <div id="btn-traffic" title="Filtros de status" onclick="toggleFilterBar()">🚦</div>
 
-          <!-- Divisor -->
-          <!-- <div class="filter-divider"></div> -->
-
-          <!-- Busca -->
           <div class="hbtn" id="btn-search" title="Search" onclick="toggleSearch()">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
           </div>
-        </div>
 
-        <div class="right-buttons">
           <div class="hbtn" id="btn-close" title="Close" onclick="closeApp()">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </div>
+        </div>
+      </div>
+
+      <!-- Segunda linha: filtros crit/warn/ok (toggle via 🚦) -->
+      <div id="filter-bar">
+        <div class="filter-badge-group">
+          <div class="filter-btn" data-filter="crit" title="Faltando" onclick="applyQuickFilter('crit')">🔴</div>
+          <div class="filter-btn" data-filter="warn" title="No limite" onclick="applyQuickFilter('warn')">🟡</div>
+          <div class="filter-btn" data-filter="ok" title="Suprido" onclick="applyQuickFilter('ok')">🟢</div>
         </div>
       </div>
 
@@ -2141,7 +2191,7 @@
     };
 
     // ==================== CONSTANTES E VARIÁVEIS ====================
-    const STORAGE_KEY = 'Shop_List_v20260515c';
+    const STORAGE_KEY = 'Shop_List_v20260523';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -3110,7 +3160,16 @@
       document.getElementById('badge-0').textContent = all.length;
       document.getElementById('badge-1').textContent = stockItems().length;
       document.getElementById('badge-2').textContent = buyItems().filter(it => !it._done).length;
-      document.getElementById('title-sub').textContent = '';
+      // Timestamp compacto sempre visível no título
+      (function () {
+        const el = document.getElementById('title-sub');
+        if (!el) return;
+        if (!startupSavedAt) { el.textContent = ''; return; }
+        const d = new Date(startupSavedAt);
+        if (isNaN(d)) { el.textContent = ''; return; }
+        const pad = n => String(n).padStart(2, '0');
+        el.textContent = `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      })();
     }
 
     function updateFooter() {
@@ -3124,6 +3183,14 @@
       document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
       document.querySelectorAll('.panel').forEach((p, i) => p.classList.toggle('active', i === idx));
       render();
+    }
+
+    function toggleFilterBar() {
+      const bar = document.getElementById('filter-bar');
+      const btn = document.getElementById('btn-traffic');
+      const open = bar.classList.toggle('open');
+      btn.classList.toggle('active', open);
+      btn.textContent = open ? '🚥' : '🚦';
     }
 
     function toggleSearch() {
@@ -3172,25 +3239,24 @@
       const wasActive = activeQuickFilter === type;
 
       // Limpa estado ativo de todos os botões
-      document.querySelectorAll('.filter-btn').forEach(b => {
-        b.style.boxShadow = '';
-        b.style.transform = '';
-        b.removeAttribute('data-active');
-      });
+      document.querySelectorAll('.filter-btn').forEach(b => b.removeAttribute('data-active'));
 
       if (wasActive) {
         activeQuickFilter = '';
         if (type === 'fav') toast('Favorites filter off');
       } else {
-        activeQuickFilter = type;
-        const btn = document.querySelector(`.filter-btn[data-filter="${type}"]`);
-        if (btn) {
-          btn.setAttribute('data-active', 'true');
-          if (type !== 'fav') {
-            btn.style.boxShadow = '0 0 0 2px var(--accent)';
-            btn.style.transform = 'scale(0.95)';
+        // Garante que o filter-bar esteja visível ao ativar um filtro de status
+        if (['crit', 'warn', 'ok'].includes(type)) {
+          const fb = document.getElementById('filter-bar');
+          const tb = document.getElementById('btn-traffic');
+          if (fb && !fb.classList.contains('open')) {
+            fb.classList.add('open');
+            if (tb) { tb.classList.add('active'); tb.textContent = '🚥'; }
           }
         }
+        activeQuickFilter = type;
+        const btn = document.querySelector(`.filter-btn[data-filter="${type}"]`);
+        if (btn) btn.setAttribute('data-active', 'true');
         if (type === 'fav') {
           const favCount = items.filter(i => i.fav).length;
           toast(favCount > 0
