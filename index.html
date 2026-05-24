@@ -240,6 +240,7 @@
       min-width: 0;
       /* permite shrink interno */
       overflow: visible;
+      align-items: flex-start;
     }
 
     #app-title {
@@ -932,6 +933,8 @@
     }
 
     .item-cb {
+      position: relative;
+      z-index: 1;
       width: 20px;
       height: 20px;
       border-radius: 7px;
@@ -970,6 +973,8 @@
     }
 
     .item-info {
+      position: relative;
+      z-index: 1;
       flex: 1;
       min-width: 0;
       cursor: pointer;
@@ -1032,21 +1037,82 @@
     .swipe-bg-left {
       background: linear-gradient(90deg, var(--crit) 70%, transparent 100%);
       justify-content: flex-start;
-      padding-left: 20px;
+      padding-left: 16px;
       color: #fff;
       font-size: 18px;
       opacity: 0;
       transition: opacity 0.12s ease;
+      gap: 8px;
     }
 
     .swipe-bg-right {
       background: linear-gradient(270deg, var(--accent) 70%, transparent 100%);
       justify-content: flex-end;
-      padding-right: 20px;
+      padding-right: 16px;
       color: #fff;
       font-size: 18px;
       opacity: 0;
       transition: opacity 0.12s ease;
+      gap: 8px;
+    }
+
+    /*
+     * Labels de swipe — vivem dentro do swipe-content (o elemento que se move).
+     * São pills posicionados absolutamente nas margens internas da row,
+     * colados nos extremos do padding (16px), abaixo dos elementos reais (z-index: 0).
+     * Ficam escondidos sob o conteúdo da row enquanto não há arrasto suficiente;
+     * à medida que o item desliza, a margem oposta fica exposta e o label aparece.
+     *
+     * Mapeamento:
+     *   arrasto → direita  →  label-left  aparece na margem esquerda
+     *   arrasto ← esquerda →  label-right aparece na margem direita
+     */
+    .swipe-label {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      line-height: 1;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      z-index: 0;
+      /* abaixo do conteúdo real da row */
+      /* pill com fundo para não vazar sobre texto quando parcialmente exposto */
+      padding: 3px 7px;
+      border-radius: 4px;
+    }
+
+    /* Label de swipe-direita: colado na margem esquerda do padding da row */
+    .swipe-label-left {
+      left: 4px;
+      background: rgba(0, 0, 0, 0.18);
+      color: rgba(255, 255, 255, 0.95);
+    }
+
+    /* Label de swipe-esquerda: colado na margem direita do padding da row */
+    .swipe-label-right {
+      right: 4px;
+      background: rgba(0, 0, 0, 0.18);
+      color: rgba(255, 255, 255, 0.95);
+    }
+
+    /* Ativação via classe no swipe-content:
+       eleva o z-index do label acima dos elementos da row (z-index:1)
+       apenas durante o arrasto ativo — no estado estático fica enterrado abaixo */
+    .swipe-content.show-label-left .swipe-label-left {
+      opacity: 1;
+      z-index: 2;
+    }
+
+    .swipe-content.show-label-right .swipe-label-right {
+      opacity: 1;
+      z-index: 2;
     }
 
     .swipe-content {
@@ -1068,6 +1134,8 @@
 
     /* ===================== FAVORITE BUTTON (ícone limpo) ===================== */
     .fav-btn {
+      position: relative;
+      z-index: 1;
       width: 32px;
       height: 32px;
       display: flex;
@@ -1293,6 +1361,8 @@
     }
 
     .buy-cb {
+      position: relative;
+      z-index: 1;
       width: 20px;
       height: 20px;
       border-radius: 10px;
@@ -1320,11 +1390,15 @@
     }
 
     .buy-info {
+      position: relative;
+      z-index: 1;
       flex: 1;
       min-width: 0;
     }
 
     .buy-deficit {
+      position: relative;
+      z-index: 1;
       flex-shrink: 0;
       margin-left: auto;
       font-size: max(16px, var(--fs-sm));
@@ -2193,7 +2267,7 @@
     };
 
     // ==================== CONSTANTES E VARIÁVEIS ====================
-    const STORAGE_KEY = 'Shop_List_v20260524';
+    const STORAGE_KEY = 'Shop_List_v20260523';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -2649,12 +2723,19 @@
         const intensity = Math.min(Math.abs(dx) / THRESHOLD, 1);
         bgLeft.style.opacity = dx < 0 ? intensity : 0;
         bgRight.style.opacity = dx > 0 ? intensity : 0;
+
+        // Label aparece na extremidade oposta ao arrasto, a partir de 40% do threshold
+        const LABEL_TRIGGER = THRESHOLD * 0.4;
+        const pastTrigger = Math.abs(dx) >= LABEL_TRIGGER;
+        content.classList.toggle('show-label-left', dx > 0 && pastTrigger); // arrasto direita → label borda esquerda
+        content.classList.toggle('show-label-right', dx < 0 && pastTrigger); // arrasto esquerda → label borda direita
       }
 
       function onEnd() {
         if (!dragging) return;
         dragging = false;
         wrap.classList.remove('swiping');
+        content.classList.remove('show-label-left', 'show-label-right');
 
         const confirmed = Math.abs(dx) >= THRESHOLD;
 
@@ -2735,12 +2816,19 @@
         // right → check; left → uncheck
         bgRight.style.opacity = dx > 0 ? intensity : 0;
         bgLeft.style.opacity = dx < 0 ? intensity : 0;
+
+        // Label aparece na extremidade oposta ao arrasto, a partir de 40% do threshold
+        const LABEL_TRIGGER = THRESHOLD * 0.4;
+        const pastTrigger = Math.abs(dx) >= LABEL_TRIGGER;
+        content.classList.toggle('show-label-left', dx > 0 && pastTrigger); // arrasto direita → label borda esquerda (Acquired)
+        content.classList.toggle('show-label-right', dx < 0 && pastTrigger); // arrasto esquerda → label borda direita (Unmark)
       }
 
       function onEnd() {
         if (!dragging) return;
         dragging = false;
         wrap.classList.remove('swiping');
+        content.classList.remove('show-label-left', 'show-label-right');
         const confirmed = Math.abs(dx) >= THRESHOLD;
 
         if (confirmed) {
@@ -2884,8 +2972,16 @@
         bgRight.innerHTML = it.inStock ? ICONS.check : ICONS.plus;
         wrap.appendChild(bgRight);
 
-        // Conteúdo deslizável
+        // Conteúdo deslizável — labels ficam aqui, nas extremidades opostas ao arrasto
         const row = createElement('div', `swipe-content item-row ${rowClass} ${favClass}`);
+        // label-left: aparece na borda esquerda quando arrasto vai para direita (toggle stock)
+        const lblRight = createElement('span', 'swipe-label swipe-label-left');
+        lblRight.textContent = it.inStock ? 'Out of stock' : 'In stock';
+        row.appendChild(lblRight);
+        // label-right: aparece na borda direita quando arrasto vai para esquerda (delete)
+        const lblLeft = createElement('span', 'swipe-label swipe-label-right');
+        lblLeft.textContent = 'Delete';
+        row.appendChild(lblLeft);
 
         // Checkbox
         const cb = createElement('div', `item-cb ${it.inStock ? 'on' : ''}`);
@@ -3116,7 +3212,16 @@
         bgRight.innerHTML = '✅';
         wrap.appendChild(bgRight);
 
+        // Conteúdo deslizável — labels nas extremidades opostas ao arrasto
         const row = createElement('div', `swipe-content buy-row ${it._done ? 'done' : ''} ${it.fav ? 'fav-on' : ''}`);
+        // label-left: borda esquerda → aparece no arrasto para direita (Acquired)
+        const lblAcquired = createElement('span', 'swipe-label swipe-label-left');
+        lblAcquired.textContent = 'Acquired';
+        row.appendChild(lblAcquired);
+        // label-right: borda direita → aparece no arrasto para esquerda (Unmark)
+        const lblUnmark = createElement('span', 'swipe-label swipe-label-right');
+        lblUnmark.textContent = 'Unmark';
+        row.appendChild(lblUnmark);
 
         // Checkbox — toque abre modal de quantidade
         const cb = createElement('div', `buy-cb ${it._done ? 'on' : ''}`);
