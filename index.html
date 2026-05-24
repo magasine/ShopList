@@ -2193,7 +2193,7 @@
     };
 
     // ==================== CONSTANTES E VARIÁVEIS ====================
-    const STORAGE_KEY = 'Shop_List_v20260523';
+    const STORAGE_KEY = 'Shop_List_v20260524';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -2309,6 +2309,8 @@
     }
 
     function showStartupDialog() {
+      // ATENÇÃO: esta função é estritamente read-only — nunca deve escrever no storage.
+      // O savedAt exibido aqui é lido via readSavedAt() e não deve ser modificado aqui.
       const _startupTs = readSavedAt();
       if (!_startupTs && items !== defaultItems()) return; // base legada sem timestamp
       if (!_startupTs) return; // primeiro uso, sem dados prévios
@@ -2430,24 +2432,16 @@
       const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}.${pad(now.getHours())}${pad(now.getMinutes())}`;
       const filename = `${ts}-Shop-List.json`;
 
-      // Exporta usando o savedAt atual do localStorage (fonte da verdade)
-      let exportPayload;
+      // Regrava no storage com savedAt = momento exato do export.
+      // Isso garante que o arquivo baixado, o storage e o badge fiquem 100% sincronizados.
+      const toSave = items.map(({ _done, ...rest }) => rest);
+      const exportedAt = now.toISOString();
+      const freshPayload = { savedAt: exportedAt, data: toSave };
       try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          // Usa exatamente o que está no storage, preservando o timestamp original
-          exportPayload = stored;
-        } else {
-          // Fallback: cria novo payload com timestamp atual
-          const toSave = items.map(({ _done, ...rest }) => rest);
-          const payload = { savedAt: new Date().toISOString(), data: toSave };
-          exportPayload = JSON.stringify(payload, null, 2);
-        }
-      } catch (_) {
-        const toSave = items.map(({ _done, ...rest }) => rest);
-        const payload = { savedAt: new Date().toISOString(), data: toSave };
-        exportPayload = JSON.stringify(payload, null, 2);
-      }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(freshPayload));
+      } catch (_) { /* storage cheio: continua e exporta mesmo assim */ }
+
+      const exportPayload = JSON.stringify(freshPayload, null, 2);
 
       const blob = new Blob([exportPayload], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -2457,7 +2451,7 @@
       a.click();
       URL.revokeObjectURL(url);
 
-      // Atualiza o timestamp visível no título
+      // Atualiza o badge com o savedAt recém-gravado
       updateBadges();
     }
 
@@ -3181,18 +3175,8 @@
 
     // Salva e re-renderiza — use em mutações de dados reais
     function saveAndRender() {
-      // Salva os dados (já atualiza o timestamp no storage)
-      const toSave = items.map(({ _done, ...rest }) => rest);
-      const now = new Date().toISOString();
-      const payload = { savedAt: now, data: toSave };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-      changeCounter++;
-      if (changeCounter >= BACKUP_THRESHOLD && !bannerDismissed) {
-        document.getElementById('backup-banner').classList.add('visible');
-      }
-
-      // Renderiza a UI (que já chama updateBadges internamente)
-      render();
+      save();   // única fonte de escrita: grava savedAt, incrementa contador, atualiza badge
+      render(); // re-renderiza painéis (updateBadges já foi chamado dentro de save())
     }
 
     function updateBadges() {
@@ -3883,7 +3867,8 @@
           changeCounter = 0; // Reset contador após importação
 
           closeModal();
-          render(); // updateBadges() lê o savedAt do storage automaticamente
+          render();         // re-renderiza painéis com os novos dados
+          updateBadges();   // garante que o badge leia o savedAt recém-gravado no storage
           toast('Data imported successfully');
 
         } catch (err) {
