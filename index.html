@@ -3209,7 +3209,7 @@
         const d = new Date(ts);
         if (isNaN(d)) { el.textContent = ''; return; }
         const pad = n => String(n).padStart(2, '0');
-        el.textContent = `Saved at: ${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        el.textContent = `Upd: ${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
       })();
     }
 
