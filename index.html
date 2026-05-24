@@ -2226,7 +2226,8 @@
     }
 
     // ==================== LOCALSTORAGE COM TRATAMENTO DE ERRO ====================
-    let startupSavedAt = null; // timestamp da base encontrada no storage
+    let startupSavedAt = null;  // timestamp da base encontrada no storage
+    let currentSavedAt = null;  // atualizado a cada save() ou import
 
     function load() {
       try {
@@ -2382,8 +2383,10 @@
       try {
         // Remove _done antes de persistir — é estado de sessão, não de dados
         const toSave = items.map(({ _done, ...rest }) => rest);
-        const payload = { savedAt: new Date().toISOString(), data: toSave };
+        const now = new Date().toISOString();
+        const payload = { savedAt: now, data: toSave };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        currentSavedAt = now;   // mantém o timestamp vivo para updateBadges()
         changeCounter++;
         if (changeCounter >= BACKUP_THRESHOLD && !bannerDismissed) {
           document.getElementById('backup-banner').classList.add('visible');
@@ -3162,15 +3165,17 @@
       document.getElementById('badge-0').textContent = all.length;
       document.getElementById('badge-1').textContent = stockItems().length;
       document.getElementById('badge-2').textContent = buyItems().filter(it => !it._done).length;
-      // Timestamp compacto sempre visível no título
+      // Timestamp: usa currentSavedAt (atualizado a cada save/import) com
+      // fallback para startupSavedAt (base carregada na inicialização)
       (function () {
         const el = document.getElementById('title-sub');
         if (!el) return;
-        if (!startupSavedAt) { el.textContent = ''; return; }
-        const d = new Date(startupSavedAt);
+        const ts = currentSavedAt || startupSavedAt;
+        if (!ts) { el.textContent = ''; return; }
+        const d = new Date(ts);
         if (isNaN(d)) { el.textContent = ''; return; }
         const pad = n => String(n).padStart(2, '0');
-        el.textContent = `Last saved: ${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        el.textContent = `Current data: ${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
       })();
     }
 
@@ -3815,6 +3820,7 @@
               : null;
           if (!data) throw new Error('Invalid format');
           items = data;
+          startupSavedAt = null; // descarta ref antiga; currentSavedAt será atualizado por save()
           save();
           closeModal();
           render();
