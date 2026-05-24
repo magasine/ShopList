@@ -2391,6 +2391,8 @@
         if (changeCounter >= BACKUP_THRESHOLD && !bannerDismissed) {
           document.getElementById('backup-banner').classList.add('visible');
         }
+        // Atualiza o timestamp no badge imediatamente
+        updateBadges();
       } catch (e) {
         console.error('Erro ao salvar no localStorage:', e);
         toast('Error saving data locally');
@@ -2428,12 +2430,23 @@
       const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}.${pad(now.getHours())}${pad(now.getMinutes())}`;
       const filename = `${ts}-Shop-List.json`;
 
-      // Exporta o payload completo (com savedAt) que está no storage
+      // Exporta usando o savedAt atual do localStorage (fonte da verdade)
       let exportPayload;
       try {
-        exportPayload = localStorage.getItem(STORAGE_KEY) || JSON.stringify(items, null, 2);
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          // Usa exatamente o que está no storage, preservando o timestamp original
+          exportPayload = stored;
+        } else {
+          // Fallback: cria novo payload com timestamp atual
+          const toSave = items.map(({ _done, ...rest }) => rest);
+          const payload = { savedAt: new Date().toISOString(), data: toSave };
+          exportPayload = JSON.stringify(payload, null, 2);
+        }
       } catch (_) {
-        exportPayload = JSON.stringify(items, null, 2);
+        const toSave = items.map(({ _done, ...rest }) => rest);
+        const payload = { savedAt: new Date().toISOString(), data: toSave };
+        exportPayload = JSON.stringify(payload, null, 2);
       }
 
       const blob = new Blob([exportPayload], { type: 'application/json' });
@@ -3168,7 +3181,17 @@
 
     // Salva e re-renderiza — use em mutações de dados reais
     function saveAndRender() {
-      save();
+      // Salva os dados (já atualiza o timestamp no storage)
+      const toSave = items.map(({ _done, ...rest }) => rest);
+      const now = new Date().toISOString();
+      const payload = { savedAt: now, data: toSave };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      changeCounter++;
+      if (changeCounter >= BACKUP_THRESHOLD && !bannerDismissed) {
+        document.getElementById('backup-banner').classList.add('visible');
+      }
+
+      // Renderiza a UI (que já chama updateBadges internamente)
       render();
     }
 
@@ -3186,7 +3209,7 @@
         const d = new Date(ts);
         if (isNaN(d)) { el.textContent = ''; return; }
         const pad = n => String(n).padStart(2, '0');
-        el.textContent = `Current data: ${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        el.textContent = `Saved at: ${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
       })();
     }
 
@@ -3825,25 +3848,47 @@
       reader.onload = (ev) => {
         try {
           const parsed = JSON.parse(ev.target.result);
+
           // Suporte a arquivo exportado com payload ou array legado
-          const data = Array.isArray(parsed) ? parsed
-            : Array.isArray(parsed.data) ? parsed.data
-              : null;
+          let data = null;
+          let importedSavedAt = null;
+
+          if (Array.isArray(parsed)) {
+            // Formato legado (array puro)
+            data = parsed;
+            importedSavedAt = new Date().toISOString(); // data atual como fallback
+          } else if (parsed && Array.isArray(parsed.data)) {
+            // Formato novo com savedAt
+            data = parsed.data;
+            importedSavedAt = parsed.savedAt || new Date().toISOString();
+          } else {
+            throw new Error('Invalid format');
+          }
+
           if (!data) throw new Error('Invalid format');
+
+          // Atualiza os itens
           items = data;
-          // Preserva o savedAt original do arquivo; gera novo para bases legadas (array puro)
-          const fileSavedAt = !Array.isArray(parsed) && parsed.savedAt ? parsed.savedAt : null;
+
+          // Remove _done antes de salvar (estado de sessão)
           const toSave = items.map(({ _done, ...rest }) => rest);
-          const payload = { savedAt: fileSavedAt || new Date().toISOString(), data: toSave };
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-            changeCounter++;
-          } catch (e) { console.error('Import save error:', e); }
+
+          // PRESERVA O TIMESTAMP DO ARQUIVO IMPORTADO
+          const payload = {
+            savedAt: importedSavedAt,
+            data: toSave
+          };
+
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+          changeCounter = 0; // Reset contador após importação
+
           closeModal();
-          render(); // updateBadges() lê o savedAt recém-gravado no storage
+          render(); // updateBadges() lê o savedAt do storage automaticamente
           toast('Data imported successfully');
+
         } catch (err) {
           toast('Error: invalid file');
+          console.error(err);
         }
         e.target.value = '';
       };
