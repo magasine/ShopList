@@ -2226,8 +2226,15 @@
     }
 
     // ==================== LOCALSTORAGE COM TRATAMENTO DE ERRO ====================
-    let startupSavedAt = null;  // timestamp da base encontrada no storage
-    let currentSavedAt = null;  // atualizado a cada save() ou import
+    // Fonte da verdade para o timestamp: sempre lida direto do localStorage via readSavedAt()
+    function readSavedAt() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return (!Array.isArray(parsed) && parsed.savedAt) ? parsed.savedAt : null;
+      } catch (_) { return null; }
+    }
 
     function load() {
       try {
@@ -2237,22 +2244,18 @@
           // Suporte aos dois formatos: legado (array direto) e novo (objeto com .data)
           if (Array.isArray(parsed)) {
             items = parsed;
-            startupSavedAt = null; // base legada sem timestamp
           } else if (parsed && Array.isArray(parsed.data)) {
             items = parsed.data;
-            startupSavedAt = parsed.savedAt || null;
           } else {
             throw new Error('Formato de dados desconhecido');
           }
         } else {
           items = defaultItems();
-          startupSavedAt = null;
         }
       } catch (e) {
         console.error('Erro ao carregar dados do localStorage:', e);
         toast('Corrupted data. Starting with default values.');
         items = defaultItems();
-        startupSavedAt = null;
         try { localStorage.removeItem(STORAGE_KEY); } catch (_) { }
       }
 
@@ -2306,17 +2309,15 @@
     }
 
     function showStartupDialog() {
-      if (!startupSavedAt && items !== defaultItems()) {
-        // Legacy base without timestamp — don't block the user
-        return;
-      }
-      if (!startupSavedAt) return; // first run, no prior data
+      const _startupTs = readSavedAt();
+      if (!_startupTs && items !== defaultItems()) return; // base legada sem timestamp
+      if (!_startupTs) return; // primeiro uso, sem dados prévios
 
-      const { label, age } = formatSavedAt(startupSavedAt);
+      const { label, age } = formatSavedAt(_startupTs);
       const count = items.length;
       const inStock = items.filter(i => i.inStock).length;
 
-      const diffD = Math.floor((new Date() - new Date(startupSavedAt)) / 86400000);
+      const diffD = Math.floor((new Date() - new Date(_startupTs)) / 86400000);
       const ageColor = diffD < 7 ? 'var(--accent)' : diffD < 30 ? 'var(--warn)' : 'var(--crit)';
       const ageIcon = diffD < 7 ? '🟢' : diffD < 30 ? '🟡' : '🔴';
 
@@ -2386,7 +2387,6 @@
         const now = new Date().toISOString();
         const payload = { savedAt: now, data: toSave };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-        currentSavedAt = now;   // mantém o timestamp vivo para updateBadges()
         changeCounter++;
         if (changeCounter >= BACKUP_THRESHOLD && !bannerDismissed) {
           document.getElementById('backup-banner').classList.add('visible');
@@ -2427,13 +2427,25 @@
       const pad = n => String(n).padStart(2, '0');
       const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}.${pad(now.getHours())}${pad(now.getMinutes())}`;
       const filename = `${ts}-Shop-List.json`;
-      const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
+
+      // Exporta o payload completo (com savedAt) que está no storage
+      let exportPayload;
+      try {
+        exportPayload = localStorage.getItem(STORAGE_KEY) || JSON.stringify(items, null, 2);
+      } catch (_) {
+        exportPayload = JSON.stringify(items, null, 2);
+      }
+
+      const blob = new Blob([exportPayload], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
+
+      // Atualiza o timestamp visível no título
+      updateBadges();
     }
 
     function defaultItems() {
@@ -3165,12 +3177,11 @@
       document.getElementById('badge-0').textContent = all.length;
       document.getElementById('badge-1').textContent = stockItems().length;
       document.getElementById('badge-2').textContent = buyItems().filter(it => !it._done).length;
-      // Timestamp: usa currentSavedAt (atualizado a cada save/import) com
-      // fallback para startupSavedAt (base carregada na inicialização)
+      // Timestamp: lido direto do localStorage — fonte única da verdade
       (function () {
         const el = document.getElementById('title-sub');
         if (!el) return;
-        const ts = currentSavedAt || startupSavedAt;
+        const ts = readSavedAt();
         if (!ts) { el.textContent = ''; return; }
         const d = new Date(ts);
         if (isNaN(d)) { el.textContent = ''; return; }
@@ -3820,10 +3831,16 @@
               : null;
           if (!data) throw new Error('Invalid format');
           items = data;
-          startupSavedAt = null; // descarta ref antiga; currentSavedAt será atualizado por save()
-          save();
+          // Preserva o savedAt original do arquivo; gera novo para bases legadas (array puro)
+          const fileSavedAt = !Array.isArray(parsed) && parsed.savedAt ? parsed.savedAt : null;
+          const toSave = items.map(({ _done, ...rest }) => rest);
+          const payload = { savedAt: fileSavedAt || new Date().toISOString(), data: toSave };
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+            changeCounter++;
+          } catch (e) { console.error('Import save error:', e); }
           closeModal();
-          render();
+          render(); // updateBadges() lê o savedAt recém-gravado no storage
           toast('Data imported successfully');
         } catch (err) {
           toast('Error: invalid file');
