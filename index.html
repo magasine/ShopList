@@ -269,12 +269,14 @@
 
     /* Timestamp de dados — mais contrastado que antes */
     #app-title span#title-sub {
-      color: var(--text2);
+      color: inherit;
+      /* var(--text2); */
       font-weight: 500;
       font-size: var(--fs-xs);
       font-family: 'DM Mono', monospace;
       white-space: nowrap;
-      opacity: 0.88;
+      opacity: 0.42;
+      /* 0.88 */
       letter-spacing: 0.02em;
     }
 
@@ -3168,7 +3170,7 @@
         const d = new Date(startupSavedAt);
         if (isNaN(d)) { el.textContent = ''; return; }
         const pad = n => String(n).padStart(2, '0');
-        el.textContent = `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        el.textContent = `Last saved: ${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
       })();
     }
 
