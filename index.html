@@ -249,7 +249,7 @@
       letter-spacing: -0.3px;
       display: flex;
       align-items: baseline;
-      gap: 5px;
+      gap: 3px;
       flex-shrink: 1;
       /* pode encolher se necessário */
       min-width: 0;
@@ -264,7 +264,7 @@
 
     /* "Semaphore" — sufixo do app, mais discreto */
     .title-suffix {
-      opacity: 0.42;
+      opacity: 0.6;
       font-weight: 400;
     }
 
@@ -276,7 +276,7 @@
       font-size: var(--fs-xs);
       font-family: 'DM Mono', monospace;
       white-space: nowrap;
-      opacity: 0.42;
+      opacity: 0.6;
       /* 0.88 */
       letter-spacing: 0.02em;
     }
@@ -397,7 +397,7 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 15px;
+      font-size: 18px;
       color: var(--text3);
       background: none;
       border: none;
@@ -422,7 +422,7 @@
 
     /* Req 3 — sec-label-count herda a cor de sec-label-text (accent) */
     .sec-label-count {
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 700;
       color: var(--accent);
       background: var(--accent-light);
@@ -593,7 +593,7 @@
       padding: 11px 4px;
       font-size: var(--fs-base);
       font-weight: 600;
-      color: var(--text3);
+      color: var(--text2);
       cursor: pointer;
       border-bottom: 2.5px solid transparent;
       transition: color var(--transition), border-color var(--transition), background var(--transition);
@@ -614,7 +614,7 @@
 
     .tab-badge {
       display: inline-block;
-      font-size: 10px;
+      font-size: 11px;
       font-family: 'DM Mono', monospace;
       background: var(--surface2);
       color: var(--text3);
@@ -1333,7 +1333,7 @@
 
     .stepper-label {
       font-size: 10px;
-      color: var(--text3);
+      color: var(--text2);
       text-transform: uppercase;
       font-family: 'DM Mono', monospace;
       letter-spacing: 0.05em;
@@ -1405,9 +1405,9 @@
       font-family: 'DM Mono', monospace;
       color: var(--crit);
       font-weight: 700;
-      background: var(--crit-light);
-      border: 1.5px solid var(--row-crit-border);
-      border-radius: 8px;
+      /* background: var(--crit-light); */
+      /* border: 1.5px solid var(--row-crit-border); */
+      /* border-radius: 8px; */
       padding: 3px 10px;
       min-width: 38px;
       text-align: center;
@@ -2413,7 +2413,7 @@
             gap: 6px;
             margin-bottom: 4px;
           ">
-            <div style="font-size:var(--fs-xs);color:var(--text3);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.06em">Last saved</div>
+            <div style="font-size:var(--fs-xs);color:var(--text2);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.06em">Last saved</div>
             <div style="font-size:var(--fs-md);font-weight:600;color:var(--text)">${label}</div>
             <div style="font-size:var(--fs-sm);color:${ageColor};font-weight:500">${ageIcon} ${age}</div>
           </div>
@@ -2431,7 +2431,7 @@
               text-align: center;
             ">
               <div style="font-size:20px;font-weight:700;color:var(--text)">${count}</div>
-              <div style="font-size:var(--fs-xs);color:var(--text3);font-family:'DM Mono',monospace">items</div>
+              <div style="font-size:var(--fs-xs);color:var(--text2);font-family:'DM Mono',monospace">items</div>
             </div>
             <div style="
               flex: 1;
@@ -2445,7 +2445,7 @@
               <div style="font-size:var(--fs-xs);color:var(--accent);font-family:'DM Mono',monospace">in stock</div>
             </div>
           </div>
-          <div style="font-size:var(--fs-xs);color:var(--text3);margin-top:12px;line-height:1.5">
+          <div style="font-size:var(--fs-xs);color:var(--text2);margin-top:12px;line-height:1.5">
             Continue with this data or replace it by importing a more recent backup?
           </div>
         </div>
@@ -3298,7 +3298,7 @@
         const d = new Date(ts);
         if (isNaN(d)) { el.textContent = ''; return; }
         const pad = n => String(n).padStart(2, '0');
-        el.textContent = `Upd: ${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        el.textContent = `Saved at: ${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
       })();
     }
 
