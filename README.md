@@ -179,7 +179,7 @@ To test the Service Worker and manifest, use Chrome DevTools:
 
 ## 🔒 Privacy
 
-- No data is sent to external servers
+- No data is necessarily sent to external servers. (This is optional)
 - No cookies, no analytics, no tracking
 - Fonts loaded from Google Fonts on first visit (then cached)
 - Fully functional offline after the first launch
