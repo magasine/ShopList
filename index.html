@@ -2103,7 +2103,7 @@
                 style="font-size:12px;font-family:'DM Mono',monospace;font-weight:700;letter-spacing:-0.5px">A·Z</span></span>
           </div>
 
-          <div id="btn-traffic" title="Filtros de status" onclick="toggleFilterBar()">🚦</div>
+          <div id="btn-traffic" title="Status filters" onclick="toggleFilterBar()">🚦</div>
 
           <div class="hbtn" id="btn-search" title="Search" onclick="toggleSearch()">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -2124,9 +2124,10 @@
       <!-- Segunda linha: filtros crit/warn/ok (toggle via 🚦) -->
       <div id="filter-bar">
         <div class="filter-badge-group">
-          <div class="filter-btn" data-filter="crit" title="Faltando" onclick="applyQuickFilter('crit')">🔴</div>
-          <div class="filter-btn" data-filter="warn" title="No limite" onclick="applyQuickFilter('warn')">🟡</div>
-          <div class="filter-btn" data-filter="ok" title="Suprido" onclick="applyQuickFilter('ok')">🟢</div>
+          <div class="filter-btn" data-filter="crit" title="Stock low" onclick="applyQuickFilter('crit')">🔴</div>
+          <div class="filter-btn" data-filter="warn" title="Stock at the limit" onclick="applyQuickFilter('warn')">🟡
+          </div>
+          <div class="filter-btn" data-filter="ok" title="Stock replenished" onclick="applyQuickFilter('ok')">🟢</div>
         </div>
       </div>
 
