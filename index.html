@@ -521,8 +521,8 @@
     }
 
     #search-bar.open {
-      max-height: 64px;
-      /* era 52 — aumentado para acomodar padding-top */
+      max-height: 96px;
+      /* aumentado para acomodar chips de filtro */
       padding: 6px 0 10px;
       /* padding-top cria o espaço interno que evita o clip da borda */
     }
@@ -1879,6 +1879,80 @@
       color: #7AADFF;
     }
 
+    /* ── CHIPS DE CHECKBOX (search bar) ─────────────────────────────────────── */
+    #search-chips {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 0 4px;
+    }
+
+    #search-bar.open #search-chips {
+      display: flex;
+    }
+
+    .sch-chip {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      font-family: 'DM Mono', monospace;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: var(--surface2);
+      color: var(--text2);
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: background var(--transition), color var(--transition),
+        border-color var(--transition);
+      -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
+    }
+
+    .sch-chip:active {
+      transform: scale(0.92);
+    }
+
+    .sch-chip.active-checked {
+      background: var(--accent-light);
+      border-color: var(--row-ok-border);
+      color: var(--accent);
+    }
+
+    .sch-chip.active-unchecked {
+      background: var(--filter-warn-bg);
+      border-color: var(--warn);
+      color: var(--warn);
+    }
+
+    [data-theme="dark"] .sch-chip.active-checked {
+      background: var(--filter-ok-bg);
+      border-color: var(--row-ok-border);
+    }
+
+    [data-theme="dark"] .sch-chip.active-unchecked {
+      background: var(--filter-warn-bg);
+      border-color: var(--warn);
+    }
+
+    .sch-chip-label {
+      font-size: 10px;
+      color: var(--text3);
+      font-family: 'DM Mono', monospace;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding-left: 2px;
+      flex-shrink: 0;
+    }
+
+    /* chips só relevantes nas abas All e Refill — JS esconde na aba Stock */
+    #search-chips.hidden {
+      display: none !important;
+    }
+
     /* TOAST */
     #toast {
       position: fixed;
@@ -2246,10 +2320,18 @@
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
-          <input id="search-input" type="text" placeholder="search by name, #category…" oninput="onSearch()"
+          <input id="search-input" type="text" placeholder="name, #category, A*, *term*…" oninput="onSearch()"
             autocomplete="off" onkeydown="acOnKeydown(event)" onblur="setTimeout(acClose,150)" />
           <div id="search-fav-btn" title="Filter favorites" onclick="applyQuickFilter('fav')">☆</div>
           <span id="search-clear" onclick="clearSearch()">clear</span>
+        </div>
+        <!-- Chips de filtro por checkbox — visíveis em All e Refill -->
+        <div id="search-chips">
+          <span class="sch-chip-label">filter:</span>
+          <div class="sch-chip" id="chip-checked" onclick="toggleChipFilter('checked')" title="Show only checked items">
+            ✓ Checked</div>
+          <div class="sch-chip" id="chip-unchecked" onclick="toggleChipFilter('unchecked')"
+            title="Show only unchecked items">○ Unchecked</div>
         </div>
       </div>
 
@@ -2394,13 +2476,14 @@
     };
 
     // ==================== CONSTANTES E VARIÁVEIS ====================
-    const STORAGE_KEY = 'Shop_List_v20260526';
+    const STORAGE_KEY = 'Shop_List_v20260523';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
     let items = [];
     let currentTab = 0;
     let searchQuery = '';
+    let checkFilter = '';         // '' | 'checked' | 'unchecked'
     let pendingDoneId = null;
     let changeCounter = 0;
     let bannerDismissed = false;
@@ -2686,21 +2769,54 @@
       return '';
     }
 
-    function fuzzyMatch(text, query) {
-      if (!query) return true;
-      const t = text.toLowerCase();
-      const q = query.toLowerCase();
-      let qi = 0;
-      for (let i = 0; i < t.length && qi < q.length; i++) {
-        if (t[i] === q[qi]) qi++;
+    // ─── BUSCA SIMPLES ────────────────────────────────────────────────────────
+    // Normaliza string: remove acentos e converte para minúsculas
+    function norm(str) {
+      return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    }
+
+    // Converte padrão com curinga (*) em RegExp
+    // Exemplos: "A*" → /^a.*/i  |  "*leite" → /^.*leite/i  |  "pó*de" → /^pó.*de/i
+    function wildcardToRegex(pattern) {
+      const escaped = norm(pattern).replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+      return new RegExp('^' + escaped + '$', 'i');
+    }
+
+    // Decide a estratégia de match e retorna true/false
+    function simpleMatch(item, rawQuery) {
+      const q = rawQuery.trim();
+      if (!q) return true;
+
+      const hasWildcard = q.includes('*');
+
+      // ── Curinga de inicial: "A*" → filtra pelo grupo A-Z ──────────────────
+      if (/^[a-záàãâéêíóôõúüç]\*$/i.test(norm(q))) {
+        const letter = norm(q)[0];
+        const itemLetter = norm(item.name[0] || '');
+        return itemLetter === letter;
       }
-      return qi === q.length;
+
+      // ── Curinga livre: qualquer padrão com * ───────────────────────────────
+      if (hasWildcard) {
+        const rx = wildcardToRegex(q);
+        return rx.test(norm(item.name)) || rx.test(norm(item.desc || ''));
+      }
+
+      // ── Busca por #categoria ───────────────────────────────────────────────
+      if (q.startsWith('#')) {
+        const tag = norm(q.slice(1));
+        return norm(item.desc || '').includes(tag);
+      }
+
+      // ── Substring simples (case/accent insensitive) ────────────────────────
+      const nq = norm(q);
+      return norm(item.name).includes(nq) || norm(item.desc || '').includes(nq);
     }
 
     function filteredItems() {
       let result = [...items];
 
-      // filtro rápido
+      // filtro rápido (🚦 / ⭐)
       if (activeQuickFilter === 'fav') {
         result = result.filter(it => it.fav);
       } else if (activeQuickFilter) {
@@ -2709,20 +2825,33 @@
 
       // busca textual
       const q = searchQuery.trim();
+      if (q) result = result.filter(it => simpleMatch(it, q));
 
-      if (q) {
-        result = result.filter(it => {
-          const s = getStatus(it);
-          const statusText = s === 'off' ? 'inactive' : statusLabel(s);
-
-          return fuzzyMatch(
-            it.name + ' ' + it.desc + ' ' + statusText,
-            q
-          );
-        });
-      }
+      // filtro de checkbox — só aplicável na aba Refill (tab 2), onde _done existe
+      if (currentTab === 2 && checkFilter === 'checked') result = result.filter(it => !!it._done);
+      if (currentTab === 2 && checkFilter === 'unchecked') result = result.filter(it => !it._done);
 
       return result;
+    }
+
+    function toggleChipFilter(type) {
+      checkFilter = checkFilter === type ? '' : type;
+      syncChips();
+      render();
+    }
+
+    function syncChips() {
+      const chips = document.getElementById('search-chips');
+      if (!chips) return;
+
+      const cc = document.getElementById('chip-checked');
+      const cu = document.getElementById('chip-unchecked');
+
+      if (cc) cc.className = 'sch-chip' + (checkFilter === 'checked' ? ' active-checked' : '');
+      if (cu) cu.className = 'sch-chip' + (checkFilter === 'unchecked' ? ' active-unchecked' : '');
+
+      // Chips só relevantes na aba Refill (tab 2) — _done é estado de sessão exclusivo dela
+      chips.classList.toggle('hidden', currentTab !== 2);
     }
 
     function stockItems() { return filteredItems().filter(it => it.inStock); }
@@ -3439,6 +3568,7 @@
       currentTab = idx;
       document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
       document.querySelectorAll('.panel').forEach((p, i) => p.classList.toggle('active', i === idx));
+      syncChips();
       render();
     }
 
@@ -3481,6 +3611,8 @@
     function clearSearch() {
       document.getElementById('search-input').value = '';
       searchQuery = '';
+      checkFilter = '';
+      syncChips();
       // Ao fechar o search, desativa o filtro fav junto — botão oculto não deve manter estado ativo
       if (activeQuickFilter === 'fav') {
         activeQuickFilter = '';
@@ -4860,7 +4992,7 @@
         /** Retorna o payload local {savedAt, data} como string JSON pronta para upload */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260526');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260523');
             if (!raw) return null;
             return raw; // já é string JSON
           } catch { return null; }
@@ -4885,7 +5017,7 @@
             // Aplica ao estado global do app
             if (typeof window.items !== 'undefined') window.items = data;
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260526', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260523', JSON.stringify(payload));
 
             if (typeof window.render === 'function') window.render();
             if (typeof window.updateBadges === 'function') window.updateBadges();
