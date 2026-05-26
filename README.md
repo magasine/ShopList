@@ -11,7 +11,7 @@
 | Tab | Function |
 |-----|--------|
 | **All** | Manages the complete pantry item catalog |
-| **Selected** | Controls minimum and current quantities with steppers |
+| **Stock** | Controls minimum and current quantities with steppers |
 | **Refill** | Lists missing items for the next shopping trip |
 
 ### Mobile-first experience
