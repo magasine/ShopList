@@ -5472,12 +5472,12 @@
           //   isShared=false → paleta purple (índigo/azul) — pasta própria do usuário
           function _folderCard({ id, isShared, inUse, fileCount, lastFileName }) {
             // Variáveis semânticas mapeadas para as CSS vars já definidas no :root / [data-theme="dark"]
-            const cardBg = isShared ? 'var(--accent-light)' : 'var(--purple-light)';
+            const cardBg = isShared ? 'var(--accent-light)' : 'var(--surface2)';
             const cardBorder = isShared
               ? (inUse ? 'var(--accent)' : 'var(--row-ok-border)')
               : (inUse ? 'var(--purple)' : 'var(--border2)');
             const cardColor = isShared ? 'var(--accent-text)' : 'var(--purple)';
-            const badgeBg = isShared ? 'var(--row-ok-border)' : 'var(--border2)';
+            const badgeBg = isShared ? 'var(--row-ok-border)' : 'var(--surface)';
             const icon = isShared ? '🔓' : '🔒';
             const typeLabel = isShared ? 'Shared' : 'Owner';
             const inUseBadge = inUse
@@ -5510,7 +5510,7 @@
                 <span style="font-size:var(--fs-sm);font-weight:700;color:${cardColor};flex:1">${FOLDER_NAME}</span>
                 <span style="font-size:10px;font-weight:700;background:${badgeBg};color:${cardColor};
                              padding:2px 7px;border-radius:20px;letter-spacing:0.04em;
-                             text-transform:uppercase;white-space:nowrap">${typeLabel}</span>
+                             text-transform:uppercase;text-align:center;white-space:nowrap">${typeLabel}</span>
                 ${inUseBadge}
               </div>
               ${filesInfo}
