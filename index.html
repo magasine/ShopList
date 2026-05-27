@@ -308,40 +308,23 @@
       transform: scale(0.90);
     }
 
+    /* Badge de localidade — usa CSS vars do tema; dark mode automático via [data-theme="dark"] no :root */
     #sync-locality.loc-shared {
-      background: #E8F5E9;
-      border-color: #A5D6A7;
-      color: #1B5E20;
+      background: var(--accent-light);
+      border-color: var(--row-ok-border);
+      color: var(--accent-text);
     }
 
     #sync-locality.loc-owner {
-      background: #E8F0FE;
-      border-color: #AECBFA;
-      color: #1A237E;
+      background: var(--purple-light);
+      border-color: var(--border2);
+      color: var(--purple);
     }
 
     #sync-locality.loc-duplicate {
-      background: #FEF3C7;
-      border-color: #F6AD55;
-      color: #92400E;
-    }
-
-    [data-theme="dark"] #sync-locality.loc-shared {
-      background: #0A2318;
-      border-color: #2E7D32;
-      color: #81C784;
-    }
-
-    [data-theme="dark"] #sync-locality.loc-owner {
-      background: #0D1E3A;
-      border-color: #1A3A6E;
-      color: #7AADFF;
-    }
-
-    [data-theme="dark"] #sync-locality.loc-duplicate {
-      background: #261C00;
-      border-color: #B7791F;
-      color: #F6AD55;
+      background: var(--warn-light);
+      border-color: var(--row-off-border);
+      color: var(--warn);
     }
 
     /* ─── Grupo de controles na linha 1 (sort · traffic · search · close) ─── */
@@ -1791,13 +1774,8 @@
     }
 
     .cfg-icon.imp {
-      background: #E3F0FC;
-      color: #1565C0;
-    }
-
-    [data-theme="dark"] .cfg-icon.imp {
-      background: #0D1E3A;
-      color: #64B5F6;
+      background: var(--purple-light);
+      color: var(--purple);
     }
 
     .cfg-icon.cpy {
@@ -1876,26 +1854,20 @@
       }
     }
 
-    /* Banner de sync */
+    /* Banner de sync — usa CSS vars do tema */
     #sync-banner {
       display: none;
       align-items: center;
       gap: 10px;
-      background: #E8F0FE;
-      border-bottom: 1px solid #AECBFA;
+      background: var(--purple-light);
+      border-bottom: 1px solid var(--border2);
       padding: 10px 16px;
       font-size: var(--fs-xs);
-      color: #1A73E8;
+      color: var(--purple);
       font-weight: 500;
       font-family: 'DM Mono', monospace;
       cursor: default;
       transition: background var(--transition);
-    }
-
-    [data-theme="dark"] #sync-banner {
-      background: #0D1E3A;
-      border-color: #1A3A6E;
-      color: #7AADFF;
     }
 
     #sync-banner.visible {
@@ -1921,23 +1893,14 @@
       justify-content: center;
       font-size: 12px;
       flex-shrink: 0;
-      color: #1A73E8;
+      color: var(--purple);
       cursor: pointer;
     }
 
-    [data-theme="dark"] #sync-banner .banner-close {
-      color: #7AADFF;
-    }
-
-    /* cfg-icon para Drive no modal de settings */
+    /* cfg-icon para Drive no modal de settings — usa CSS vars do tema */
     .cfg-icon.drive {
-      background: #E8F0FE;
-      color: #1A73E8;
-    }
-
-    [data-theme="dark"] .cfg-icon.drive {
-      background: #0D1E3A;
-      color: #7AADFF;
+      background: var(--purple-light);
+      color: var(--purple);
     }
 
     /* ── CHIPS DE CHECKBOX (search bar) ─────────────────────────────────────── */
@@ -4994,55 +4957,62 @@
         /** Busca todas as pastas _ShopList_Sync acessíveis ao usuário
          *  Retorna array de { id, name, shared } ordenado: shared first
          */
-        // CORREÇÃO: a função DEVE ser async
         async _findAllFolders() {
           const MIME = 'application/vnd.google-apps.folder';
           const found = new Map(); // id → objeto
 
-          // Estratégia 1: Busca em 'My Drive' (pastas próprias)
-          const searchMyDrive = async () => {
-            try {
-              const q = encodeURIComponent(
-                `name='${FOLDER_NAME}' and mimeType='${MIME}' and trashed=false and 'me' in owners`
-              );
-              const r = await Drive._api(`/files?q=${q}&fields=files(id,name,shared,ownedByMe)&spaces=drive`);
-              const d = await r.json();
-              (d.files || []).forEach(f => found.set(f.id, { ...f, source: 'myDrive' }));
-            } catch (e) { console.warn('[DriveSync] My Drive search error:', e); }
-          };
+          // Busca 1: My Drive (padrão)
+          try {
+            const q = encodeURIComponent(
+              `name='${FOLDER_NAME}' and mimeType='${MIME}' and trashed=false`
+            );
+            const r = await Drive._api(
+              `/files?q=${q}&fields=files(id,name,shared,ownedByMe)&spaces=drive`
+            );
+            const d = await r.json();
+            (d.files || []).forEach(f => found.set(f.id, { ...f, source: 'myDrive' }));
+          } catch (e) { console.warn('[DriveSync] myDrive search error:', e); }
 
-          // Estratégia 2: Busca em 'Compartilhados comigo' - CRÍTICO PARA O SEU CASO!
-          const searchSharedWithMe = async () => {
-            try {
-              // O parâmetro 'sharedWithMe=true' é a chave para encontrar pastas que outros compartilharam com o usuário atual
-              const q = encodeURIComponent(
-                `name='${FOLDER_NAME}' and mimeType='${MIME}' and trashed=false and sharedWithMe=true`
-              );
-              // IMPORTANTE: includeItemsFromAllDrives=true E supportsAllDrives=true são obrigatórios para Shared Items
-              const r = await Drive._api(
-                `/files?q=${q}&fields=files(id,name,shared,ownedByMe)` +
-                `&includeItemsFromAllDrives=true&supportsAllDrives=true`
-              );
-              const d = await r.json();
-              (d.files || []).forEach(f => {
-                if (!found.has(f.id)) {
-                  found.set(f.id, { ...f, source: 'sharedWithMe', ownedByMe: false }); // Força ownedByMe = false
-                }
-              });
-            } catch (e) { console.warn('[DriveSync] Shared with me search error:', e); }
-          };
+          // Busca 2: todos os drives (inclui Shared Drives do Google Groups)
+          try {
+            const q = encodeURIComponent(
+              `name='${FOLDER_NAME}' and mimeType='${MIME}' and trashed=false`
+            );
+            const r = await Drive._api(
+              `/files?q=${q}&fields=files(id,name,shared,ownedByMe)` +
+              `&spaces=drive&includeItemsFromAllDrives=true&supportsAllDrives=true` +
+              `&corpora=allDrives`
+            );
+            const d = await r.json();
+            (d.files || []).forEach(f => {
+              if (!found.has(f.id)) found.set(f.id, { ...f, source: 'allDrives' });
+            });
+          } catch (e) { console.warn('[DriveSync] allDrives search error:', e); }
 
-          // Executa ambas as buscas em paralelo para maior eficiência
-          await Promise.all([searchMyDrive(), searchSharedWithMe()]);
+          // Busca 3: pastas compartilhadas diretamente com o usuário (My Drive do dono)
+          // Necessária pois o escopo drive.file não retorna pastas de terceiros nas
+          // buscas anteriores — sharedWithMe=true força a visibilidade dessas pastas.
+          try {
+            const q = encodeURIComponent(
+              `name='${FOLDER_NAME}' and mimeType='${MIME}' and trashed=false` +
+              ` and sharedWithMe=true`
+            );
+            const r = await Drive._api(
+              `/files?q=${q}&fields=files(id,name,shared,ownedByMe)&spaces=drive`
+            );
+            const d = await r.json();
+            (d.files || []).forEach(f => {
+              if (!found.has(f.id)) found.set(f.id, { ...f, source: 'sharedWithMe' });
+            });
+          } catch (e) { console.warn('[DriveSync] sharedWithMe search error:', e); }
 
-          // Ordena: pastas não-próprias (compartilhadas) primeiro, depois as próprias
-          // Isso mantém a lógica de prioridade que você já tem
+          // Ordena: pastas não-próprias (compartilhadas) primeiro
           return [...found.values()].sort((a, b) => {
             if (!a.ownedByMe && b.ownedByMe) return -1;
             if (a.ownedByMe && !b.ownedByMe) return 1;
             return 0;
           });
-        }
+        },
 
         /** Localiza ou cria a pasta _ShopList_Sync
          *  Fluxo: cache → busca My Drive + All Drives → resolve duplicatas → cria
@@ -5084,6 +5054,15 @@
 
           if (folders.length === 0) {
             // ── 3. Nenhuma encontrada — cria no My Drive ────────────────────────
+            // DIAGNÓSTICO: se isto disparar para um usuário compartilhado, significa
+            // que o escopo drive.file ainda não "viu" a pasta do dono. O proprietário
+            // precisa compartilhar a pasta via Drive para que sharedWithMe=true a retorne.
+            console.warn(
+              '[DriveSync] Nenhuma pasta encontrada nas 3 buscas (myDrive / allDrives / sharedWithMe). ' +
+              'Se este é um usuário compartilhado, o proprietário deve compartilhar a pasta ' +
+              'diretamente pelo Google Drive antes de o app tentar sincronizar. ' +
+              'Criando nova pasta como fallback.'
+            );
             const cr = await Drive._api('/files', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -5364,31 +5343,40 @@
           const folderKnown = meta.folderId && typeof ownedByMe === 'boolean';
 
           // ── Helper: gera um card de pasta ─────────────────────────────────────
+          // Usa exclusivamente CSS vars do tema — sem hex hardcoded — para que
+          // light e dark mode sejam respeitados automaticamente.
+          //   isShared=true  → paleta accent (teal/verde)  — pasta do dono do compartilhamento
+          //   isShared=false → paleta purple (índigo/azul) — pasta própria do usuário
           function _folderCard({ id, isShared, inUse, fileCount, lastFileName }) {
-            const cardBg = isShared ? '#E8F5E9' : '#E8F0FE';
-            const cardBorder = isShared ? (inUse ? '#43A047' : '#A5D6A7') : (inUse ? '#1A73E8' : '#AECBFA');
-            const cardColor = isShared ? '#1B5E20' : '#1A237E';
-            const badgeBg = isShared ? '#C8E6C9' : '#C5CAE9';
+            // Variáveis semânticas mapeadas para as CSS vars já definidas no :root / [data-theme="dark"]
+            const cardBg = isShared ? 'var(--accent-light)' : 'var(--purple-light)';
+            const cardBorder = isShared
+              ? (inUse ? 'var(--accent)' : 'var(--row-ok-border)')
+              : (inUse ? 'var(--purple)' : 'var(--border2)');
+            const cardColor = isShared ? 'var(--accent-text)' : 'var(--purple)';
+            const badgeBg = isShared ? 'var(--row-ok-border)' : 'var(--border2)';
             const icon = isShared ? '🔓' : '🔒';
             const typeLabel = isShared ? 'Shared with you' : 'Owned by you';
             const inUseBadge = inUse
-              ? `<span style="font-size:10px;font-weight:700;background:#fff3;
+              ? `<span style="font-size:10px;font-weight:700;
+                            background:var(--surface);opacity:0.85;
                             border:1px solid ${cardBorder};color:${cardColor};padding:1px 6px;
                             border-radius:20px;letter-spacing:0.04em;text-transform:uppercase">IN USE</span>` : '';
             const filesInfo = fileCount != null
-              ? `<div style="font-size:var(--fs-xs);color:${cardColor};opacity:0.65;margin-top:3px;font-family:'DM Mono',monospace">
+              ? `<div style="font-size:var(--fs-xs);color:${cardColor};opacity:0.7;margin-top:3px;
+                           font-family:'DM Mono',monospace">
                  ${fileCount} file${fileCount !== 1 ? 's' : ''}${lastFileName ? ' · last: ' + lastFileName.slice(0, 13) : ''}
                </div>` : '';
             const useBtn = !inUse
               ? `<div onclick="DriveSync.resolveFolder('${id}')"
                     style="cursor:pointer;font-size:var(--fs-xs);font-weight:700;padding:5px 12px;
                            border-radius:8px;border:1.5px solid ${cardBorder};color:${cardColor};
-                           background:#fff2;margin-top:8px;display:inline-block;
+                           background:var(--surface2);margin-top:8px;display:inline-block;
                            -webkit-tap-highlight-color:transparent">Use this folder</div>` : '';
             const trashBtn = `<div onclick="DriveSync.trashFolder('${id}', ${inUse})"
                     style="cursor:pointer;font-size:var(--fs-xs);font-weight:700;padding:5px 10px;
                            border-radius:8px;border:1.5px solid ${cardBorder};color:${cardColor};
-                           background:#fff2;margin-top:8px;margin-left:6px;display:inline-block;
+                           background:var(--surface2);margin-top:8px;margin-left:6px;display:inline-block;
                            -webkit-tap-highlight-color:transparent" title="Move to Drive trash">🗑</div>`;
 
             return `
@@ -5411,12 +5399,13 @@
           let folderSection = '';
           if (connected && folderKnown) {
             if (hasDuplicate) {
-              // Cabeçalho de aviso
+              // Banner de aviso — usa CSS vars warn já definidas no tema
               folderSection = `
-              <div style="background:#FEF3C7;border:1.5px solid #F6AD55;border-radius:10px;
-                          padding:10px 14px;margin-bottom:10px;display:flex;gap:10px;align-items:center">
+              <div style="background:var(--warn-light);border:1.5px solid var(--row-off-border);
+                          border-radius:10px;padding:10px 14px;margin-bottom:10px;
+                          display:flex;gap:10px;align-items:center">
                 <span style="font-size:18px">⚠️</span>
-                <div style="font-size:var(--fs-xs);color:#92400E;line-height:1.5">
+                <div style="font-size:var(--fs-xs);color:var(--warn);line-height:1.5">
                   <strong>Two folders detected.</strong> Choose which one to use for sync,
                   or move the unwanted one to trash.
                 </div>
