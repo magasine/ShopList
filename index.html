@@ -15,6 +15,8 @@
   <link rel="apple-touch-icon" href="icon-192.png">
   <!-- Google Identity Services (OAuth 2.0 implicit flow) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <!-- Google Picker API -->
+  <script src="https://apis.google.com/js/api.js" async defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link
     href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap"
@@ -2511,6 +2513,7 @@
       manualSync() { this._call('manualSync', []); },
       resolveFolder(id) { this._call('resolveFolder', [id]); },
       trashFolder(id, u) { this._call('trashFolder', [id, u]); },
+      pickSharedFolder() { this._call('pickSharedFolder', []); },
     };
 
     // ==================== ICONS CENTRALIZADOS ====================
@@ -2708,12 +2711,30 @@
             </div>
           </div>
           <div style="font-size:var(--fs-xs);color:var(--text2);margin-top:12px;line-height:1.5">
-            Continue with this data or replace it by importing a more recent backup?
+            Continue with this data, import a local backup, or link a shared Drive folder.
           </div>
         </div>
-        <div class="modal-foot">
-          <div class="modal-btn cancel" onclick="closeModal()">Use this data</div>
-          <div class="modal-btn confirm" onclick="closeModal(); triggerImport()">Import new data</div>
+        <div class="modal-foot" style="flex-direction:column;gap:8px;align-items:stretch">
+          <div style="display:flex;gap:8px">
+            <div class="modal-btn cancel" style="flex:1" onclick="closeModal()">Use this data</div>
+            <div class="modal-btn confirm" style="flex:1" onclick="closeModal(); triggerImport()">Import backup</div>
+          </div>
+          <div class="modal-btn" onclick="closeModal(); DriveSync.pickSharedFolder()"
+               style="background:var(--accent-light);color:var(--accent-text);
+                      border:1.5px solid var(--row-ok-border);font-weight:600;
+                      display:flex;align-items:center;justify-content:center;gap:8px;
+                      padding:11px 16px;border-radius:10px;cursor:pointer;
+                      -webkit-tap-highlight-color:transparent">
+            <svg width="16" height="16" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+              <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" opacity=".72"/>
+              <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" opacity=".72"/>
+              <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" opacity=".72"/>
+              <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z"/>
+              <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z"/>
+              <path d="m73.4 26.15-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z"/>
+            </svg>
+            ☁️ Link shared Drive folder
+          </div>
         </div>
       `);
     }
@@ -5050,6 +5071,18 @@
          *    - O usuário é avisado no painel para excluir a pasta própria do Drive
          */
         async ensureFolder() {
+          // ── Atalho Picker: pasta vinculada manualmente — usa ID gravado diretamente
+          // Não há query de descoberta: o Picker já introduziu o folderId ao escopo
+          // drive.file no momento da seleção, então a API aceitará o ID sem restrições.
+          {
+            const _m = _loadMeta();
+            if (_m.pickedManually && _m.folderId) {
+              _folderId = _m.folderId;
+              console.log('[DriveSync] ensureFolder: using picker-linked folder', _folderId);
+              return _folderId;
+            }
+          }
+
           if (_folderId) return _folderId;
 
           // ── 1. Cache local ─────────────────────────────────────────────────────
@@ -5308,6 +5341,66 @@
         },
       };
 
+      // ─── MÓDULO picker/ ────────────────────────────────────────────────────────
+      // Abre o Google Picker para que o usuário selecione explicitamente uma pasta
+      // do Drive — incluindo "Compartilhados comigo". O folderId retornado é
+      // introduzido ao escopo drive.file automaticamente, resolvendo o problema
+      // de descoberta do usuário compartilhado sem depender de queries frágeis.
+      const Picker = {
+        _loaded: false,
+
+        /** Carrega a Picker API (gapi.load) — idempotente */
+        load() {
+          return new Promise((resolve, reject) => {
+            if (this._loaded) { resolve(); return; }
+            if (typeof gapi === 'undefined') {
+              reject(new Error('Google API (gapi) não carregado. Verifique a tag <script> do apis.google.com'));
+              return;
+            }
+            gapi.load('picker', { callback: () => { this._loaded = true; resolve(); }, onerror: reject });
+          });
+        },
+
+        /**
+         * Abre o Picker em modo de seleção de pasta.
+         * Resolve com { id, name } da pasta escolhida, ou rejeita se o usuário cancelar.
+         */
+        open(accessToken) {
+          return new Promise((resolve, reject) => {
+            // View 1: "Compartilhados comigo" — prioridade para o usuário compartilhado
+            const sharedView = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
+              .setSelectFolderEnabled(true)
+              .setOwnedByMe(false)   // mostra somente pastas de outros
+              .setLabel('Shared with me');
+
+            // View 2: My Drive — fallback para o proprietário que quer usar sua própria pasta
+            const myView = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
+              .setSelectFolderEnabled(true)
+              .setOwnedByMe(true)
+              .setLabel('My Drive');
+
+            const picker = new google.picker.PickerBuilder()
+              .setOAuthToken(accessToken)
+              .setDeveloperKey('')          // deixe vazio — não necessário para drive.file
+              .addView(sharedView)
+              .addView(myView)
+              .setTitle('Select the sync folder')
+              .setMaxItems(1)
+              .setCallback((data) => {
+                if (data.action === google.picker.Action.PICKED) {
+                  const doc = data.docs[0];
+                  resolve({ id: doc.id, name: doc.name, ownedByMe: doc.isOwned || false });
+                } else if (data.action === google.picker.Action.CANCEL) {
+                  reject(new Error('picker-cancelled'));
+                }
+              })
+              .build();
+
+            picker.setVisible(true);
+          });
+        },
+      };
+
       // ─── META / PERSISTÊNCIA DE ESTADO ─────────────────────────────────────────
       function _loadMeta() {
         try { return JSON.parse(localStorage.getItem(SYNC_KEY) || '{}'); } catch { return {}; }
@@ -5386,7 +5479,7 @@
             const cardColor = isShared ? 'var(--accent-text)' : 'var(--purple)';
             const badgeBg = isShared ? 'var(--row-ok-border)' : 'var(--border2)';
             const icon = isShared ? '🔓' : '🔒';
-            const typeLabel = isShared ? 'Shared' : 'Own';
+            const typeLabel = isShared ? 'Shared with you' : 'Owned by you';
             const inUseBadge = inUse
               ? `<span style="font-size:10px;font-weight:700;
                             background:var(--surface);opacity:0.85;
@@ -5491,6 +5584,8 @@
             ${connected
               ? `<div class="modal-btn" style="background:var(--surface2);color:var(--text)"
                       onclick="closeModal();DriveSync.manualSync()">🔄 Sync now</div>
+                 <div class="modal-btn" style="background:var(--accent-light);color:var(--accent-text);border:1.5px solid var(--row-ok-border)"
+                      onclick="closeModal();DriveSync.pickSharedFolder()">🔗 Link folder</div>
                  <div class="modal-btn danger-btn"
                       onclick="closeModal();DriveSync.disconnect()">Disconnect</div>`
               : `<div class="modal-btn confirm"
@@ -5565,6 +5660,59 @@
           Sync.run('resolve');
           // Reabre o painel atualizado após sync
           setTimeout(() => window.DriveSync.openPanel(), 3500);
+        },
+
+        /**
+         * Abre o Google Picker para vincular uma pasta compartilhada.
+         * Chamado pelo botão no startup modal e pelo botão "Link folder" no painel Drive.
+         * Resolve o problema central: introduz o folderId ao escopo drive.file
+         * sem depender de queries de descoberta (sharedWithMe / allDrives).
+         */
+        async pickSharedFolder() {
+          try {
+            // Garante autenticação OAuth antes de abrir o Picker
+            const token = await Auth.ensureToken();
+
+            // Carrega a Picker API (gapi.load — idempotente)
+            if (typeof toast === 'function') toast('📂 Opening Drive folder picker…');
+            await Picker.load();
+
+            // Abre o Picker — o usuário escolhe a pasta
+            let picked;
+            try {
+              picked = await Picker.open(token);
+            } catch (e) {
+              if (e.message === 'picker-cancelled') return; // usuário fechou — sem erro
+              throw e;
+            }
+
+            // Grava o folderId escolhido como pasta ativa
+            _folderId = picked.id;
+            _saveMeta({
+              folderId: picked.id,
+              folderOwnedByMe: picked.ownedByMe,
+              duplicateFolderId: null,   // descarta qualquer duplicata anterior
+              lastFile: null,
+              lastSync: null,
+              pickedManually: true,   // flag de auditoria — pasta vinculada via Picker
+            });
+
+            _setStatus('connected', '☁️ Drive connected');
+            _startTimer();
+            if (typeof toast === 'function')
+              toast('✅ Folder linked: ' + picked.name + ' — syncing…');
+            if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
+
+            // Sync imediato com a pasta recém-vinculada
+            await Sync.run('manual');
+
+            // Reabre painel com o estado atualizado
+            setTimeout(() => window.DriveSync.openPanel(), 1800);
+
+          } catch (e) {
+            console.error('[DriveSync] pickSharedFolder error:', e);
+            if (typeof toast === 'function') toast('❌ Could not link folder: ' + e.message);
+          }
         },
 
         /** Move uma pasta para a lixeira do Drive via API */
