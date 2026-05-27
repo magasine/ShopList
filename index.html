@@ -4994,45 +4994,55 @@
         /** Busca todas as pastas _ShopList_Sync acessíveis ao usuário
          *  Retorna array de { id, name, shared } ordenado: shared first
          */
+        // CORREÇÃO: a função DEVE ser async
         async _findAllFolders() {
           const MIME = 'application/vnd.google-apps.folder';
           const found = new Map(); // id → objeto
 
-          // Busca 1: My Drive (padrão)
-          try {
-            const q = encodeURIComponent(
-              `name='${FOLDER_NAME}' and mimeType='${MIME}' and trashed=false`
-            );
-            const r = await Drive._api(
-              `/files?q=${q}&fields=files(id,name,shared,ownedByMe)&spaces=drive`
-            );
-            const d = await r.json();
-            (d.files || []).forEach(f => found.set(f.id, { ...f, source: 'myDrive' }));
-          } catch (e) { console.warn('[DriveSync] myDrive search error:', e); }
+          // Estratégia 1: Busca em 'My Drive' (pastas próprias)
+          const searchMyDrive = async () => {
+            try {
+              const q = encodeURIComponent(
+                `name='${FOLDER_NAME}' and mimeType='${MIME}' and trashed=false and 'me' in owners`
+              );
+              const r = await Drive._api(`/files?q=${q}&fields=files(id,name,shared,ownedByMe)&spaces=drive`);
+              const d = await r.json();
+              (d.files || []).forEach(f => found.set(f.id, { ...f, source: 'myDrive' }));
+            } catch (e) { console.warn('[DriveSync] My Drive search error:', e); }
+          };
 
-          // Busca 2: todos os drives (inclui Shared with me e Shared Drives)
-          try {
-            const q = encodeURIComponent(
-              `name='${FOLDER_NAME}' and mimeType='${MIME}' and trashed=false`
-            );
-            const r = await Drive._api(
-              `/files?q=${q}&fields=files(id,name,shared,ownedByMe)` +
-              `&spaces=drive&includeItemsFromAllDrives=true&supportsAllDrives=true` +
-              `&corpora=allDrives`
-            );
-            const d = await r.json();
-            (d.files || []).forEach(f => {
-              if (!found.has(f.id)) found.set(f.id, { ...f, source: 'allDrives' });
-            });
-          } catch (e) { console.warn('[DriveSync] allDrives search error:', e); }
+          // Estratégia 2: Busca em 'Compartilhados comigo' - CRÍTICO PARA O SEU CASO!
+          const searchSharedWithMe = async () => {
+            try {
+              // O parâmetro 'sharedWithMe=true' é a chave para encontrar pastas que outros compartilharam com o usuário atual
+              const q = encodeURIComponent(
+                `name='${FOLDER_NAME}' and mimeType='${MIME}' and trashed=false and sharedWithMe=true`
+              );
+              // IMPORTANTE: includeItemsFromAllDrives=true E supportsAllDrives=true são obrigatórios para Shared Items
+              const r = await Drive._api(
+                `/files?q=${q}&fields=files(id,name,shared,ownedByMe)` +
+                `&includeItemsFromAllDrives=true&supportsAllDrives=true`
+              );
+              const d = await r.json();
+              (d.files || []).forEach(f => {
+                if (!found.has(f.id)) {
+                  found.set(f.id, { ...f, source: 'sharedWithMe', ownedByMe: false }); // Força ownedByMe = false
+                }
+              });
+            } catch (e) { console.warn('[DriveSync] Shared with me search error:', e); }
+          };
 
-          // Ordena: pastas não-próprias (compartilhadas) primeiro
+          // Executa ambas as buscas em paralelo para maior eficiência
+          await Promise.all([searchMyDrive(), searchSharedWithMe()]);
+
+          // Ordena: pastas não-próprias (compartilhadas) primeiro, depois as próprias
+          // Isso mantém a lógica de prioridade que você já tem
           return [...found.values()].sort((a, b) => {
             if (!a.ownedByMe && b.ownedByMe) return -1;
             if (a.ownedByMe && !b.ownedByMe) return 1;
             return 0;
           });
-        },
+        }
 
         /** Localiza ou cria a pasta _ShopList_Sync
          *  Fluxo: cache → busca My Drive + All Drives → resolve duplicatas → cria
