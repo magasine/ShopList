@@ -2486,6 +2486,33 @@
   <input type="file" id="file-input" accept=".json" style="display:none" onchange="importFile(event)">
 
   <script>
+    // ─── STUB DriveSync ────────────────────────────────────────────────────────
+    // Declarado antes de qualquer outro código para que onclick inline no HTML
+    // (btn-drive, sync-locality) nunca lance ReferenceError, mesmo que o módulo
+    // DriveSync ainda não tenha sido parseado/executado.
+    // Quando o módulo real é carregado, ele sobrescreve window.DriveSync
+    // completamente — este stub é apenas um guarda de corrida.
+    window.DriveSync = {
+      _ready: false,
+      _call(method, args) {
+        if (this._ready) return;           // módulo real já assumiu
+        const wait = () => {
+          if (window.DriveSync && window.DriveSync._ready) {
+            window.DriveSync[method](...args);
+          } else {
+            setTimeout(wait, 80);
+          }
+        };
+        setTimeout(wait, 80);
+      },
+      openPanel() { this._call('openPanel', []); },
+      connect() { this._call('connect', []); },
+      disconnect() { this._call('disconnect', []); },
+      manualSync() { this._call('manualSync', []); },
+      resolveFolder(id) { this._call('resolveFolder', [id]); },
+      trashFolder(id, u) { this._call('trashFolder', [id, u]); },
+    };
+
     // ==================== ICONS CENTRALIZADOS ====================
     const ICONS = {
       check: `<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`,
@@ -5302,7 +5329,10 @@
       }
 
       // ─── API PÚBLICA ────────────────────────────────────────────────────────────
+      // Sobrescreve o stub declarado no script principal; _ready=true sinaliza ao
+      // stub que o módulo real está disponível e chamadas podem ser despachadas.
       window.DriveSync = {
+        _ready: true,
         /** Inicializa o módulo — chamado ao carregar o app */
         async init() {
           const hasToken = Auth.load();
