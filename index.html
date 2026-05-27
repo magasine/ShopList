@@ -283,6 +283,67 @@
       letter-spacing: 0.02em;
     }
 
+    /* Badge de localidade do sync (owner · shared · ⚠️ duplicate) */
+    #sync-locality {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-family: 'DM Mono', monospace;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 20px;
+      margin-left: 4px;
+      vertical-align: middle;
+      cursor: pointer;
+      border: 1.5px solid transparent;
+      transition: opacity var(--transition), transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
+    }
+
+    #sync-locality:active {
+      transform: scale(0.90);
+    }
+
+    #sync-locality.loc-shared {
+      background: #E8F5E9;
+      border-color: #A5D6A7;
+      color: #1B5E20;
+    }
+
+    #sync-locality.loc-owner {
+      background: #E8F0FE;
+      border-color: #AECBFA;
+      color: #1A237E;
+    }
+
+    #sync-locality.loc-duplicate {
+      background: #FEF3C7;
+      border-color: #F6AD55;
+      color: #92400E;
+    }
+
+    [data-theme="dark"] #sync-locality.loc-shared {
+      background: #0A2318;
+      border-color: #2E7D32;
+      color: #81C784;
+    }
+
+    [data-theme="dark"] #sync-locality.loc-owner {
+      background: #0D1E3A;
+      border-color: #1A3A6E;
+      color: #7AADFF;
+    }
+
+    [data-theme="dark"] #sync-locality.loc-duplicate {
+      background: #261C00;
+      border-color: #B7791F;
+      color: #F6AD55;
+    }
+
     /* ─── Grupo de controles na linha 1 (sort · traffic · search · close) ─── */
     .header-controls {
       display: flex;
@@ -2276,7 +2337,8 @@
           <a href="https://linktr.ee/magasine" target="_blank" rel="noopener" id="title-link"
             title="Credits: @magasine"><span class="title-main">Shop List</span><span class="title-suffix">
               Semaphore</span></a>
-          <span id="title-sub"></span>
+          <span id="title-sub"></span><span id="sync-locality" style="display:none" onclick="DriveSync.openPanel()"
+            title="Drive sync location — click for details"></span>
         </div>
 
         <!-- Controles fixos da linha 1: sort · 🚦 · search · close -->
@@ -3556,6 +3618,42 @@
         const pad = n => String(n).padStart(2, '0');
         el.textContent = `Saved at: ${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
       })();
+
+      // Badge de localidade do sync
+      updateSyncBadge();
+    }
+
+    function updateSyncBadge() {
+      const el = document.getElementById('sync-locality');
+      if (!el) return;
+      try {
+        const meta = JSON.parse(localStorage.getItem('ShopList_driveSync') || '{}');
+        const connected = (() => {
+          try {
+            const t = JSON.parse(localStorage.getItem('ShopList_driveToken') || 'null');
+            return t && t.access_token && Date.now() < t.expires_at;
+          } catch { return false; }
+        })();
+        if (!connected || !meta.folderId || typeof meta.folderOwnedByMe !== 'boolean') {
+          el.style.display = 'none';
+          return;
+        }
+        const hasDup = !!meta.duplicateFolderId;
+        if (hasDup) {
+          el.textContent = '⚠ duplicate';
+          el.className = 'loc-duplicate';
+          el.title = 'Two sync folders detected — click to resolve';
+        } else if (meta.folderOwnedByMe === false) {
+          el.textContent = '🤝 shared';
+          el.className = 'loc-shared';
+          el.title = 'Syncing to a folder shared with you — click for details';
+        } else {
+          el.textContent = '👤 owner';
+          el.className = 'loc-owner';
+          el.title = 'Syncing to your own folder — click for details';
+        }
+        el.style.display = 'inline-flex';
+      } catch { el.style.display = 'none'; }
     }
 
     function updateFooter() {
@@ -5182,6 +5280,7 @@
             _setStatus('error', '⚠️ Drive sync failed: ' + (e.message || 'unknown error'));
           } finally {
             _syncing = false;
+            if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
           }
         },
       };
@@ -5241,62 +5340,80 @@
           const meta = _loadMeta();
           const connected = Auth.isValid();
           const lastSync = meta.lastSync
-            ? new Date(meta.lastSync).toLocaleString('pt-BR')
-            : '—';
+            ? new Date(meta.lastSync).toLocaleString('pt-BR') : '—';
           const lastFile = meta.lastFile || '—';
           const hasDuplicate = !!meta.duplicateFolderId;
-          const ownedByMe = meta.folderOwnedByMe;   // true | false | undefined
+          const ownedByMe = meta.folderOwnedByMe;
           const folderKnown = meta.folderId && typeof ownedByMe === 'boolean';
 
-          // ── Card de folder: cor + ícone + label inequívoco ─────────────────────
-          let folderCard = '';
-          if (connected && folderKnown) {
-            const isShared = ownedByMe === false;
+          // ── Helper: gera um card de pasta ─────────────────────────────────────
+          function _folderCard({ id, isShared, inUse, fileCount, lastFileName }) {
             const cardBg = isShared ? '#E8F5E9' : '#E8F0FE';
-            const cardBorder = isShared ? '#A5D6A7' : '#AECBFA';
+            const cardBorder = isShared ? (inUse ? '#43A047' : '#A5D6A7') : (inUse ? '#1A73E8' : '#AECBFA');
             const cardColor = isShared ? '#1B5E20' : '#1A237E';
             const badgeBg = isShared ? '#C8E6C9' : '#C5CAE9';
             const icon = isShared ? '🤝' : '👤';
-            const label = isShared ? 'Shared with you' : 'Owned by you';
-            const sublabel = isShared
-              ? 'Syncing to the folder shared by another user — this is the correct folder.'
-              : 'Syncing to a folder you created — make sure this is the intended shared folder.';
+            const typeLabel = isShared ? 'Shared with you' : 'Owned by you';
+            const inUseBadge = inUse
+              ? `<span style="font-size:10px;font-weight:700;background:#fff3;
+                            border:1px solid ${cardBorder};color:${cardColor};padding:1px 6px;
+                            border-radius:20px;letter-spacing:0.04em;text-transform:uppercase">IN USE</span>` : '';
+            const filesInfo = fileCount != null
+              ? `<div style="font-size:var(--fs-xs);color:${cardColor};opacity:0.65;margin-top:3px;font-family:'DM Mono',monospace">
+                 ${fileCount} file${fileCount !== 1 ? 's' : ''}${lastFileName ? ' · last: ' + lastFileName.slice(0, 13) : ''}
+               </div>` : '';
+            const useBtn = !inUse
+              ? `<div onclick="DriveSync.resolveFolder('${id}')"
+                    style="cursor:pointer;font-size:var(--fs-xs);font-weight:700;padding:5px 12px;
+                           border-radius:8px;border:1.5px solid ${cardBorder};color:${cardColor};
+                           background:#fff2;margin-top:8px;display:inline-block;
+                           -webkit-tap-highlight-color:transparent">Use this folder</div>` : '';
+            const trashBtn = `<div onclick="DriveSync.trashFolder('${id}', ${inUse})"
+                    style="cursor:pointer;font-size:var(--fs-xs);font-weight:700;padding:5px 10px;
+                           border-radius:8px;border:1.5px solid ${cardBorder};color:${cardColor};
+                           background:#fff2;margin-top:8px;margin-left:6px;display:inline-block;
+                           -webkit-tap-highlight-color:transparent" title="Move to Drive trash">🗑</div>`;
 
-            folderCard = `
-            <div style="background:${cardBg};border:1.5px solid ${cardBorder};border-radius:10px;
-                        padding:12px 14px;display:flex;gap:12px;align-items:flex-start;margin-bottom:12px">
-              <div style="font-size:20px;line-height:1;flex-shrink:0;margin-top:1px">${icon}</div>
-              <div style="flex:1;min-width:0">
-                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-                  <span style="font-size:var(--fs-sm);font-weight:700;color:${cardColor}">${FOLDER_NAME}</span>
-                  <span style="font-size:10px;font-weight:700;background:${badgeBg};color:${cardColor};
-                               padding:2px 7px;border-radius:20px;letter-spacing:0.04em;text-transform:uppercase;
-                               white-space:nowrap">${label}</span>
-                </div>
-                <div style="font-size:var(--fs-xs);color:${cardColor};opacity:0.8;line-height:1.5">${sublabel}</div>
+            return `
+            <div style="background:${cardBg};border:2px solid ${cardBorder};border-radius:12px;
+                        padding:13px 14px;margin-bottom:10px">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+                <span style="font-size:18px;line-height:1">${icon}</span>
+                <span style="font-size:var(--fs-sm);font-weight:700;color:${cardColor};flex:1">${FOLDER_NAME}</span>
+                <span style="font-size:10px;font-weight:700;background:${badgeBg};color:${cardColor};
+                             padding:2px 7px;border-radius:20px;letter-spacing:0.04em;
+                             text-transform:uppercase;white-space:nowrap">${typeLabel}</span>
+                ${inUseBadge}
               </div>
+              ${filesInfo}
+              <div style="display:flex;flex-wrap:wrap;gap:0">${useBtn}${trashBtn}</div>
             </div>`;
           }
 
-          // ── Card de duplicata ──────────────────────────────────────────────────
-          const duplicateCard = hasDuplicate ? `
-          <div style="background:#FEF3C7;border:1.5px solid #F6AD55;border-radius:10px;
-                      padding:12px 14px;display:flex;gap:12px;align-items:flex-start;margin-bottom:12px">
-            <div style="font-size:20px;line-height:1;flex-shrink:0;margin-top:1px">⚠️</div>
-            <div style="flex:1;min-width:0">
-              <div style="font-size:var(--fs-sm);font-weight:700;color:#92400E;margin-bottom:4px">
-                Duplicate folder detected
+          // ── Seção de pasta(s) ─────────────────────────────────────────────────
+          let folderSection = '';
+          if (connected && folderKnown) {
+            if (hasDuplicate) {
+              // Cabeçalho de aviso
+              folderSection = `
+              <div style="background:#FEF3C7;border:1.5px solid #F6AD55;border-radius:10px;
+                          padding:10px 14px;margin-bottom:10px;display:flex;gap:10px;align-items:center">
+                <span style="font-size:18px">⚠️</span>
+                <div style="font-size:var(--fs-xs);color:#92400E;line-height:1.5">
+                  <strong>Two folders detected.</strong> Choose which one to use for sync,
+                  or move the unwanted one to trash.
+                </div>
               </div>
-              <div style="font-size:var(--fs-xs);color:#92400E;line-height:1.5">
-                Two <strong>${FOLDER_NAME}</strong> folders exist in your Drive.<br>
-                The <strong>shared one</strong> is being used. Please open Google Drive
-                and <strong>delete the folder owned by you</strong> to avoid confusion.<br><br>
-                <span style="font-family:'DM Mono',monospace;word-break:break-all;opacity:0.7">
-                  ID to delete: ${meta.duplicateFolderId}
-                </span>
-              </div>
-            </div>
-          </div>` : '';
+              ${_folderCard({ id: meta.folderId, isShared: !ownedByMe, inUse: true, fileCount: null, lastFileName: meta.lastFile })}
+              ${_folderCard({ id: meta.duplicateFolderId, isShared: !!ownedByMe, inUse: false, fileCount: null, lastFileName: null })}`;
+            } else {
+              // Pasta única em uso
+              folderSection = _folderCard({
+                id: meta.folderId, isShared: !ownedByMe,
+                inUse: true, fileCount: null, lastFileName: meta.lastFile,
+              });
+            }
+          }
 
           if (typeof openModal !== 'function') return;
 
@@ -5307,11 +5424,10 @@
           </div>
           <div class="modal-body">
 
-            ${folderCard}
-            ${duplicateCard}
+            ${folderSection}
 
             <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;
-                        padding:14px 16px;display:flex;flex-direction:column;gap:5px;margin-bottom:12px">
+                        padding:13px 16px;display:flex;flex-direction:column;gap:5px;margin-bottom:12px">
               <div style="font-size:var(--fs-xs);color:var(--text2);font-family:'DM Mono',monospace;
                           text-transform:uppercase;letter-spacing:0.06em">Last sync</div>
               <div style="font-size:var(--fs-sm);font-weight:600;color:var(--text)">${lastSync}</div>
@@ -5381,6 +5497,76 @@
 
         manualSync() {
           Sync.run('manual');
+        },
+
+        /** Elege uma pasta como ativa, descartando a outra como duplicata */
+        resolveFolder(chosenId) {
+          const meta = _loadMeta();
+          // Identifica qual é a outra pasta
+          const otherId = chosenId === meta.folderId
+            ? meta.duplicateFolderId
+            : meta.folderId;
+
+          // Busca metadados da pasta escolhida para recompor ownedByMe
+          // A pasta escolhida pode ser a atual (ownedByMe já gravado) ou a duplicata (invertido)
+          const chosenIsCurrentlyInUse = chosenId === meta.folderId;
+          const chosenOwnedByMe = chosenIsCurrentlyInUse
+            ? meta.folderOwnedByMe
+            : !meta.folderOwnedByMe; // duplicata tem ownership inversa
+
+          _folderId = chosenId;
+          _saveMeta({
+            folderId: chosenId,
+            folderOwnedByMe: chosenOwnedByMe,
+            duplicateFolderId: otherId || null,   // mantém o outro como duplicata para oferecer lixeira
+            lastFile: null,
+            lastSync: null,
+          });
+
+          if (typeof closeModal === 'function') closeModal();
+          if (typeof toast === 'function') toast('📁 Folder switched — syncing…');
+          if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
+          Sync.run('resolve');
+          // Reabre o painel atualizado após sync
+          setTimeout(() => window.DriveSync.openPanel(), 3500);
+        },
+
+        /** Move uma pasta para a lixeira do Drive via API */
+        async trashFolder(folderId, isCurrentlyInUse) {
+          if (isCurrentlyInUse) {
+            const meta = _loadMeta();
+            if (!meta.duplicateFolderId) {
+              if (typeof toast === 'function') toast('⚠️ Cannot trash the only folder in use');
+              return;
+            }
+            // Troca para a outra antes de deletar
+            await window.DriveSync.resolveFolder(meta.duplicateFolderId);
+            await new Promise(r => setTimeout(r, 500));
+          }
+
+          try {
+            await Auth.ensureToken();
+            await Drive._api('/files/' + folderId, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ trashed: true }),
+            });
+
+            // Limpa o registro da pasta descartada
+            const meta = _loadMeta();
+            const patch = {};
+            if (meta.duplicateFolderId === folderId) patch.duplicateFolderId = null;
+            if (meta.folderId === folderId) { patch.folderId = null; _folderId = null; }
+            _saveMeta(patch);
+
+            if (typeof closeModal === 'function') closeModal();
+            if (typeof toast === 'function') toast('🗑 Folder moved to Drive trash');
+            if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
+            setTimeout(() => window.DriveSync.openPanel(), 600);
+          } catch (e) {
+            console.error('[DriveSync] trashFolder error:', e);
+            if (typeof toast === 'function') toast('❌ Could not move folder to trash');
+          }
         },
       };
 
