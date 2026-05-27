@@ -2538,7 +2538,7 @@
     };
 
     // ==================== CONSTANTES E VARIÁVEIS ====================
-    const STORAGE_KEY = 'Shop_List_v20260523';
+    const STORAGE_KEY = 'Shop_List_v20260527';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -3644,11 +3644,11 @@
           el.className = 'loc-duplicate';
           el.title = 'Two sync folders detected — click to resolve';
         } else if (meta.folderOwnedByMe === false) {
-          el.textContent = '🤝 shared';
+          el.textContent = '🗁 shared';
           el.className = 'loc-shared';
           el.title = 'Syncing to a folder shared with you — click for details';
         } else {
-          el.textContent = '👤 owner';
+          el.textContent = '🗀 owner';
           el.className = 'loc-owner';
           el.title = 'Syncing to your own folder — click for details';
         }
@@ -5051,11 +5051,16 @@
             try {
               const r = await Drive._api(
                 '/files/' + meta.folderId +
-                '?fields=id,trashed&supportsAllDrives=true'
+                '?fields=id,trashed,ownedByMe&supportsAllDrives=true'
               );
               const d = await r.json();
               if (d.id && !d.trashed) {
                 _folderId = d.id;
+                // Aproveita o retorno para gravar folderOwnedByMe se ainda ausente
+                if (typeof meta.folderOwnedByMe !== 'boolean' && typeof d.ownedByMe === 'boolean') {
+                  _saveMeta({ folderOwnedByMe: d.ownedByMe });
+                  console.log('[DriveSync] folderOwnedByMe enriched from API:', d.ownedByMe);
+                }
                 console.log('[DriveSync] folder from cache:', _folderId);
                 return _folderId;
               }
@@ -5079,7 +5084,7 @@
             });
             const cd = await cr.json();
             _folderId = cd.id;
-            _saveMeta({ folderId: _folderId, folderSource: 'created', duplicateFolderId: null });
+            _saveMeta({ folderId: _folderId, folderSource: 'created', folderOwnedByMe: true, duplicateFolderId: null });
             console.log('[DriveSync] folder created:', _folderId);
             return _folderId;
           }
@@ -5172,7 +5177,7 @@
         /** Retorna o payload local {savedAt, data} como string JSON pronta para upload */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260523');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260527');
             if (!raw) return null;
             return raw; // já é string JSON
           } catch { return null; }
@@ -5197,7 +5202,7 @@
             // Aplica ao estado global do app
             if (typeof window.items !== 'undefined') window.items = data;
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260523', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260527', JSON.stringify(payload));
 
             if (typeof window.render === 'function') window.render();
             if (typeof window.updateBadges === 'function') window.updateBadges();
@@ -5216,6 +5221,8 @@
           try {
             await Auth.ensureToken();
             const folderId = await Drive.ensureFolder();
+            // Atualiza badge imediatamente após resolução da pasta
+            if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
             const files = await Drive.listFiles(folderId);
 
             // Identifica arquivo mais recente no Drive pelo nome
@@ -5352,7 +5359,7 @@
             const cardBorder = isShared ? (inUse ? '#43A047' : '#A5D6A7') : (inUse ? '#1A73E8' : '#AECBFA');
             const cardColor = isShared ? '#1B5E20' : '#1A237E';
             const badgeBg = isShared ? '#C8E6C9' : '#C5CAE9';
-            const icon = isShared ? '🤝' : '👤';
+            const icon = isShared ? '🗁' : '🗀';
             const typeLabel = isShared ? 'Shared with you' : 'Owned by you';
             const inUseBadge = inUse
               ? `<span style="font-size:10px;font-weight:700;background:#fff3;
