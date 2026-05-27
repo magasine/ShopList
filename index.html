@@ -4893,46 +4893,74 @@
           });
         },
 
-        /** Localiza ou cria a pasta _ShopList_Sync */
+        /** Localiza ou cria a pasta _ShopList_Sync
+         *  Fluxo: cache local → My Drive → Shared with me → cria (só se dono)
+         */
         async ensureFolder() {
           if (_folderId) return _folderId;
 
-          // Tenta recuperar do localStorage
+          // ── 1. Cache local: valida se o ID ainda é acessível ──────────────────
           const meta = _loadMeta();
           if (meta.folderId) {
-            // Valida se ainda existe
             try {
-              const r = await Drive._api('/files/' + meta.folderId + '?fields=id,trashed');
+              const r = await Drive._api(
+                '/files/' + meta.folderId +
+                '?fields=id,trashed&supportsAllDrives=true'
+              );
               const d = await r.json();
               if (d.id && !d.trashed) {
                 _folderId = d.id;
+                console.log('[DriveSync] folder from cache:', _folderId);
                 return _folderId;
               }
             } catch (_) { }
+            // ID inválido — limpa cache
+            _saveMeta({ folderId: null });
           }
 
-          // Busca pasta existente
-          const q = encodeURIComponent(`name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
-          const r = await Drive._api(`/files?q=${q}&fields=files(id,name)&spaces=drive`);
-          const d = await r.json();
+          const MIME = 'application/vnd.google-apps.folder';
+          const qBase = `name='${FOLDER_NAME}' and mimeType='${MIME}' and trashed=false`;
 
-          if (d.files && d.files.length > 0) {
-            _folderId = d.files[0].id;
-          } else {
-            // Cria a pasta
-            const cr = await Drive._api('/files', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                name: FOLDER_NAME,
-                mimeType: 'application/vnd.google-apps.folder',
-              }),
-            });
-            const cd = await cr.json();
-            _folderId = cd.id;
+          // ── 2. Busca em My Drive ───────────────────────────────────────────────
+          {
+            const q = encodeURIComponent(qBase);
+            const r = await Drive._api(
+              `/files?q=${q}&fields=files(id,name)&spaces=drive`
+            );
+            const d = await r.json();
+            if (d.files && d.files.length > 0) {
+              _folderId = d.files[0].id;
+              _saveMeta({ folderId: _folderId, folderSource: 'myDrive' });
+              console.log('[DriveSync] folder found in My Drive:', _folderId);
+              return _folderId;
+            }
           }
 
-          _saveMeta({ folderId: _folderId });
+          // ── 3. Busca em "Shared with me" ───────────────────────────────────────
+          {
+            const q = encodeURIComponent(qBase + ' and sharedWithMe=true');
+            const r = await Drive._api(
+              `/files?q=${q}&fields=files(id,name)&spaces=drive&includeItemsFromAllDrives=true&supportsAllDrives=true`
+            );
+            const d = await r.json();
+            if (d.files && d.files.length > 0) {
+              _folderId = d.files[0].id;
+              _saveMeta({ folderId: _folderId, folderSource: 'sharedWithMe' });
+              console.log('[DriveSync] folder found in Shared with me:', _folderId);
+              return _folderId;
+            }
+          }
+
+          // ── 4. Não encontrada em nenhum lugar — cria no My Drive do usuário ───
+          const cr = await Drive._api('/files', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: FOLDER_NAME, mimeType: MIME }),
+          });
+          const cd = await cr.json();
+          _folderId = cd.id;
+          _saveMeta({ folderId: _folderId, folderSource: 'created' });
+          console.log('[DriveSync] folder created:', _folderId);
           return _folderId;
         },
 
@@ -4942,7 +4970,8 @@
             `'${folderId}' in parents and name contains 'Shop-List.json' and trashed=false`
           );
           const r = await Drive._api(
-            `/files?q=${q}&orderBy=name%20desc&fields=files(id,name,createdTime)&spaces=drive`
+            `/files?q=${q}&orderBy=name%20desc&fields=files(id,name,createdTime)` +
+            `&spaces=drive&includeItemsFromAllDrives=true&supportsAllDrives=true`
           );
           const d = await r.json();
           return d.files || [];
@@ -4950,7 +4979,7 @@
 
         /** Baixa conteúdo de um arquivo pelo ID */
         async downloadFile(fileId) {
-          const r = await Drive._api('/files/' + fileId + '?alt=media');
+          const r = await Drive._api('/files/' + fileId + '?alt=media&supportsAllDrives=true');
           return r.text();
         },
 
@@ -4965,7 +4994,8 @@
           form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
           form.append('file', new Blob([content], { type: 'application/json' }));
 
-          const r = await Drive._upload('/files?uploadType=multipart&fields=id,name', {
+          const r = await Drive._upload(
+            '/files?uploadType=multipart&fields=id,name&supportsAllDrives=true', {
             method: 'POST',
             body: form,
           });
