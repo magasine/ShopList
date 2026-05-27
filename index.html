@@ -4755,7 +4755,7 @@
       // IMPORTANTE: substitua CLIENT_ID pelo seu OAuth 2.0 Client ID do Google Cloud Console.
       // Passos: console.cloud.google.com → APIs & Services → Credentials → Create OAuth 2.0 Client ID
       // Authorized JavaScript origins: coloque a URL onde o app está hospedado.
-      const DRIVE_CLIENT_ID = 'SEU_CLIENT_ID_AQUI.apps.googleusercontent.com';
+      const DRIVE_CLIENT_ID = '752295122192-chaj5pnuk6u9brpra192q5ob9b33rp5v.apps.googleusercontent.com';
       const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
       const FOLDER_NAME = '_ShopList_Sync';
       const SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
@@ -5244,14 +5244,59 @@
             ? new Date(meta.lastSync).toLocaleString('pt-BR')
             : '—';
           const lastFile = meta.lastFile || '—';
-          const folderSource = meta.folderSource || '';
           const hasDuplicate = !!meta.duplicateFolderId;
-          const ownedByMe = meta.folderOwnedByMe;
+          const ownedByMe = meta.folderOwnedByMe;   // true | false | undefined
+          const folderKnown = meta.folderId && typeof ownedByMe === 'boolean';
 
-          const sourceLabel = folderSource === 'created' ? '📁 Created by you'
-            : folderSource === 'myDrive' ? (ownedByMe === false ? '📁 Shared with you (My Drive)' : '📁 Your folder')
-              : folderSource === 'allDrives' ? (ownedByMe === false ? '📁 Shared with you' : '📁 Your folder')
-                : '';
+          // ── Card de folder: cor + ícone + label inequívoco ─────────────────────
+          let folderCard = '';
+          if (connected && folderKnown) {
+            const isShared = ownedByMe === false;
+            const cardBg = isShared ? '#E8F5E9' : '#E8F0FE';
+            const cardBorder = isShared ? '#A5D6A7' : '#AECBFA';
+            const cardColor = isShared ? '#1B5E20' : '#1A237E';
+            const badgeBg = isShared ? '#C8E6C9' : '#C5CAE9';
+            const icon = isShared ? '🤝' : '👤';
+            const label = isShared ? 'Shared with you' : 'Owned by you';
+            const sublabel = isShared
+              ? 'Syncing to the folder shared by another user — this is the correct folder.'
+              : 'Syncing to a folder you created — make sure this is the intended shared folder.';
+
+            folderCard = `
+            <div style="background:${cardBg};border:1.5px solid ${cardBorder};border-radius:10px;
+                        padding:12px 14px;display:flex;gap:12px;align-items:flex-start;margin-bottom:12px">
+              <div style="font-size:20px;line-height:1;flex-shrink:0;margin-top:1px">${icon}</div>
+              <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                  <span style="font-size:var(--fs-sm);font-weight:700;color:${cardColor}">${FOLDER_NAME}</span>
+                  <span style="font-size:10px;font-weight:700;background:${badgeBg};color:${cardColor};
+                               padding:2px 7px;border-radius:20px;letter-spacing:0.04em;text-transform:uppercase;
+                               white-space:nowrap">${label}</span>
+                </div>
+                <div style="font-size:var(--fs-xs);color:${cardColor};opacity:0.8;line-height:1.5">${sublabel}</div>
+              </div>
+            </div>`;
+          }
+
+          // ── Card de duplicata ──────────────────────────────────────────────────
+          const duplicateCard = hasDuplicate ? `
+          <div style="background:#FEF3C7;border:1.5px solid #F6AD55;border-radius:10px;
+                      padding:12px 14px;display:flex;gap:12px;align-items:flex-start;margin-bottom:12px">
+            <div style="font-size:20px;line-height:1;flex-shrink:0;margin-top:1px">⚠️</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:var(--fs-sm);font-weight:700;color:#92400E;margin-bottom:4px">
+                Duplicate folder detected
+              </div>
+              <div style="font-size:var(--fs-xs);color:#92400E;line-height:1.5">
+                Two <strong>${FOLDER_NAME}</strong> folders exist in your Drive.<br>
+                The <strong>shared one</strong> is being used. Please open Google Drive
+                and <strong>delete the folder owned by you</strong> to avoid confusion.<br><br>
+                <span style="font-family:'DM Mono',monospace;word-break:break-all;opacity:0.7">
+                  ID to delete: ${meta.duplicateFolderId}
+                </span>
+              </div>
+            </div>
+          </div>` : '';
 
           if (typeof openModal !== 'function') return;
 
@@ -5261,44 +5306,51 @@
             <div class="modal-sub">${connected ? '🟢 Connected' : '⚪ Not connected'}</div>
           </div>
           <div class="modal-body">
-            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
-              <div style="font-size:var(--fs-xs);color:var(--text2);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.06em">Last sync</div>
-              <div style="font-size:var(--fs-sm);font-weight:600;color:var(--text)">${lastSync}</div>
-              <div style="font-size:var(--fs-xs);color:var(--text3);font-family:'DM Mono',monospace;margin-top:2px;word-break:break-all">${lastFile}</div>
-              ${sourceLabel ? `<div style="font-size:var(--fs-xs);color:var(--text3);margin-top:2px">${sourceLabel}</div>` : ''}
-            </div>
 
-            ${hasDuplicate ? `
-            <div style="font-size:var(--fs-xs);background:#FEF3C7;border:1px solid #F6AD55;border-radius:8px;padding:10px 12px;margin-bottom:12px;line-height:1.6;color:#92400E">
-              ⚠️ <strong>Duplicate folder detected.</strong><br>
-              Two <code>${FOLDER_NAME}</code> folders were found in your Drive — the shared one is being used for sync.
-              To avoid confusion, open Google Drive and delete the folder owned by you (not the shared one).
-              <br><br>
-              Duplicate folder ID: <code style="word-break:break-all">${meta.duplicateFolderId}</code>
+            ${folderCard}
+            ${duplicateCard}
+
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+                        padding:14px 16px;display:flex;flex-direction:column;gap:5px;margin-bottom:12px">
+              <div style="font-size:var(--fs-xs);color:var(--text2);font-family:'DM Mono',monospace;
+                          text-transform:uppercase;letter-spacing:0.06em">Last sync</div>
+              <div style="font-size:var(--fs-sm);font-weight:600;color:var(--text)">${lastSync}</div>
+              <div style="font-size:var(--fs-xs);color:var(--text3);font-family:'DM Mono',monospace;
+                          margin-top:1px;word-break:break-all">${lastFile}</div>
             </div>
-            ` : ''}
 
             <div style="font-size:var(--fs-xs);color:var(--text2);line-height:1.6;margin-bottom:4px">
-              📁 Folder <strong>${FOLDER_NAME}</strong> in your Google Drive.<br>
               Files are <em>never overwritten</em> — each sync creates a new versioned file.<br>
               Share the folder in Drive to collaborate with others.
             </div>
+
             ${!connected ? `
-            <div style="font-size:var(--fs-xs);color:var(--warn);background:var(--warn-light);border:1px solid var(--row-off-border);border-radius:8px;padding:10px 12px;margin-top:8px;line-height:1.5">
-              ⚙️ Before connecting, make sure <code>CLIENT_ID</code> is configured in the DriveSync module and your domain is listed as an <em>Authorized JavaScript origin</em> in Google Cloud Console.
-            </div>
-            ` : ''}
+            <div style="font-size:var(--fs-xs);color:var(--warn);background:var(--warn-light);
+                        border:1px solid var(--row-off-border);border-radius:8px;
+                        padding:10px 12px;margin-top:8px;line-height:1.5">
+              ⚙️ Before connecting, make sure <code>CLIENT_ID</code> is configured in the
+              DriveSync module and your domain is listed as an <em>Authorized JavaScript origin</em>
+              in Google Cloud Console.
+            </div>` : ''}
+
           </div>
           <div class="modal-foot" style="flex-wrap:wrap;gap:8px">
             <div class="modal-btn cancel" onclick="closeModal()">Close</div>
             ${connected
-              ? `<div class="modal-btn" style="background:var(--surface2);color:var(--text)" onclick="closeModal();DriveSync.manualSync()">🔄 Sync now</div>
-                 <div class="modal-btn danger-btn" onclick="closeModal();DriveSync.disconnect()">Disconnect</div>`
-              : `<div class="modal-btn confirm" onclick="closeModal();DriveSync.connect()">Connect Google Drive</div>`
+              ? `<div class="modal-btn" style="background:var(--surface2);color:var(--text)"
+                      onclick="closeModal();DriveSync.manualSync()">🔄 Sync now</div>
+                 <div class="modal-btn danger-btn"
+                      onclick="closeModal();DriveSync.disconnect()">Disconnect</div>`
+              : `<div class="modal-btn confirm"
+                      onclick="closeModal();DriveSync.connect()">Connect Google Drive</div>`
             }
           </div>
-          <div style="border-top:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;background:var(--surface2)" onclick="closeModal();showPWAInstructions()">
-            <div style="width:32px;height:32px;border-radius:9px;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">📲</div>
+          <div style="border-top:1px solid var(--border);padding:12px 16px;display:flex;
+                      align-items:center;gap:10px;cursor:pointer;background:var(--surface2)"
+               onclick="closeModal();showPWAInstructions()">
+            <div style="width:32px;height:32px;border-radius:9px;background:var(--surface);
+                        border:1px solid var(--border);display:flex;align-items:center;
+                        justify-content:center;font-size:15px;flex-shrink:0">📲</div>
             <div>
               <div style="font-size:var(--fs-sm);font-weight:500;color:var(--text)">Install app on device</div>
               <div style="font-size:var(--fs-xs);color:var(--text3);margin-top:1px">Add to home screen (iOS / Android)</div>
