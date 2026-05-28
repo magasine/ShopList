@@ -299,7 +299,7 @@
       text-transform: uppercase;
       padding: 2px 7px;
       border-radius: 20px;
-      margin-left: 4px;
+      margin-left: 2px;
       vertical-align: middle;
       cursor: pointer;
       border: 1.5px solid transparent;
@@ -438,7 +438,85 @@
       background: var(--border);
     }
 
-    /* Req 2 — Botão fav minimalista dentro do search-wrap */
+    /* Fav filter button — agora no filter-badge-group como .filter-btn */
+    /* Remove a versão antiga do search-wrap (search-fav-btn mantido para compatibilidade) */
+    #search-fav-btn {
+      display: none !important;
+    }
+
+    /* ── Ícone duplo do toggle 3 estados ──────────────────────────── */
+    .fav-filter-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--fs-sm);
+      position: relative;
+      line-height: 1;
+    }
+
+    /* Estado default: exibe ⭐ e ✩ lado a lado compactados */
+    .fav-filter-icon.fav-default .fav-star--on {
+      opacity: 0.55;
+      font-size: 11px;
+    }
+
+    .fav-filter-icon.fav-default .fav-star--off {
+      opacity: 0.55;
+      font-size: 11px;
+    }
+
+    /* Estado fav-on: só ⭐ visível, brilhante */
+    .fav-filter-icon.fav-on .fav-star--on {
+      opacity: 1;
+      font-size: 16px;
+    }
+
+    .fav-filter-icon.fav-on .fav-star--off {
+      display: none;
+    }
+
+    /* Estado fav-off: só ✩ visível com diagonal strike */
+    .fav-filter-icon.fav-off .fav-star--on {
+      display: none;
+    }
+
+    .fav-filter-icon.fav-off .fav-star--off {
+      opacity: 0.9;
+      font-size: 16px;
+      position: relative;
+    }
+
+    .fav-filter-icon.fav-off .fav-star--off::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom right,
+          transparent calc(50% - 0.8px),
+          var(--text2) calc(50% - 0.8px),
+          var(--text2) calc(50% + 0.8px),
+          transparent calc(50% + 0.8px));
+    }
+
+    /* Borda accent quando fav-on ativo */
+    #fav-filter-btn[data-state="fav-on"] {
+      border-color: #F5C518;
+      box-shadow: 0 0 0 2px rgba(245, 197, 24, 0.22);
+      background: #FFF9E6;
+    }
+
+    [data-theme="dark"] #fav-filter-btn[data-state="fav-on"] {
+      background: #2A2200;
+      border-color: #F5C518;
+      box-shadow: 0 0 0 2px rgba(245, 197, 24, 0.22);
+    }
+
+    /* Borda crit-suave quando fav-off ativo */
+    #fav-filter-btn[data-state="fav-off"] {
+      border-color: var(--border2);
+      box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.15);
+      background: var(--surface2);
+    }
+
     #search-fav-btn {
       flex-shrink: 0;
       width: 28px;
@@ -2631,6 +2709,12 @@
       <!-- Segunda linha: filtros crit/warn/ok (toggle via 🚦) -->
       <div id="filter-bar">
         <div class="filter-badge-group">
+          <div id="fav-filter-btn" class="filter-btn" data-filter="fav"
+            title="Favorites: click to cycle fav-on → fav-off → default" onclick="applyQuickFilter('fav')">
+            <span class="fav-filter-icon fav-default">
+              <span class="fav-star fav-star--on">⭐</span><span class="fav-star fav-star--off">✩</span>
+            </span>
+          </div>
           <div class="filter-btn" data-filter="crit" title="Stock low" onclick="applyQuickFilter('crit')">🔴</div>
           <div class="filter-btn" data-filter="warn" title="Stock at the limit" onclick="applyQuickFilter('warn')">🟡
           </div>
@@ -2646,7 +2730,7 @@
           </svg>
           <input id="search-input" type="text" placeholder="name, #category, A*, *term*…" oninput="onSearch()"
             autocomplete="off" onkeydown="acOnKeydown(event)" onblur="setTimeout(acClose,150)" />
-          <div id="search-fav-btn" title="Filter favorites" onclick="applyQuickFilter('fav')">☆</div>
+
           <span id="search-clear" onclick="clearSearch()">clear</span>
         </div>
         <!-- Chips de filtro por checkbox — visíveis em All e Refill -->
@@ -2828,7 +2912,7 @@
     };
 
     // ==================== CONSTANTES E VARIÁVEIS ====================
-    const STORAGE_KEY = 'Shop_List_v20260527';
+    const STORAGE_KEY = 'Shop_List_v20260528';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -2915,7 +2999,7 @@
         if (rawUI) {
           const ui = JSON.parse(rawUI);
           if (['az', 'cat', 'fav'].includes(ui.sortMode)) sortMode = ui.sortMode;
-          if (['', 'fav', 'warn', 'crit'].includes(ui.activeQuickFilter)) activeQuickFilter = ui.activeQuickFilter;
+          if (['', 'fav', 'fav-off', 'warn', 'crit'].includes(ui.activeQuickFilter)) activeQuickFilter = ui.activeQuickFilter;
         }
       } catch (e) {
         console.warn('Erro ao carregar preferências de UI:', e);
@@ -3197,6 +3281,8 @@
       // filtro rápido (🚦 / ⭐)
       if (activeQuickFilter === 'fav') {
         result = result.filter(it => it.fav);
+      } else if (activeQuickFilter === 'fav-off') {
+        result = result.filter(it => !it.fav);
       } else if (activeQuickFilter) {
         result = result.filter(it => getStatus(it) === activeQuickFilter);
       }
@@ -3993,10 +4079,12 @@
       btn.classList.toggle('active', open);
       btn.textContent = open ? '🚥' : '🚦';
 
-      // Ao fechar: reseta qualquer filtro de status ativo (crit/warn/ok)
-      if (!open && ['crit', 'warn', 'ok'].includes(activeQuickFilter)) {
+      // Ao fechar: reseta todos os filtros do grupo — crit/warn/ok e fav/fav-off
+      // Segue o padrão dos demais botões: o grupo fecha = estado neutro
+      if (!open && activeQuickFilter !== '') {
         activeQuickFilter = '';
         document.querySelectorAll('.filter-btn').forEach(b => b.removeAttribute('data-active'));
+        syncFavBtn();   // reseta o visual do botão fav para estado default
         saveUI();
         render();
       }
@@ -4027,52 +4115,76 @@
       searchQuery = '';
       checkFilter = '';
       syncChips();
-      // Ao fechar o search, desativa o filtro fav junto — botão oculto não deve manter estado ativo
-      if (activeQuickFilter === 'fav') {
-        activeQuickFilter = '';
-        syncFavBtn();
-        saveUI();
-      }
+      // clearSearch não redefine mais o filtro fav — o botão agora está sempre
+      // visível no filter-badge-group e opera independente do search bar.
       render();
     }
 
-    // Sincroniza o botão ⭐ do search-wrap com o estado real de activeQuickFilter
+    // Sincroniza #fav-filter-btn (no filter-badge-group) com os 3 estados do ciclo
     function syncFavBtn() {
-      const sfBtn = document.getElementById('search-fav-btn');
-      if (!sfBtn) return;
-      const on = activeQuickFilter === 'fav';
-      sfBtn.classList.toggle('on', on);
-      sfBtn.innerHTML = on ? '⭐' : '☆';
-      sfBtn.title = on ? 'Favorites filter ON — click to disable' : 'Filter favorites';
+      const btn = document.getElementById('fav-filter-btn');
+      if (!btn) return;
+
+      const icon = btn.querySelector('.fav-filter-icon');
+      if (!icon) return;
+
+      const state = activeQuickFilter === 'fav' ? 'fav-on'
+        : activeQuickFilter === 'fav-off' ? 'fav-off'
+          : 'default';
+
+      // data-state para CSS (borda/fundo)
+      btn.dataset.state = state;
+
+      // Troca classe do ícone para animar o visual
+      icon.classList.remove('fav-default', 'fav-on', 'fav-off');
+      icon.classList.add(state === 'default' ? 'fav-default' : state);
+
+      // Título de acessibilidade
+      const titles = {
+        default: 'Favorites filter — click to show favorites only',
+        'fav-on': 'Showing favorites only — click to show non-favorites',
+        'fav-off': 'Showing non-favorites — click to clear filter',
+      };
+      btn.title = titles[state];
     }
 
     function applyQuickFilter(type) {
-      const wasActive = activeQuickFilter === type;
-
-      // Limpa estado ativo de todos os botões
+      // Limpa estado ativo de todos os botões de status
       document.querySelectorAll('.filter-btn').forEach(b => b.removeAttribute('data-active'));
 
-      if (wasActive) {
-        activeQuickFilter = '';
-        if (type === 'fav') toast('Favorites filter off');
+      if (type === 'fav') {
+        // Ciclo de 3 estados: default → fav-on → fav-off → default
+        if (activeQuickFilter === '') {
+          activeQuickFilter = 'fav';
+          const favCount = items.filter(i => i.fav).length;
+          toast(favCount > 0
+            ? `⭐ ${favCount} favorite${favCount !== 1 ? 's' : ''} shown`
+            : '⭐ No favorites added yet');
+        } else if (activeQuickFilter === 'fav') {
+          activeQuickFilter = 'fav-off';
+          const nonFavCount = items.filter(i => !i.fav).length;
+          toast(`✩ ${nonFavCount} non-favorite${nonFavCount !== 1 ? 's' : ''} shown`);
+        } else {
+          // fav-off → default
+          activeQuickFilter = '';
+          toast('Favorites filter cleared');
+        }
       } else {
-        // Garante que o filter-bar esteja visível ao ativar um filtro de status
-        if (['crit', 'warn', 'ok'].includes(type)) {
+        // Filtros de status (crit/warn/ok) — comportamento original toggle on/off
+        const wasActive = activeQuickFilter === type;
+        if (wasActive) {
+          activeQuickFilter = '';
+        } else {
+          // Garante que o filter-bar esteja visível ao ativar um filtro de status
           const fb = document.getElementById('filter-bar');
           const tb = document.getElementById('btn-traffic');
           if (fb && !fb.classList.contains('open')) {
             fb.classList.add('open');
             if (tb) { tb.classList.add('active'); tb.textContent = '🚥'; }
           }
-        }
-        activeQuickFilter = type;
-        const btn = document.querySelector(`.filter-btn[data-filter="${type}"]`);
-        if (btn) btn.setAttribute('data-active', 'true');
-        if (type === 'fav') {
-          const favCount = items.filter(i => i.fav).length;
-          toast(favCount > 0
-            ? `⭐ ${favCount} favorite${favCount !== 1 ? 's' : ''} shown`
-            : '⭐ No favorites added yet');
+          activeQuickFilter = type;
+          const btn = document.querySelector(`.filter-btn[data-filter="${type}"]`);
+          if (btn) btn.setAttribute('data-active', 'true');
         }
       }
 
@@ -5147,6 +5259,25 @@
     if (sessionStorage.getItem('install-dismissed')) {
       document.getElementById('install-banner').classList.remove('visible');
     }
+
+    // ── Exports para o módulo DriveSync (script 2) ───────────────────────────
+    // `let` no escopo global de um <script> NÃO cria propriedades em window —
+    // ao contrário de `var`. O módulo DriveSync usa window.items, window.render
+    // e window.updateBadges via typeof-guard; sem este bloco essas referências
+    // são sempre undefined e _applyCloud nunca atualiza os painéis após sync.
+    window.render = render;         // chamado em _applyCloud para redesenhar painéis
+    window.updateBadges = updateBadges;   // chamado em _applyCloud para atualizar contadores
+    window.STORAGE_KEY = STORAGE_KEY;    // usado em _localPayload e _applyCloud
+    window.updateSyncBadge = updateSyncBadge; // chamado após cada operação de sync
+
+    // Callback que o módulo DriveSync usa para substituir o array `items` em memória
+    // e forçar render imediato — necessário porque `let items` não é propriedade
+    // de window e não pode ser reatribuído de fora do closure do script 1.
+    window._applyItems = function (newData) {
+      items = newData;           // reassign da binding local — render() vai ler este array
+      render();                  // redesenha todos os painéis com os dados novos
+      updateBadges();            // atualiza contadores das abas
+    };
   </script>
   <!-- ═══════════════════════════════════════════════════════════════
        GOOGLE DRIVE SYNC MODULE
@@ -5535,7 +5666,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260527');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260528');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             // Dados modelo ou sem savedAt → não elegíveis para sync
@@ -5566,12 +5697,21 @@
             // Aplica ao estado global do app.
             // _isDefaultData é explicitamente omitido do payload — a chegada de dados
             // reais do Drive encerra o estado de modelo, independente do que havia antes.
-            if (typeof window.items !== 'undefined') window.items = data;
             const payload = { savedAt, data };   // sem _isDefaultData — intencional
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260527', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260528', JSON.stringify(payload));
 
-            if (typeof window.render === 'function') window.render();
-            if (typeof window.updateBadges === 'function') window.updateBadges();
+            // Atualiza o array `items` em memória do script 1.
+            // `let items` não é propriedade de window, mas window.items foi exportado
+            // como referência ao mesmo array. Escrever em window.items não basta —
+            // é preciso usar o callback window._applyItems que o script 1 registra
+            // para substituir a binding local e depois chamar render().
+            if (typeof window._applyItems === 'function') {
+              window._applyItems(data);   // substitui items + chama render() + updateBadges()
+            } else {
+              // Fallback: render() irá reler do localStorage (dados já gravados acima)
+              if (typeof window.render === 'function') window.render();
+              if (typeof window.updateBadges === 'function') window.updateBadges();
+            }
             if (typeof toast === 'function') toast('☁️ Data updated from Drive');
           } catch (e) {
             console.error('[DriveSync] applyCloud error:', e);
@@ -5795,7 +5935,7 @@
             const paletteClass = isShared ? 'ds-card--shared' : 'ds-card--owned';
             const inuseClass = inUse ? ' ds-card--inuse' : '';
             const icon = isShared ? '🔓' : '🔒';
-            const typeLabel = isShared ? 'Shared' : 'Owner';
+            const typeLabel = isShared ? 'Shared with you' : 'Owned by you';
 
             const inUseBadge = inUse
               ? `<span class="ds-card__inuse">IN USE</span>` : '';
