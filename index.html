@@ -2970,13 +2970,10 @@
             throw new Error('Formato de dados desconhecido');
           }
         } else {
-          // Primeiro uso — carrega modelo e grava flag _isDefaultData
-          // para que o Sync nunca faça upload destes dados para o Drive.
+          // Primeiro uso — carrega modelo.
+          // Identificação intrínseca: todos os IDs começam com MODEL_ID_PREFIX ('model-').
+          // Nenhuma flag de payload necessária — isModelData() detecta pelo dado.
           items = defaultItems();
-          try {
-            const modelPayload = { _isDefaultData: true, savedAt: null, data: items };
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(modelPayload));
-          } catch (_) { }
         }
       } catch (e) {
         console.error('Erro ao carregar dados do localStorage:', e);
@@ -3131,8 +3128,6 @@
         // Remove _done antes de persistir — é estado de sessão, não de dados
         const toSave = items.map(({ _done, ...rest }) => rest);
         const now = new Date().toISOString();
-        // _isDefaultData é removido no primeiro save real — a partir daqui
-        // os dados têm savedAt e são elegíveis para sincronização com o Drive.
         const payload = { savedAt: now, data: toSave };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
         changeCounter++;
@@ -3201,19 +3196,36 @@
       updateBadges();
     }
 
+    // Prefixo reservado para itens de amostra — uid() nunca gera IDs com este prefixo.
+    // A presença de TODOS os itens com este prefixo identifica o dataset como modelo,
+    // de forma intrínseca ao dado — independente de flags de payload ou localStorage.
+    const MODEL_ID_PREFIX = 'model-';
+
     function defaultItems() {
+      // IDs fixos e determinísticos — NÃO usar uid() aqui.
+      // Critério de detecção: items.every(i => i.id.startsWith(MODEL_ID_PREFIX))
       return [
-        { id: uid(), name: 'Sugar', desc: 'kg #grains', inStock: true, min: 2, qty: 4, fav: false },
-        { id: uid(), name: 'White rice', desc: 'kg #grains', inStock: true, min: 3, qty: 1, fav: false },
-        { id: uid(), name: 'Olive oil', desc: '500ml #condiments', inStock: false, min: 1, qty: 0, fav: false },
-        { id: uid(), name: 'Wheat flour', desc: 'kg #grains', inStock: true, min: 2, qty: 2, fav: false },
-        { id: uid(), name: 'Black beans', desc: 'kg #grains', inStock: false, min: 2, qty: 0, fav: false },
-        { id: uid(), name: 'Whole milk', desc: 'Lt #dairy', inStock: true, min: 4, qty: 5, fav: false },
-        { id: uid(), name: 'Butter', desc: '200g #dairy', inStock: true, min: 1, qty: 3, fav: false },
-        { id: uid(), name: 'Soybean oil', desc: '900ml #condiments', inStock: true, min: 2, qty: 2, fav: false },
-        { id: uid(), name: 'Table salt', desc: '200g #spices', inStock: true, min: 1, qty: 3, fav: false },
-        { id: uid(), name: 'Ground coffee', desc: '500g #beverages', inStock: true, min: 2, qty: 1, fav: false },
+        { id: 'model-001', name: 'Sugar', desc: 'kg #grains', inStock: true, min: 2, qty: 4, fav: false },
+        { id: 'model-002', name: 'White rice', desc: 'kg #grains', inStock: true, min: 3, qty: 1, fav: false },
+        { id: 'model-003', name: 'Olive oil', desc: '500ml #condiments', inStock: false, min: 1, qty: 0, fav: false },
+        { id: 'model-004', name: 'Wheat flour', desc: 'kg #grains', inStock: true, min: 2, qty: 2, fav: false },
+        { id: 'model-005', name: 'Black beans', desc: 'kg #grains', inStock: false, min: 2, qty: 0, fav: false },
+        { id: 'model-006', name: 'Whole milk', desc: 'Lt #dairy', inStock: true, min: 4, qty: 5, fav: false },
+        { id: 'model-007', name: 'Butter', desc: '200g #dairy', inStock: true, min: 1, qty: 3, fav: false },
+        { id: 'model-008', name: 'Soybean oil', desc: '900ml #condiments', inStock: true, min: 2, qty: 2, fav: false },
+        { id: 'model-009', name: 'Table salt', desc: '200g #spices', inStock: true, min: 1, qty: 3, fav: false },
+        { id: 'model-010', name: 'Ground coffee', desc: '500g #beverages', inStock: true, min: 2, qty: 1, fav: false },
       ];
+    }
+
+    // Retorna true se o array de itens é inteiramente composto por dados modelo.
+    // Função pura — não depende de flags, payload ou estado externo.
+    // Desativa-se automaticamente quando o usuário adiciona qualquer item real
+    // (uid() gera 'id-xxxxx', quebrando o every()).
+    function isModelData(arr) {
+      return Array.isArray(arr)
+        && arr.length > 0
+        && arr.every(i => typeof i.id === 'string' && i.id.startsWith(MODEL_ID_PREFIX));
     }
 
     // ==================== STATUS ====================
@@ -5278,6 +5290,10 @@
       render();                  // redesenha todos os painéis com os dados novos
       updateBadges();            // atualiza contadores das abas
     };
+
+    // Exporta critério de detecção de dados modelo para uso no módulo DriveSync
+    window.MODEL_ID_PREFIX = MODEL_ID_PREFIX;
+    window.isModelData = isModelData;
   </script>
   <!-- ═══════════════════════════════════════════════════════════════
        GOOGLE DRIVE SYNC MODULE
@@ -5669,12 +5685,18 @@
             const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260528');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
-            // Dados modelo ou sem savedAt → não elegíveis para sync
-            if (parsed._isDefaultData || !parsed.savedAt) {
-              console.log('[DriveSync] _localPayload: dados modelo detectados — ignorando para sync');
+            if (!parsed.savedAt) return null;
+
+            // Detecção intrínseca de dados modelo: todos os IDs começam com 'model-'.
+            // Esta verificação é imune a save(), reload, ou qualquer mutação de payload
+            // porque os IDs são propriedades dos próprios objetos de dado.
+            const data = parsed.data;
+            if (Array.isArray(data) && data.length > 0 && data.every(i => typeof i.id === 'string' && i.id.startsWith('model-'))) {
+              console.log('[DriveSync] _localPayload: dados modelo detectados por MODEL_ID_PREFIX — ignorando para sync');
               return null;
             }
-            return raw; // já é string JSON
+
+            return raw;
           } catch { return null; }
         },
 
@@ -5694,10 +5716,13 @@
               throw new Error('Formato inválido');
             }
 
-            // Aplica ao estado global do app.
-            // _isDefaultData é explicitamente omitido do payload — a chegada de dados
-            // reais do Drive encerra o estado de modelo, independente do que havia antes.
-            const payload = { savedAt, data };   // sem _isDefaultData — intencional
+            // Guarda defensiva: nunca aplica dados modelo vindos do Drive.
+            // Improvável, mas possível se o dado subiu antes desta correção.
+            if (Array.isArray(data) && data.length > 0 && data.every(i => typeof i.id === 'string' && i.id.startsWith('model-'))) {
+              console.warn('[DriveSync] _applyCloud: arquivo no Drive contém apenas dados modelo — ignorado.');
+              return;
+            }
+            const payload = { savedAt, data };
             localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260528', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
@@ -5760,7 +5785,7 @@
             if (!localRaw) {
               // Sem dados reais locais — cobre dois casos:
               //   1. Primeiro uso: localStorage vazio
-              //   2. Dados modelo (_isDefaultData=true): _localPayload() retornou null
+              //   2. Dados modelo: todos os IDs começam com 'model-' → _localPayload() retornou null
               // Em ambos, baixa do Drive se houver arquivo — nunca faz upload do modelo.
               if (cloudFile) {
                 const txt = await Drive.downloadFile(cloudFile.id);
