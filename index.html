@@ -52,9 +52,10 @@
       --crit: #C62828;
       --crit-light: #FFEBEE;
 
-      /* Purple — Índigo elétrico para destaques UI */
-      --purple: #3F51B5;
-      --purple-light: #E8EAF6;
+      /* Purple — Índigo suave para destaques UI secundários */
+      --purple: #5C6BC0;
+      --purple-light: #EEF0FB;
+      --purple-text: #283593;
 
       /* Radii & shadows */
       --radius: 10px;
@@ -132,9 +133,10 @@
       --crit: #EF5350;
       --crit-light: #2A0808;
 
-      /* Purple — violeta elétrico */
-      --purple: #7C83FF;
-      --purple-light: #181B40;
+      /* Purple — violeta suave para dark */
+      --purple: #8C92F0;
+      --purple-light: #1E2148;
+      --purple-text: #C5C8FF;
 
       /* Header / Footer — petróleo com shimmer index */
       --header-bg: linear-gradient(135deg, #0E1820 0%, #122030 50%, #0E1620 100%);
@@ -2290,6 +2292,301 @@
     .stepper-val {
       font-size: max(16px, var(--fs-sm));
     }
+
+    /* ═══════════════════════════════════════════════════════════════
+       DRIVE SYNC MODAL — classes extraídas do inline JS
+       Nomenclatura: .ds- (DriveSync) para evitar colisões
+       ═══════════════════════════════════════════════════════════════ */
+
+    /* ── Card de pasta ──────────────────────────────────────────── */
+    .ds-card {
+      border-radius: 12px;
+      border-width: 1.5px;
+      border-style: solid;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+    }
+
+    /* Paleta: pasta compartilhada (dono = outro usuário) */
+    .ds-card--shared {
+      background: var(--accent-light);
+      border-color: var(--row-ok-border);
+    }
+
+    /* Paleta: pasta própria (owned by me) */
+    .ds-card--owned {
+      background: var(--purple-light);
+      border-color: var(--border2);
+    }
+
+    /* Borda mais forte quando em uso */
+    .ds-card--shared.ds-card--inuse {
+      border-color: var(--accent);
+    }
+
+    .ds-card--owned.ds-card--inuse {
+      border-color: var(--purple);
+    }
+
+    /* ── Header do card (ícone + nome + badges) ──────────────────── */
+    .ds-card__head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      /* permite truncamento no filho flex */
+    }
+
+    .ds-card__icon {
+      font-size: 17px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .ds-card__name {
+      font-size: var(--fs-sm);
+      font-weight: 700;
+      flex: 1;
+      min-width: 0;
+      /* habilita text-overflow no elemento */
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .ds-card--shared .ds-card__name {
+      color: var(--accent-text);
+    }
+
+    .ds-card--owned .ds-card__name {
+      color: var(--purple-text);
+    }
+
+    /* ── Badge de tipo (Shared with you / Owned by you) ─────────── */
+    .ds-card__type {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 20px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .ds-card--shared .ds-card__type {
+      background: var(--row-ok-border);
+      color: var(--accent-text);
+    }
+
+    .ds-card--owned .ds-card__type {
+      background: var(--border2);
+      color: var(--purple-text);
+    }
+
+    /* ── Badge IN USE ─────────────────────────────────────────────── */
+    .ds-card__inuse {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 20px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-width: 1px;
+      border-style: solid;
+    }
+
+    .ds-card--shared .ds-card__inuse {
+      border-color: var(--accent);
+      color: var(--accent-text);
+    }
+
+    .ds-card--owned .ds-card__inuse {
+      border-color: var(--purple);
+      color: var(--purple-text);
+    }
+
+    /* ── Linha de info de arquivos ────────────────────────────────── */
+    .ds-card__files {
+      font-size: var(--fs-xs);
+      font-family: 'DM Mono', monospace;
+      opacity: 0.72;
+      margin-top: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .ds-card--shared .ds-card__files {
+      color: var(--accent-text);
+    }
+
+    .ds-card--owned .ds-card__files {
+      color: var(--purple-text);
+    }
+
+    /* ── Botões de ação (Use this folder / trash) ─────────────────── */
+    .ds-card__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .ds-card__btn {
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 8px;
+      border-width: 1.5px;
+      border-style: solid;
+      background: var(--surface);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity var(--transition);
+    }
+
+    .ds-card__btn:active {
+      opacity: 0.7;
+    }
+
+    .ds-card--shared .ds-card__btn {
+      border-color: var(--row-ok-border);
+      color: var(--accent-text);
+    }
+
+    .ds-card--owned .ds-card__btn {
+      border-color: var(--border2);
+      color: var(--purple-text);
+    }
+
+    .ds-card__btn--trash {
+      padding: 5px 9px;
+    }
+
+    /* ── Banner de duplicata ─────────────────────────────────────── */
+    .ds-warn-banner {
+      background: var(--warn-light);
+      border: 1.5px solid var(--row-off-border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 10px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .ds-warn-banner__icon {
+      font-size: 17px;
+      flex-shrink: 0;
+    }
+
+    .ds-warn-banner__text {
+      font-size: var(--fs-xs);
+      color: var(--warn);
+      line-height: 1.5;
+    }
+
+    /* ── Painel de last-sync ─────────────────────────────────────── */
+    .ds-sync-panel {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+
+    .ds-sync-panel__label {
+      font-size: var(--fs-xs);
+      color: var(--text2);
+      font-family: 'DM Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .ds-sync-panel__date {
+      font-size: var(--fs-sm);
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .ds-sync-panel__file {
+      font-size: var(--fs-xs);
+      color: var(--text3);
+      font-family: 'DM Mono', monospace;
+      word-break: break-all;
+    }
+
+    /* ── Nota de rodapé do modal ─────────────────────────────────── */
+    .ds-note {
+      font-size: var(--fs-xs);
+      color: var(--text2);
+      line-height: 1.6;
+      margin-bottom: 4px;
+    }
+
+    /* ── Warning de configuração (CLIENT_ID) ─────────────────────── */
+    .ds-config-warn {
+      font-size: var(--fs-xs);
+      color: var(--warn);
+      background: var(--warn-light);
+      border: 1px solid var(--row-off-border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+
+    /* ── Footer PWA install strip ────────────────────────────────── */
+    .ds-pwa-strip {
+      border-top: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      background: var(--surface2);
+      transition: background var(--transition);
+    }
+
+    .ds-pwa-strip:hover {
+      background: var(--bg);
+    }
+
+    .ds-pwa-strip:active {
+      opacity: 0.8;
+    }
+
+    .ds-pwa-strip__icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 9px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+
+    .ds-pwa-strip__title {
+      font-size: var(--fs-sm);
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .ds-pwa-strip__sub {
+      font-size: var(--fs-xs);
+      color: var(--text3);
+      margin-top: 1px;
+    }
   </style>
 </head>
 
@@ -2589,7 +2886,13 @@
             throw new Error('Formato de dados desconhecido');
           }
         } else {
+          // Primeiro uso — carrega modelo e grava flag _isDefaultData
+          // para que o Sync nunca faça upload destes dados para o Drive.
           items = defaultItems();
+          try {
+            const modelPayload = { _isDefaultData: true, savedAt: null, data: items };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(modelPayload));
+          } catch (_) { }
         }
       } catch (e) {
         console.error('Erro ao carregar dados do localStorage:', e);
@@ -2744,6 +3047,8 @@
         // Remove _done antes de persistir — é estado de sessão, não de dados
         const toSave = items.map(({ _done, ...rest }) => rest);
         const now = new Date().toISOString();
+        // _isDefaultData é removido no primeiro save real — a partir daqui
+        // os dados têm savedAt e são elegíveis para sincronização com o Drive.
         const payload = { savedAt: now, data: toSave };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
         changeCounter++;
@@ -5223,11 +5528,21 @@
             + `.${pad(date.getHours())}${pad(date.getMinutes())}-Shop-List.json`;
         },
 
-        /** Retorna o payload local {savedAt, data} como string JSON pronta para upload */
+        /** Retorna o payload local {savedAt, data} como string JSON pronta para upload.
+         *  Retorna null se os dados locais ainda são o modelo inicial (_isDefaultData=true)
+         *  ou se não há savedAt — ambos os casos indicam que não há dados reais para sincronizar.
+         *  Isso impede que dados modelo subam para o Drive e sobrescrevam dados reais do dono.
+         */
         _localPayload() {
           try {
             const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260527');
             if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            // Dados modelo ou sem savedAt → não elegíveis para sync
+            if (parsed._isDefaultData || !parsed.savedAt) {
+              console.log('[DriveSync] _localPayload: dados modelo detectados — ignorando para sync');
+              return null;
+            }
             return raw; // já é string JSON
           } catch { return null; }
         },
@@ -5248,9 +5563,11 @@
               throw new Error('Formato inválido');
             }
 
-            // Aplica ao estado global do app
+            // Aplica ao estado global do app.
+            // _isDefaultData é explicitamente omitido do payload — a chegada de dados
+            // reais do Drive encerra o estado de modelo, independente do que havia antes.
             if (typeof window.items !== 'undefined') window.items = data;
-            const payload = { savedAt, data };
+            const payload = { savedAt, data };   // sem _isDefaultData — intencional
             localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260527', JSON.stringify(payload));
 
             if (typeof window.render === 'function') window.render();
@@ -5301,7 +5618,10 @@
             const EPSILON = 30_000; // 30 s de tolerância para "iguais"
 
             if (!localRaw) {
-              // Sem dados locais — baixa do Drive se houver
+              // Sem dados reais locais — cobre dois casos:
+              //   1. Primeiro uso: localStorage vazio
+              //   2. Dados modelo (_isDefaultData=true): _localPayload() retornou null
+              // Em ambos, baixa do Drive se houver arquivo — nunca faz upload do modelo.
               if (cloudFile) {
                 const txt = await Drive.downloadFile(cloudFile.id);
                 Sync._applyCloud(txt);
@@ -5470,51 +5790,39 @@
           // light e dark mode sejam respeitados automaticamente.
           //   isShared=true  → paleta accent (teal/verde)  — pasta do dono do compartilhamento
           //   isShared=false → paleta purple (índigo/azul) — pasta própria do usuário
+          // _folderCard: renderiza card com classes .ds-* — CSS em <style>, sem inline
           function _folderCard({ id, isShared, inUse, fileCount, lastFileName }) {
-            // Variáveis semânticas mapeadas para as CSS vars já definidas no :root / [data-theme="dark"]
-            const cardBg = isShared ? 'var(--accent-light)' : 'var(--surface2)';
-            const cardBorder = isShared
-              ? (inUse ? 'var(--accent)' : 'var(--row-ok-border)')
-              : (inUse ? 'var(--purple)' : 'var(--border2)');
-            const cardColor = isShared ? 'var(--accent-text)' : 'var(--purple)';
-            const badgeBg = isShared ? 'var(--row-ok-border)' : 'var(--surface)';
+            const paletteClass = isShared ? 'ds-card--shared' : 'ds-card--owned';
+            const inuseClass = inUse ? ' ds-card--inuse' : '';
             const icon = isShared ? '🔓' : '🔒';
-            const typeLabel = isShared ? 'Shared' : 'Owner';
+            const typeLabel = isShared ? 'Shared with you' : 'Owned by you';
+
             const inUseBadge = inUse
-              ? `<span style="font-size:10px;font-weight:700;
-                            background:var(--surface);opacity:0.85;
-                            border:1px solid ${cardBorder};color:${cardColor};padding:1px 6px;
-                            border-radius:20px;letter-spacing:0.04em;text-transform:uppercase">IN USE</span>` : '';
+              ? `<span class="ds-card__inuse">IN USE</span>` : '';
+
             const filesInfo = fileCount != null
-              ? `<div style="font-size:var(--fs-xs);color:${cardColor};opacity:0.7;margin-top:3px;
-                           font-family:'DM Mono',monospace">
-                 ${fileCount} file${fileCount !== 1 ? 's' : ''}${lastFileName ? ' · last: ' + lastFileName.slice(0, 13) : ''}
+              ? `<div class="ds-card__files">
+                 ${fileCount} file${fileCount !== 1 ? 's' : ''}${lastFileName ? ' · last: ' + lastFileName.slice(0, 16) : ''}
                </div>` : '';
+
             const useBtn = !inUse
-              ? `<div onclick="DriveSync.resolveFolder('${id}')"
-                    style="cursor:pointer;font-size:var(--fs-xs);font-weight:700;padding:5px 12px;
-                           border-radius:8px;border:1.5px solid ${cardBorder};color:${cardColor};
-                           background:var(--surface2);margin-top:8px;display:inline-block;
-                           -webkit-tap-highlight-color:transparent">Use this folder</div>` : '';
-            const trashBtn = `<div onclick="DriveSync.trashFolder('${id}', ${inUse})"
-                    style="cursor:pointer;font-size:var(--fs-xs);font-weight:700;padding:5px 10px;
-                           border-radius:8px;border:1.5px solid ${cardBorder};color:${cardColor};
-                           background:var(--surface2);margin-top:8px;margin-left:6px;display:inline-block;
-                           -webkit-tap-highlight-color:transparent" title="Move to Drive trash">🗑</div>`;
+              ? `<div class="ds-card__btn" onclick="DriveSync.resolveFolder('${id}')">Use this folder</div>` : '';
+
+            const trashBtn =
+              `<div class="ds-card__btn ds-card__btn--trash"
+                  onclick="DriveSync.trashFolder('${id}', ${inUse})"
+                  title="Move to Drive trash">🗑</div>`;
 
             return `
-            <div style="background:${cardBg};border:2px solid ${cardBorder};border-radius:12px;
-                        padding:13px 14px;margin-bottom:10px">
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
-                <span style="font-size:18px;line-height:1">${icon}</span>
-                <span style="font-size:var(--fs-sm);font-weight:700;color:${cardColor};flex:1">${FOLDER_NAME}</span>
-                <span style="font-size:10px;font-weight:700;background:${badgeBg};color:${cardColor};
-                             padding:2px 7px;border-radius:20px;letter-spacing:0.04em;
-                             text-transform:uppercase;text-align:center;white-space:nowrap">${typeLabel}</span>
+            <div class="ds-card ${paletteClass}${inuseClass}">
+              <div class="ds-card__head">
+                <span class="ds-card__icon">${icon}</span>
+                <span class="ds-card__name">${FOLDER_NAME}</span>
+                <span class="ds-card__type">${typeLabel}</span>
                 ${inUseBadge}
               </div>
               ${filesInfo}
-              <div style="display:flex;flex-wrap:wrap;gap:0">${useBtn}${trashBtn}</div>
+              <div class="ds-card__actions">${useBtn}${trashBtn}</div>
             </div>`;
           }
 
@@ -5524,11 +5832,9 @@
             if (hasDuplicate) {
               // Banner de aviso — usa CSS vars warn já definidas no tema
               folderSection = `
-              <div style="background:var(--warn-light);border:1.5px solid var(--row-off-border);
-                          border-radius:10px;padding:10px 14px;margin-bottom:10px;
-                          display:flex;gap:10px;align-items:center">
-                <span style="font-size:18px">⚠️</span>
-                <div style="font-size:var(--fs-xs);color:var(--warn);line-height:1.5">
+              <div class="ds-warn-banner">
+                <span class="ds-warn-banner__icon">⚠️</span>
+                <div class="ds-warn-banner__text">
                   <strong>Two folders detected.</strong> Choose which one to use for sync,
                   or move the unwanted one to trash.
                 </div>
@@ -5555,24 +5861,19 @@
 
             ${folderSection}
 
-            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;
-                        padding:13px 16px;display:flex;flex-direction:column;gap:5px;margin-bottom:12px">
-              <div style="font-size:var(--fs-xs);color:var(--text2);font-family:'DM Mono',monospace;
-                          text-transform:uppercase;letter-spacing:0.06em">Last sync</div>
-              <div style="font-size:var(--fs-sm);font-weight:600;color:var(--text)">${lastSync}</div>
-              <div style="font-size:var(--fs-xs);color:var(--text3);font-family:'DM Mono',monospace;
-                          margin-top:1px;word-break:break-all">${lastFile}</div>
+            <div class="ds-sync-panel">
+              <div class="ds-sync-panel__label">Last sync</div>
+              <div class="ds-sync-panel__date">${lastSync}</div>
+              <div class="ds-sync-panel__file">${lastFile}</div>
             </div>
 
-            <div style="font-size:var(--fs-xs);color:var(--text2);line-height:1.6;margin-bottom:4px">
+            <div class="ds-note">
               Files are <em>never overwritten</em> — each sync creates a new versioned file.<br>
               Share the folder in Drive to collaborate with others.
             </div>
 
             ${!connected ? `
-            <div style="font-size:var(--fs-xs);color:var(--warn);background:var(--warn-light);
-                        border:1px solid var(--row-off-border);border-radius:8px;
-                        padding:10px 12px;margin-top:8px;line-height:1.5">
+            <div class="ds-config-warn">
               ⚙️ Before connecting, make sure <code>CLIENT_ID</code> is configured in the
               DriveSync module and your domain is listed as an <em>Authorized JavaScript origin</em>
               in Google Cloud Console.
@@ -5592,15 +5893,11 @@
                       onclick="closeModal();DriveSync.connect()">Connect Google Drive</div>`
             }
           </div>
-          <div style="border-top:1px solid var(--border);padding:12px 16px;display:flex;
-                      align-items:center;gap:10px;cursor:pointer;background:var(--surface2)"
-               onclick="closeModal();showPWAInstructions()">
-            <div style="width:32px;height:32px;border-radius:9px;background:var(--surface);
-                        border:1px solid var(--border);display:flex;align-items:center;
-                        justify-content:center;font-size:15px;flex-shrink:0">📲</div>
+          <div class="ds-pwa-strip" onclick="closeModal();showPWAInstructions()">
+            <div class="ds-pwa-strip__icon">📲</div>
             <div>
-              <div style="font-size:var(--fs-sm);font-weight:500;color:var(--text)">Install app on device</div>
-              <div style="font-size:var(--fs-xs);color:var(--text3);margin-top:1px">Add to home screen (iOS / Android)</div>
+              <div class="ds-pwa-strip__title">Install app on device</div>
+              <div class="ds-pwa-strip__sub">Add to home screen (iOS / Android)</div>
             </div>
           </div>
         `);
