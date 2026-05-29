@@ -285,6 +285,7 @@
       opacity: 0.6;
       /* 0.88 */
       letter-spacing: 0.02em;
+      margin-right: 4px;
     }
 
     /* Badge de localidade do sync (owner · shared · ⚠️ duplicate) */
@@ -294,12 +295,12 @@
       gap: 4px;
       font-size: 10px;
       font-family: 'DM Mono', monospace;
-      font-weight: 700;
-      letter-spacing: 0.04em;
+      font-weight: 600;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
       padding: 2px 7px;
       border-radius: 20px;
-      margin-left: 2px;
+      margin-left: 0px;
       vertical-align: middle;
       cursor: pointer;
       border: 1.5px solid transparent;
@@ -2912,7 +2913,7 @@
     };
 
     // ==================== CONSTANTES E VARIÁVEIS ====================
-    const STORAGE_KEY = 'Shop_List_v20260528';
+    const STORAGE_KEY = 'Shop_List_v20260529';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -5625,11 +5626,19 @@
           const q = encodeURIComponent(
             `'${folderId}' in parents and name contains 'Shop-List.json' and trashed=false`
           );
+          // orderBy=modifiedTime desc: o arquivo mais recente vem primeiro, independente
+          // do nome canônico — critério primário de ordenação delegado à API.
+          // modifiedTime e size incluídos nos fields como fallback para filenameToDate().
           const r = await Drive._api(
-            `/files?q=${q}&orderBy=name%20desc&fields=files(id,name,createdTime)` +
+            `/files?q=${q}&orderBy=modifiedTime%20desc` +
+            `&fields=files(id,name,modifiedTime,size)` +
             `&spaces=drive&includeItemsFromAllDrives=true&supportsAllDrives=true`
           );
           const d = await r.json();
+          if (d.error) {
+            console.warn('[DriveSync] listFiles error from API:', d.error);
+            return [];
+          }
           return d.files || [];
         },
 
@@ -5682,7 +5691,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260528');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260529');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -5723,7 +5732,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260528', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260529', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
@@ -5756,15 +5765,39 @@
             if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
             const files = await Drive.listFiles(folderId);
 
-            // Identifica arquivo mais recente no Drive pelo nome
+            // Identifica o arquivo mais recente no Drive com critério em cascata:
+            //   1º filenameToDate() — timestamp canônico no nome (YYYYMMDD.HHmm), precisão de minuto
+            //   2º modifiedTime     — metadado do Drive, sempre presente, fallback para nomes não-canônicos
+            // A API já retorna os arquivos ordenados por modifiedTime desc (listFiles),
+            // portanto files[0] é sempre o candidato mais provável — o loop confirma isso
+            // e permite que filenameToDate() sobreponha quando disponível.
             let cloudFile = null;
             let cloudDate = null;
+
             for (const f of files) {
-              const d = Sync.filenameToDate(f.name);
-              if (d && (!cloudDate || d > cloudDate)) {
-                cloudDate = d;
+              // Critério 1: data extraída do nome canônico (maior precisão)
+              const nameDate = Sync.filenameToDate(f.name);
+              // Critério 2: modifiedTime do Drive (sempre presente)
+              const metaDate = f.modifiedTime ? new Date(f.modifiedTime) : null;
+              // Usa nameDate se disponível, senão metaDate como fallback
+              const fileDate = nameDate || metaDate;
+
+              if (fileDate && (!cloudDate || fileDate > cloudDate)) {
+                cloudDate = fileDate;
                 cloudFile = f;
+                // Loga qual critério foi usado — útil para diagnóstico do modo Shared
+                console.log(
+                  `[DriveSync] candidate: ${f.name}` +
+                  ` | nameDate=${nameDate ? nameDate.toISOString() : 'n/a'}` +
+                  ` | metaDate=${metaDate ? metaDate.toISOString() : 'n/a'}` +
+                  ` | using=${nameDate ? 'name' : 'modifiedTime'}`
+                );
               }
+            }
+
+            // Se ainda não há candidato (lista vazia ou todos sem data), loga para diagnóstico
+            if (!cloudFile && files.length > 0) {
+              console.warn('[DriveSync] listFiles retornou arquivos mas nenhum pôde ser datado:', files.map(f => f.name));
             }
 
             // Timestamp local
@@ -5781,6 +5814,12 @@
             const localMs = localDate ? localDate.getTime() : 0;
             const cloudMs = cloudDate ? cloudDate.getTime() : 0;
             const EPSILON = 30_000; // 30 s de tolerância para "iguais"
+
+            console.log(
+              `[DriveSync] conflict check | local=${localDate?.toISOString() ?? 'none'}` +
+              ` | cloud=${cloudDate?.toISOString() ?? 'none'}` +
+              ` | cloudFile=${cloudFile?.name ?? 'none'}`
+            );
 
             if (!localRaw) {
               // Sem dados reais locais — cobre dois casos:
