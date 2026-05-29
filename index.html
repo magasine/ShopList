@@ -2913,7 +2913,7 @@
     };
 
     // ==================== CONSTANTES E VARIÁVEIS ====================
-    const STORAGE_KEY = 'Shop_List_v20260529';
+    const STORAGE_KEY = 'Shop_List_v20260527';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -5524,14 +5524,31 @@
          *    - O usuário é avisado no painel para excluir a pasta própria do Drive
          */
         async ensureFolder() {
-          // ── Atalho Picker: pasta vinculada manualmente — usa ID gravado diretamente
-          // Não há query de descoberta: o Picker já introduziu o folderId ao escopo
-          // drive.file no momento da seleção, então a API aceitará o ID sem restrições.
+          // ── Atalho Picker: pasta vinculada manualmente ─────────────────────────
+          // Faz files.get no folder antes de retornar: "apresenta" o recurso ao
+          // escopo drive.file do usuário Shared, habilitando a listagem dos filhos.
+          // Sem esse GET, a query "'X' in parents" retorna vazio mesmo com folderId correto.
           {
             const _m = _loadMeta();
             if (_m.pickedManually && _m.folderId) {
+              try {
+                const chk = await Drive._api(
+                  `/files/${_m.folderId}?fields=id,name,mimeType` +
+                  `&supportsAllDrives=true&includeItemsFromAllDrives=true`
+                );
+                const chkData = await chk.json();
+                if (chkData.id) {
+                  _folderId = chkData.id;
+                  console.log('[DriveSync] ensureFolder: picker folder verified', _folderId, chkData.name);
+                  return _folderId;
+                }
+                console.warn('[DriveSync] ensureFolder: folder get returned no id', chkData);
+              } catch (e) {
+                console.warn('[DriveSync] ensureFolder: picker folder verification failed', e);
+              }
+              // Fallback: usa ID gravado mesmo sem verificação
               _folderId = _m.folderId;
-              console.log('[DriveSync] ensureFolder: using picker-linked folder', _folderId);
+              console.log('[DriveSync] ensureFolder: using picker folder (unverified)', _folderId);
               return _folderId;
             }
           }
@@ -5626,20 +5643,24 @@
           const q = encodeURIComponent(
             `'${folderId}' in parents and name contains 'Shop-List.json' and trashed=false`
           );
-          // orderBy=modifiedTime desc: o arquivo mais recente vem primeiro, independente
-          // do nome canônico — critério primário de ordenação delegado à API.
-          // modifiedTime e size incluídos nos fields como fallback para filenameToDate().
+          // orderBy=modifiedTime desc: o arquivo mais recente vem primeiro.
+          // corpora=allDrives: necessário para pastas em Shared Drives corporativos.
+          // includeItemsFromAllDrives + supportsAllDrives: requeridos pela API quando
+          // corpora=allDrives ou quando a pasta pertence a outro usuário.
           const r = await Drive._api(
             `/files?q=${q}&orderBy=modifiedTime%20desc` +
             `&fields=files(id,name,modifiedTime,size)` +
-            `&spaces=drive&includeItemsFromAllDrives=true&supportsAllDrives=true`
+            `&spaces=drive&corpora=allDrives` +
+            `&includeItemsFromAllDrives=true&supportsAllDrives=true`
           );
           const d = await r.json();
           if (d.error) {
-            console.warn('[DriveSync] listFiles error from API:', d.error);
+            console.warn('[DriveSync] listFiles API error:', JSON.stringify(d.error));
             return [];
           }
-          return d.files || [];
+          const files = d.files || [];
+          console.log(`[DriveSync] listFiles: ${files.length} file(s) found in folder ${folderId}`);
+          return files;
         },
 
         /** Baixa conteúdo de um arquivo pelo ID */
@@ -5691,7 +5712,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260529');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260527');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -5732,7 +5753,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260529', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260527', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
@@ -6187,15 +6208,17 @@
               throw e;
             }
 
-            // Grava o folderId escolhido como pasta ativa
-            _folderId = picked.id;
+            // Grava o folderId escolhido como pasta ativa.
+            // _folderId em memória é zerado para que ensureFolder execute o files.get
+            // de verificação no próximo Sync.run, ativando o acesso aos filhos da pasta.
+            _folderId = null;
             _saveMeta({
               folderId: picked.id,
               folderOwnedByMe: picked.ownedByMe,
-              duplicateFolderId: null,   // descarta qualquer duplicata anterior
+              duplicateFolderId: null,
               lastFile: null,
               lastSync: null,
-              pickedManually: true,   // flag de auditoria — pasta vinculada via Picker
+              pickedManually: true,
             });
 
             _setStatus('connected', '☁️ Drive connected');
