@@ -2913,7 +2913,7 @@
     };
 
     // ==================== CONSTANTES E VARIÁVEIS ====================
-    const STORAGE_KEY = 'Shop_List_v20260527';
+    const STORAGE_KEY = 'Shop_List_v20260529';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -5318,7 +5318,11 @@
       // Passos: console.cloud.google.com → APIs & Services → Credentials → Create OAuth 2.0 Client ID
       // Authorized JavaScript origins: coloque a URL onde o app está hospedado.
       const DRIVE_CLIENT_ID = '752295122192-chaj5pnuk6u9brpra192q5ob9b33rp5v.apps.googleusercontent.com';
-      const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+      // drive.file  — cria/escreve arquivos que o app abriu ou criou
+      // drive.readonly — lê qualquer arquivo que o usuário tem acesso,
+      //                 incluindo arquivos criados pelo dono em pasta compartilhada
+      const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file' +
+        ' https://www.googleapis.com/auth/drive.readonly';
       const FOLDER_NAME = '_ShopList_Sync';
       const SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
       const SYNC_KEY = 'ShopList_driveSync';    // localStorage para meta
@@ -5378,22 +5382,35 @@
           } catch { return false; }
         },
 
-        /** Salva token com expiração calculada (expires_in em segundos) */
+        /** Salva token com expiração e escopos concedidos */
         save(tokenResponse) {
           const t = {
             access_token: tokenResponse.access_token,
             expires_at: Date.now() + (tokenResponse.expires_in - 60) * 1000,
+            scope: tokenResponse.scope || '',
           };
           _token = t;
           try { localStorage.setItem(TOKEN_KEY, JSON.stringify(t)); } catch (_) { }
+        },
+
+        /** Verifica se o token atual inclui todos os escopos necessários */
+        hasRequiredScopes() {
+          if (!_token || !_token.scope) return false;
+          const granted = _token.scope.split(' ');
+          const required = DRIVE_SCOPE.split(' ').filter(Boolean);
+          return required.every(s => granted.includes(s));
         },
 
         isValid() {
           return _token && Date.now() < _token.expires_at;
         },
 
-        /** Dispara o popup OAuth do Google Identity Services */
-        requestToken() {
+        /** Dispara o popup OAuth do Google Identity Services.
+         *  @param {object} [opts]
+         *  @param {string} [opts.prompt] — 'consent' força tela de permissão (default),
+         *                                   '' deixa o Google decidir (útil para scope upgrade silencioso)
+         */
+        requestToken(opts = {}) {
           return new Promise((resolve, reject) => {
             if (typeof google === 'undefined' || !google.accounts) {
               reject(new Error('Google Identity Services não carregado'));
@@ -5408,13 +5425,22 @@
                 resolve(resp.access_token);
               },
             });
-            client.requestAccessToken({ prompt: 'consent' });
+            client.requestAccessToken({ prompt: opts.prompt ?? 'consent' });
           });
         },
 
-        /** Garante token válido — usa cache ou solicita novo */
+        /** Garante token válido e com todos os escopos necessários.
+         *  Se o token em cache não inclui drive.readonly (tokens pré-expansão de scope),
+         *  força re-consent silencioso com prompt='' para o usuário já conectado
+         *  (sem tela de escolha de conta, apenas a tela de permissão se necessário).
+         */
         async ensureToken() {
-          if (Auth.isValid()) return _token.access_token;
+          if (Auth.isValid() && Auth.hasRequiredScopes()) return _token.access_token;
+          if (Auth.isValid() && !Auth.hasRequiredScopes()) {
+            // Token válido mas sem readonly — re-consent para ampliar escopo
+            console.log('[DriveSync] token sem drive.readonly — solicitando re-consent');
+            return Auth.requestToken({ prompt: '' }); // sem force-consent, apenas scope upgrade
+          }
           return Auth.requestToken();
         },
 
@@ -5712,7 +5738,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260527');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260529');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -5753,7 +5779,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260527', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260529', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
@@ -5977,6 +6003,11 @@
           if (hasToken) {
             _setStatus('connected', '☁️ Drive connected');
             _startTimer();
+            // Detecta token legado sem drive.readonly — re-consent na próxima operação
+            if (!Auth.hasRequiredScopes()) {
+              console.log('[DriveSync] init: token sem drive.readonly — será atualizado na próxima sync');
+              _setStatus('connected', '☁️ Drive connected (authorization update needed)');
+            }
             await Sync.run('startup');
           } else {
             _setStatus('', 'Google Drive (not connected)');
@@ -6130,6 +6161,11 @@
 
         async connect() {
           try {
+            // Se já havia token mas sem readonly, informa o usuário antes do re-consent
+            const needsUpgrade = Auth.isValid() && !Auth.hasRequiredScopes();
+            if (needsUpgrade && typeof toast === 'function')
+              toast('🔑 Permissões adicionais necessárias — atualizando autorização…');
+
             await Auth.ensureToken();
             _setStatus('connected', '☁️ Drive connected');
             _startTimer();
