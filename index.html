@@ -5234,6 +5234,14 @@
         .then(reg => {
           swRegistration = reg;
 
+          // Força checagem imediata de atualização do sw.js no servidor.
+          // Sem isto, o navegador pode demorar horas para detectar um sw.js novo,
+          // continuando a servir HTML obsoleto do cache antigo.
+          reg.update().catch(() => { });
+
+          // Re-checa periodicamente (a cada 60s) enquanto o app está aberto.
+          setInterval(() => reg.update().catch(() => { }), 60_000);
+
           // Caso 1: já existe um SW esperando no momento do registro
           // (usuário recarregou sem aplicar a atualização anterior)
           if (reg.waiting && navigator.serviceWorker.controller) {
@@ -5773,7 +5781,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260527');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260529');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
