@@ -3000,7 +3000,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '2026.05.30-single-file-sync.r8-picker-fix';
+    const APP_BUILD = '2026.05.30-single-file-sync.r10-share-diag';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -6051,14 +6051,28 @@
                 console.log('[DriveSync] sync file found:', syncFileId);
               }
             } else {
-              // Já temos o ID. Confirma existência via files.get.
-              // cloudDate virá do savedAt DENTRO do conteúdo (comparação robusta),
-              // resolvida mais abaixo ao baixar o arquivo. Aqui só valida existência.
+              // Já temos o ID. Confirma acesso via files.get.
               try {
                 const r = await Drive._api(`/files/${syncFileId}?fields=id&supportsAllDrives=true`);
+                if (r.status === 404 || r.status === 403) {
+                  // 404/403 no SHARED = o arquivo NÃO está compartilhado com esta conta
+                  // no Drive. O Picker mostrou o arquivo (via link/visibilidade), mas o
+                  // escopo drive.file só dá acesso via API a arquivos compartilhados
+                  // explicitamente com a conta. NÃO descarta o syncFileId — o problema
+                  // é de compartilhamento no Drive, resolvível pelo OWNER.
+                  console.error('[DriveSync] file access denied (' + r.status + ') — ' +
+                    'the owner must SHARE this file with your Google account (editor access). ' +
+                    'fileId=' + syncFileId);
+                  _setStatus('error', '⚠️ No access — owner must share this file with your account');
+                  if (typeof toast === 'function')
+                    toast('⚠️ The owner needs to share Shop-List-Sync.json with your Google account (Editor). The file is visible but not yet shared with you.');
+                  _syncing = false;
+                  if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
+                  return;   // mantém syncFileId gravado — basta o owner compartilhar e re-sincronizar
+                }
                 const d = await r.json();
                 if (!d.id) {
-                  console.warn('[DriveSync] syncFileId inválido — resetando', syncFileId);
+                  console.warn('[DriveSync] syncFileId sem id na resposta — resetando', syncFileId);
                   syncFileId = null;
                   _saveMeta({ syncFileId: null, cloudModifiedAt: null });
                 }
@@ -6431,9 +6445,10 @@
           // O painel abre instantâneo com o valor em cache (meta.cloudModifiedAt) e,
           // se o arquivo no Drive tiver sido alterado por outro usuário (ex: o Shared),
           // atualiza o painel para refletir a verdade absoluta.
-          if (connected && (meta.syncFileId)) {
+          if (connected && meta.syncFileId) {
             (async () => {
               try {
+                console.log('[DriveSync] panel: revalidating against fileId', meta.syncFileId);
                 const txt = await Drive.downloadFile(meta.syncFileId);
                 const cp = JSON.parse(txt);
                 const realCloud = cp && cp.savedAt ? cp.savedAt : null;
@@ -6478,7 +6493,7 @@
 
             ${folderSection}
 
-            ${connected && (localSavedAt || cloudSavedAt) ? `
+            ${connected && (meta.syncFileId || meta.folderId) ? `
             <div id="ds-parity-panel" class="ds-parity ${inParity ? 'ds-parity--match' : 'ds-parity--diff'}">
               <div class="ds-parity__head">
                 <span class="ds-parity__badge" id="ds-parity-badge">${inParity ? '✓ in sync' : '⚠ out of sync'}</span><!-- badge state -->
@@ -6500,6 +6515,15 @@
                 <span class="ds-parity__key">🔗 file id</span>
                 <span class="ds-parity__val" style="font-size:10px;opacity:0.7">${(meta.syncFileId || '—').slice(0, 18)}${meta.syncFileId && meta.syncFileId.length > 18 ? '…' : ''}</span>
               </div>
+              ${!localSavedAt && meta.syncFileId ? `
+              <div class="ds-parity__sep"></div>
+              <div onclick="closeModal();DriveSync.manualSync()"
+                   style="text-align:center;font-size:var(--fs-xs);font-weight:600;
+                          padding:7px;margin-top:4px;border-radius:8px;cursor:pointer;
+                          background:var(--surface);border:1.5px solid var(--row-ok-border);
+                          color:var(--accent-text);-webkit-tap-highlight-color:transparent">
+                ⬇ Pull data from Drive now
+              </div>` : ''}
             </div>` : ''}
 
             <div class="ds-sync-panel">
