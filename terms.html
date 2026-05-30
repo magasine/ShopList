@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terms of Use — Shop List</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #F4F6F4;
+      --surface:  #FFFFFF;
+      --border:   #E2E8E2;
+      --text:     #1A2A1A;
+      --text2:    #4A5E4A;
+      --text3:    #7A907A;
+      --accent:   #00796B;
+      --accent-l: #E0F2F0;
+      --mono:     'DM Mono', monospace;
+      --sans:     'DM Sans', sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:       #0E1611;
+        --surface:  #162019;
+        --border:   #263626;
+        --text:     #E8F0E8;
+        --text2:    #8FAF8F;
+        --text3:    #5A7A5A;
+        --accent:   #4DB6AC;
+        --accent-l: #0A2420;
+      }
+    }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+    }
+
+    .header-inner {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 20px 0;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .app-badge {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+
+    .header-title { font-size: 15px; font-weight: 700; }
+    .header-sub   { font-size: 12px; color: var(--text3); font-family: var(--mono); margin-top: 1px; }
+
+    .back-link {
+      margin-left: auto; font-size: 13px; color: var(--accent);
+      text-decoration: none; font-weight: 500;
+      padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px;
+      transition: background 0.15s;
+    }
+    .back-link:hover { background: var(--accent-l); }
+
+    .hero {
+      background: var(--text);
+      color: var(--bg);
+      padding: 48px 24px 40px;
+    }
+
+    .hero-inner { max-width: 720px; margin: 0 auto; }
+
+    .hero-label {
+      font-family: var(--mono); font-size: 11px;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      opacity: 0.55; margin-bottom: 10px;
+    }
+
+    .hero h1 {
+      font-size: clamp(26px, 5vw, 36px);
+      font-weight: 700; line-height: 1.2; margin-bottom: 12px;
+    }
+
+    .hero-meta { font-size: 13px; opacity: 0.5; font-family: var(--mono); }
+
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    .summary-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 12px 12px 0;
+      padding: 20px 24px;
+      margin-bottom: 40px;
+    }
+
+    .summary-box p { font-size: 14px; color: var(--text2); line-height: 1.6; }
+
+    section { margin-bottom: 40px; }
+
+    .section-num {
+      font-family: var(--mono); font-size: 11px; color: var(--accent);
+      letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px;
+    }
+
+    h2 {
+      font-size: 18px; font-weight: 700; color: var(--text);
+      margin-bottom: 14px; padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    p { font-size: 14px; color: var(--text2); margin-bottom: 12px; }
+    p:last-child { margin-bottom: 0; }
+
+    ul { list-style: none; margin: 10px 0 12px; }
+
+    ul li {
+      font-size: 14px; color: var(--text2);
+      padding: 6px 0 6px 20px; position: relative;
+      border-bottom: 1px solid var(--border);
+    }
+    ul li:last-child { border-bottom: none; }
+    ul li::before {
+      content: '→'; position: absolute; left: 0;
+      color: var(--accent); font-family: var(--mono);
+    }
+
+    .contact-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px 24px; margin-top: 16px;
+    }
+    .contact-card a { color: var(--accent); text-decoration: none; font-family: var(--mono); font-size: 13px; }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 24px; text-align: center;
+    }
+    footer p { font-size: 12px; color: var(--text3); font-family: var(--mono); margin: 0; }
+    footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="app-badge">🛒</div>
+    <div>
+      <div class="header-title">Shop List</div>
+      <div class="header-sub">by @magasine</div>
+    </div>
+    <a href="index.html" class="back-link">← Back to app</a>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-label">Legal · Terms</div>
+    <h1>Terms of Use</h1>
+    <div class="hero-meta">Last updated: June 2026 · Effective immediately</div>
+  </div>
+</div>
+
+<main>
+
+  <div class="summary-box">
+    <p>
+      By using Shop List, you agree to these terms. The app is provided free of charge,
+      as-is, for personal use. Your data belongs to you and stays on your devices.
+    </p>
+  </div>
+
+  <section>
+    <div class="section-num">01</div>
+    <h2>Acceptance of terms</h2>
+    <p>
+      By installing or using Shop List ("the app"), you agree to be bound by these
+      Terms of Use. If you do not agree, please discontinue use of the app.
+    </p>
+    <p>
+      These terms apply to the PWA available at the domain where this app is hosted,
+      developed and maintained by @magasine.
+    </p>
+  </section>
+
+  <section>
+    <div class="section-num">02</div>
+    <h2>License and permitted use</h2>
+    <p>
+      Shop List is provided for personal, non-commercial use. You may:
+    </p>
+    <ul>
+      <li>Install and use the app on any number of personal devices</li>
+      <li>Use Google Drive sync to share your list with family or household members</li>
+      <li>Export your data at any time in JSON format</li>
+    </ul>
+    <p>You may not:</p>
+    <ul>
+      <li>Redistribute, sell, or sublicense the app or its source code without permission</li>
+      <li>Use the app for commercial data collection or resale purposes</li>
+      <li>Attempt to reverse-engineer or modify the app for redistribution</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="section-num">03</div>
+    <h2>Google services</h2>
+    <p>
+      The optional Google Drive sync feature uses the Google Drive API and Google OAuth 2.0.
+      Your use of Google services through this app is additionally subject to:
+    </p>
+    <ul>
+      <li><a href="https://policies.google.com/terms" target="_blank" rel="noopener" style="color:var(--accent)">Google Terms of Service</a></li>
+      <li><a href="https://policies.google.com/privacy" target="_blank" rel="noopener" style="color:var(--accent)">Google Privacy Policy</a></li>
+    </ul>
+    <p>
+      Shop List's use of Google API Services adheres to the
+      <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener" style="color:var(--accent)">
+      Google API Services User Data Policy</a>, including the Limited Use requirements.
+    </p>
+  </section>
+
+  <section>
+    <div class="section-num">04</div>
+    <h2>Data ownership</h2>
+    <p>
+      You retain full ownership of all data you enter into Shop List. The developer
+      has no access to your lists, your Google Drive, or any other personal information.
+      See the <a href="privacy.html" style="color:var(--accent)">Privacy Policy</a>
+      for complete details.
+    </p>
+  </section>
+
+  <section>
+    <div class="section-num">05</div>
+    <h2>Disclaimer of warranties</h2>
+    <p>
+      Shop List is provided <strong>"as is"</strong> without warranty of any kind,
+      express or implied. The developer does not warrant that the app will be
+      uninterrupted, error-free, or free of harmful components.
+    </p>
+    <p>
+      You use the app at your own risk. The developer is not responsible for any
+      data loss resulting from browser storage limits, device failure, Google service
+      outages, or any other technical failure.
+    </p>
+  </section>
+
+  <section>
+    <div class="section-num">06</div>
+    <h2>Limitation of liability</h2>
+    <p>
+      To the maximum extent permitted by applicable law, the developer shall not be
+      liable for any indirect, incidental, special, or consequential damages arising
+      from your use or inability to use the app, even if advised of the possibility
+      of such damages.
+    </p>
+  </section>
+
+  <section>
+    <div class="section-num">07</div>
+    <h2>Changes to these terms</h2>
+    <p>
+      The developer reserves the right to modify these terms at any time. Changes
+      will be reflected by updating the "Last updated" date. Continued use of the
+      app after changes are posted constitutes acceptance of the revised terms.
+    </p>
+  </section>
+
+  <section>
+    <div class="section-num">08</div>
+    <h2>Contact</h2>
+    <p>Questions or concerns about these terms:</p>
+    <div class="contact-card">
+      <p style="margin:0;font-size:14px;color:var(--text2)">
+        Developer: <strong style="color:var(--text)">@magasine</strong><br>
+        Web: <a href="https://linktr.ee/magasine" target="_blank" rel="noopener">linktr.ee/magasine</a>
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>
+    Shop List · <a href="index.html">Back to app</a> ·
+    <a href="privacy.html">Privacy Policy</a>
+  </p>
+</footer>
+
+</body>
+</html>
