@@ -2601,6 +2601,92 @@
       word-break: break-all;
     }
 
+    /* ── Painel de paridade local ↔ cloud (fonte da verdade do sync) ──── */
+    .ds-parity {
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      border: 1.5px solid var(--border);
+      background: var(--surface2);
+    }
+
+    .ds-parity--match {
+      border-color: var(--row-ok-border);
+      background: var(--accent-light);
+    }
+
+    .ds-parity--diff {
+      border-color: var(--row-off-border);
+      background: var(--warn-light);
+    }
+
+    .ds-parity__head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .ds-parity__badge {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    .ds-parity--match .ds-parity__badge {
+      background: var(--row-ok-border);
+      color: var(--accent-text);
+    }
+
+    .ds-parity--diff .ds-parity__badge {
+      background: var(--row-off-border);
+      color: var(--warn);
+    }
+
+    .ds-parity__title {
+      font-size: var(--fs-xs);
+      font-weight: 600;
+    }
+
+    .ds-parity--match .ds-parity__title {
+      color: var(--accent-text);
+    }
+
+    .ds-parity--diff .ds-parity__title {
+      color: var(--warn);
+    }
+
+    .ds-parity__row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 0;
+      font-family: 'DM Mono', monospace;
+      font-size: var(--fs-xs);
+    }
+
+    .ds-parity__key {
+      color: var(--text2);
+      flex-shrink: 0;
+    }
+
+    .ds-parity__val {
+      color: var(--text);
+      text-align: right;
+      word-break: break-all;
+    }
+
+    .ds-parity__sep {
+      height: 1px;
+      background: var(--border);
+      margin: 2px 0;
+    }
+
     /* ── Nota de rodapé do modal ─────────────────────────────────── */
     .ds-note {
       font-size: var(--fs-xs);
@@ -2914,7 +3000,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '2026.05.30-single-file-sync.r2-modtime-fix';
+    const APP_BUILD = '2026.05.30-single-file-sync.r3-parity-panel';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -6196,6 +6282,28 @@
           const lastFile = meta.lastFile || '—';
           const hasDuplicate = !!meta.duplicateFolderId;
 
+          // ── Fonte da verdade do sync: local savedAt ↔ cloud savedAt ──────────
+          // local savedAt vem do payload no localStorage; cloud savedAt vem de
+          // meta.cloudModifiedAt (gravado após cada sync = savedAt do conteúdo no Drive).
+          let localSavedAt = null;
+          try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) {
+              const p = JSON.parse(raw);
+              // Ignora dados modelo (não sincronizáveis)
+              const isModel = Array.isArray(p.data) && p.data.length > 0 &&
+                p.data.every(i => typeof i.id === 'string' && i.id.startsWith('model-'));
+              if (!isModel && p.savedAt) localSavedAt = p.savedAt;
+            }
+          } catch (_) { }
+          const cloudSavedAt = meta.cloudModifiedAt || null;
+
+          // Compara com tolerância de 30s (mesmo EPSILON do Sync.run)
+          const _ms = (d) => d ? new Date(d).getTime() : null;
+          const lMs = _ms(localSavedAt), cMs = _ms(cloudSavedAt);
+          const inParity = lMs !== null && cMs !== null && Math.abs(lMs - cMs) <= 30000;
+          const fmt = (d) => d ? new Date(d).toLocaleString('pt-BR') : '—';
+
           // isShared: pickedManually é a fonte primária (Shared via Picker de arquivo).
           // folderOwnedByMe é fallback para Owner que encontrou pasta via descoberta.
           const isSharedUser = meta.pickedManually === true || meta.folderOwnedByMe === false;
@@ -6284,6 +6392,25 @@
 
             ${folderSection}
 
+            ${connected && (localSavedAt || cloudSavedAt) ? `
+            <div class="ds-parity ${inParity ? 'ds-parity--match' : 'ds-parity--diff'}">
+              <div class="ds-parity__head">
+                <span class="ds-parity__badge">${inParity ? '✓ in sync' : '⚠ out of sync'}</span>
+                <span class="ds-parity__title">${inParity
+                ? 'Local and Drive data match'
+                : 'Local and Drive data differ — next sync will reconcile'}</span>
+              </div>
+              <div class="ds-parity__row">
+                <span class="ds-parity__key">📱 local savedAt</span>
+                <span class="ds-parity__val">${fmt(localSavedAt)}</span>
+              </div>
+              <div class="ds-parity__sep"></div>
+              <div class="ds-parity__row">
+                <span class="ds-parity__key">☁️ cloud savedAt</span>
+                <span class="ds-parity__val">${fmt(cloudSavedAt)}</span>
+              </div>
+            </div>` : ''}
+
             <div class="ds-sync-panel">
               <div class="ds-sync-panel__label">Last sync</div>
               <div class="ds-sync-panel__date">${lastSync}</div>
@@ -6291,8 +6418,9 @@
             </div>
 
             <div class="ds-note">
-              Files are <em>never overwritten</em> — each sync creates a new versioned file.<br>
-              Share the folder in Drive to collaborate with others.
+              Sync uses a single file <code style="font-family:'DM Mono',monospace;font-size:11px">${Drive.SYNC_FILENAME}</code>,
+              updated in place.<br>
+              Share that file in Drive (with edit access) to collaborate with others.
             </div>
 
             ${!connected ? `
