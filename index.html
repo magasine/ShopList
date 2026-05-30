@@ -3000,7 +3000,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '2026.05.30-single-file-sync.r6-media-patch';
+    const APP_BUILD = '2026.05.30-single-file-sync.r7-shared-guard';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -6012,23 +6012,37 @@
             const meta = _loadMeta();
 
             // ── Resolve o fileId do arquivo fixo ───────────────────────────────
-            // Opção A: syncFileId gravado (já conhecido — Owner ou Shared pós-Picker)
-            // Opção B: busca pelo nome fixo na pasta (Owner no primeiro sync)
-            // Opção C: cria o arquivo (Owner, pasta vazia)
             let syncFileId = meta.syncFileId || null;
             let cloudDate = null;
-            const folderId = await Drive.ensureFolder();
+            const isShared = meta.pickedManually === true || meta.folderOwnedByMe === false;
+
+            console.log('[DriveSync] role:', isShared ? 'SHARED' : 'OWNER',
+              '| syncFileId:', syncFileId || 'none',
+              '| pickedManually:', !!meta.pickedManually,
+              '| folderId:', meta.folderId || 'none');
+
+            // TRAVA CRÍTICA: um usuário SHARED só pode sincronizar com o arquivo
+            // vinculado via Picker (syncFileId). Ele NUNCA deve buscar/criar um
+            // arquivo na própria pasta — isso o isolaria do arquivo do OWNER.
+            if (isShared && !syncFileId) {
+              console.warn('[DriveSync] SHARED user without syncFileId — must re-link the owner\'s file');
+              _setStatus('error', '⚠️ Re-link the shared file (Link shared file button)');
+              if (typeof toast === 'function') toast('⚠️ Please re-link the shared file from the owner');
+              return;
+            }
+
+            // Owner: resolve a pasta (Shared não precisa — usa syncFileId direto)
+            const folderId = isShared ? null : await Drive.ensureFolder();
             if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
 
             if (!syncFileId && !folderId) {
-              // Shared sem folderId e sem syncFileId — não há como sincronizar
-              console.warn('[DriveSync] Shared user: no syncFileId and no folderId — use Link shared file');
+              console.warn('[DriveSync] no syncFileId and no folderId — cannot sync');
               _setStatus('connected', '☁️ Link the shared file to enable sync');
               return;
             }
 
-            if (!syncFileId) {
-              // Owner sem syncFileId ainda — busca pelo nome na pasta
+            if (!syncFileId && !isShared) {
+              // SOMENTE OWNER: busca pelo nome fixo na sua pasta
               const found = await Drive.findSyncFile(folderId);
               if (found) {
                 syncFileId = found.id;
@@ -6101,9 +6115,9 @@
                 _setStatus('connected', '☁️ Drive is empty, nothing to sync');
               }
 
-            } else if (!syncFileId) {
-              // Dados locais existem mas arquivo ainda não existe no Drive → cria.
-              // createSyncFile lança erro se o servidor não confirmar id+modifiedTime.
+            } else if (!syncFileId && !isShared) {
+              // SOMENTE OWNER: cria o arquivo na própria pasta.
+              // Um SHARED nunca chega aqui (travado acima) — não deve criar arquivo próprio.
               const created = await Drive.createSyncFile(folderId, localRaw);
               _saveMeta({
                 syncFileId: created.id,
@@ -6479,6 +6493,11 @@
               <div class="ds-parity__row">
                 <span class="ds-parity__key">☁️ cloud savedAt</span>
                 <span class="ds-parity__val" id="ds-parity-cloud">${fmt(cloudSavedAt)} <span style="opacity:0.5">⟳</span></span>
+              </div>
+              <div class="ds-parity__sep"></div>
+              <div class="ds-parity__row">
+                <span class="ds-parity__key">🔗 file id</span>
+                <span class="ds-parity__val" style="font-size:10px;opacity:0.7">${(meta.syncFileId || '—').slice(0, 18)}${meta.syncFileId && meta.syncFileId.length > 18 ? '…' : ''}</span>
               </div>
             </div>` : ''}
 
