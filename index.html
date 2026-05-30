@@ -2912,7 +2912,7 @@
     };
 
     // ==================== CONSTANTES E VARIÁVEIS ====================
-    const STORAGE_KEY = 'Shop_List_v20260527';
+    const STORAGE_KEY = 'Shop_List_v20260529';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -5709,20 +5709,6 @@
 
       // ─── MÓDULO sync/ ───────────────────────────────────────────────────────────
       const Sync = {
-        /** Extrai timestamp ISO do nome YYYYMMDD.HHmm-Shop-List.json */
-        filenameToDate(name) {
-          const m = name.match(/^(\d{4})(\d{2})(\d{2})\.(\d{2})(\d{2})-Shop-List\.json$/);
-          if (!m) return null;
-          return new Date(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:00`);
-        },
-
-        /** Gera nome canônico para o timestamp dado */
-        dateToFilename(date) {
-          const pad = n => String(n).padStart(2, '0');
-          return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`
-            + `.${pad(date.getHours())}${pad(date.getMinutes())}-Shop-List.json`;
-        },
-
         /** Retorna o payload local {savedAt, data} como string JSON pronta para upload.
          *  Retorna null se os dados locais ainda são o modelo inicial (_isDefaultData=true)
          *  ou se não há savedAt — ambos os casos indicam que não há dados reais para sincronizar.
@@ -5730,7 +5716,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260527');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260529');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -5771,7 +5757,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260527', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260529', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
@@ -6032,6 +6018,20 @@
         _ready: true,
         /** Inicializa o módulo — chamado ao carregar o app */
         async init() {
+          // ── Migração defensiva: limpa vínculos a arquivos versionados antigos ──
+          // Versões anteriores do app criavam arquivos YYYYMMDD.HHmm-Shop-List.json.
+          // Se o meta em cache aponta para um desses (via lastFile com padrão versionado),
+          // descarta syncFileId para forçar re-descoberta/criação do arquivo fixo único.
+          try {
+            const _m = _loadMeta();
+            const versionedPattern = /^\d{8}\.\d{4}-Shop-List\.json$/;
+            if (_m.lastFile && versionedPattern.test(_m.lastFile)) {
+              console.warn('[DriveSync] migração: meta aponta para arquivo versionado antigo (' +
+                _m.lastFile + ') — descartando syncFileId para usar arquivo fixo.');
+              _saveMeta({ syncFileId: null, lastFile: null, cloudModifiedAt: null });
+            }
+          } catch (_) { }
+
           const hasToken = Auth.load();
           if (hasToken) {
             _setStatus('connected', '☁️ Drive connected');
