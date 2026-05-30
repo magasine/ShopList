@@ -3000,7 +3000,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '2026.05.30-single-file-sync.r4-parity-live';
+    const APP_BUILD = '2026.05.30-single-file-sync.r5-nocache';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -5602,10 +5602,14 @@
       // ─── MÓDULO drive/ ──────────────────────────────────────────────────────────
       const Drive = {
         _api(path, opts = {}) {
+          // cache:'no-store' impede o navegador de servir respostas antigas da API
+          // (crítico para alt=media, que retornava conteúdo desatualizado do arquivo).
           return fetch('https://www.googleapis.com/drive/v3' + path, {
+            cache: 'no-store',
             ...opts,
             headers: {
               'Authorization': 'Bearer ' + _token.access_token,
+              'Cache-Control': 'no-cache',
               ...(opts.headers || {}),
             },
           });
@@ -5613,6 +5617,7 @@
 
         _upload(path, opts = {}) {
           return fetch('https://www.googleapis.com/upload/drive/v3' + path, {
+            cache: 'no-store',
             ...opts,
             headers: {
               'Authorization': 'Bearer ' + _token.access_token,
@@ -5834,9 +5839,14 @@
           return files[0] || null;
         },
 
-        /** Baixa conteúdo de um arquivo pelo ID. Valida status HTTP. */
+        /** Baixa conteúdo de um arquivo pelo ID. Valida status HTTP.
+         *  Inclui timestamp anti-cache (&_=) para garantir conteúdo fresco —
+         *  o Drive ignora parâmetros desconhecidos, mas o cache do navegador
+         *  trata cada URL única como uma requisição nova.
+         */
         async downloadFile(fileId) {
-          const r = await Drive._api('/files/' + fileId + '?alt=media&supportsAllDrives=true');
+          const bust = '&_=' + Date.now();
+          const r = await Drive._api('/files/' + fileId + '?alt=media&supportsAllDrives=true' + bust);
           if (!r.ok) {
             const msg = await r.text().catch(() => `HTTP ${r.status}`);
             throw new Error(`downloadFile failed (${r.status}): ${msg.slice(0, 120)}`);
