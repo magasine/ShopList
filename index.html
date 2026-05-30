@@ -5741,13 +5741,21 @@
           return files[0] || null;
         },
 
-        /** Baixa conteúdo de um arquivo pelo ID */
+        /** Baixa conteúdo de um arquivo pelo ID. Valida status HTTP. */
         async downloadFile(fileId) {
           const r = await Drive._api('/files/' + fileId + '?alt=media&supportsAllDrives=true');
+          if (!r.ok) {
+            const msg = await r.text().catch(() => `HTTP ${r.status}`);
+            throw new Error(`downloadFile failed (${r.status}): ${msg.slice(0, 120)}`);
+          }
           return r.text();
         },
 
-        /** Cria o arquivo de sync (primeira vez — Owner) */
+        /** Cria o arquivo de sync (primeira vez — Owner).
+         *  Valida o status HTTP e exige que a resposta contenha id + modifiedTime,
+         *  que são a confirmação do servidor de que o arquivo foi efetivamente gravado.
+         *  Lança erro em qualquer falha — nunca retorna sucesso falso.
+         */
         async createSyncFile(folderId, content) {
           const metadata = { name: Drive.SYNC_FILENAME, parents: [folderId], mimeType: 'application/json' };
           const form = new FormData();
@@ -5757,10 +5765,23 @@
             '/files?uploadType=multipart&fields=id,name,modifiedTime&supportsAllDrives=true',
             { method: 'POST', body: form }
           );
-          return r.json();
+          const d = await r.json().catch(() => ({}));
+          if (!r.ok) {
+            const msg = d.error?.message || `HTTP ${r.status}`;
+            throw new Error(`createSyncFile failed: ${msg}`);
+          }
+          if (!d.id || !d.modifiedTime) {
+            throw new Error('createSyncFile: server did not confirm id/modifiedTime');
+          }
+          console.log('[DriveSync] createSyncFile confirmed:', d.id, d.modifiedTime);
+          return d;
         },
 
-        /** Atualiza o arquivo de sync existente in-place (Owner e Shared) */
+        /** Atualiza o arquivo de sync existente in-place (Owner e Shared).
+         *  Mesma validação: status HTTP + modifiedTime na resposta confirmam
+         *  que o Drive aceitou a gravação e atualizou a data de modificação.
+         *  Um Shared sem permissão de edição recebe 403 aqui — capturado e propagado.
+         */
         async patchSyncFile(fileId, content) {
           const form = new FormData();
           form.append('file', new Blob([content], { type: 'application/json' }));
@@ -5768,7 +5789,20 @@
             `/files/${fileId}?uploadType=multipart&fields=id,name,modifiedTime&supportsAllDrives=true`,
             { method: 'PATCH', body: form }
           );
-          return r.json();
+          const d = await r.json().catch(() => ({}));
+          if (!r.ok) {
+            const msg = d.error?.message || `HTTP ${r.status}`;
+            // 403 = sem permissão de edição (Shared só tem leitura no arquivo do dono)
+            if (r.status === 403) {
+              throw new Error(`patchSyncFile: no write permission (403) — ${msg}`);
+            }
+            throw new Error(`patchSyncFile failed: ${msg}`);
+          }
+          if (!d.modifiedTime) {
+            throw new Error('patchSyncFile: server did not confirm modifiedTime');
+          }
+          console.log('[DriveSync] patchSyncFile confirmed:', d.id, d.modifiedTime);
+          return d;
         },
       };
 
@@ -5940,22 +5974,34 @@
               }
 
             } else if (!syncFileId) {
-              // Dados locais existem mas arquivo ainda não existe no Drive → cria
+              // Dados locais existem mas arquivo ainda não existe no Drive → cria.
+              // createSyncFile lança erro se o servidor não confirmar id+modifiedTime.
               const created = await Drive.createSyncFile(folderId, localRaw);
-              _saveMeta({ syncFileId: created.id, lastSync: new Date().toISOString(), lastFile: Drive.SYNC_FILENAME });
-              _setStatus('connected', '☁️ Synced to Drive');
-              console.log('[DriveSync] sync file created:', created.id);
+              _saveMeta({
+                syncFileId: created.id,
+                lastSync: new Date().toISOString(),
+                lastFile: Drive.SYNC_FILENAME,
+                cloudModifiedAt: created.modifiedTime,   // confirmação do servidor
+              });
+              _setStatus('connected', '☁️ Synced to Drive ✓');
+              console.log('[DriveSync] sync file created & confirmed:', created.id, created.modifiedTime);
 
             } else if (localMs > cloudMs + EPSILON) {
               // Local mais recente → patch in-place.
               // Grava cloudModifiedAt com o modifiedTime retornado pelo servidor —
               // na próxima comparação, cloudMs virá deste valor (tempo do servidor,
               // não do relógio do dispositivo), eliminando divergência de clock.
+              // patchSyncFile lança erro se o servidor não confirmar (403, etc).
+              // serverTime vem garantidamente da resposta confirmada — sem fallback
+              // para new Date() que poderia mascarar uma gravação que não ocorreu.
               const patched = await Drive.patchSyncFile(syncFileId, localRaw);
-              const serverTime = patched.modifiedTime || new Date().toISOString();
-              _saveMeta({ lastSync: new Date().toISOString(), lastFile: Drive.SYNC_FILENAME, cloudModifiedAt: serverTime });
-              _setStatus('connected', '☁️ Synced to Drive');
-              console.log('[DriveSync] patched sync file:', syncFileId, '| server modifiedTime:', serverTime);
+              _saveMeta({
+                lastSync: new Date().toISOString(),
+                lastFile: Drive.SYNC_FILENAME,
+                cloudModifiedAt: patched.modifiedTime,   // confirmação real do servidor
+              });
+              _setStatus('connected', '☁️ Synced to Drive ✓');
+              console.log('[DriveSync] patch confirmed:', syncFileId, '| modifiedTime:', patched.modifiedTime);
 
             } else if (cloudMs > localMs + EPSILON) {
               // Drive mais recente → download.
@@ -5974,7 +6020,13 @@
 
           } catch (e) {
             console.error('[DriveSync] sync error:', e);
-            _setStatus('error', '⚠️ Drive sync failed: ' + (e.message || 'unknown error'));
+            // Mensagem específica para falta de permissão de escrita (Shared)
+            if (String(e.message).includes('403') || String(e.message).includes('no write permission')) {
+              _setStatus('error', '⚠️ No edit permission on the shared file — ask the owner for editor access');
+              if (typeof toast === 'function') toast('⚠️ You only have read access to this file. Ask the owner to grant editor permission.');
+            } else {
+              _setStatus('error', '⚠️ Drive sync failed: ' + (e.message || 'unknown error'));
+            }
           } finally {
             _syncing = false;
             if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
