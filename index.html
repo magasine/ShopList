@@ -4047,19 +4047,23 @@
             return t && t.access_token && Date.now() < t.expires_at;
           } catch { return false; }
         })();
-        if (!connected || !meta.folderId || typeof meta.folderOwnedByMe !== 'boolean') {
+        // Sem arquivo/pasta vinculada → oculto
+        const hasSyncTarget = meta.syncFileId || meta.folderId;
+        if (!connected || !hasSyncTarget) {
           el.style.display = 'none';
           return;
         }
+        // pickedManually=true sempre significa arquivo do dono → shared
+        const isShared = meta.pickedManually === true || meta.folderOwnedByMe === false;
         const hasDup = !!meta.duplicateFolderId;
         if (hasDup) {
           el.textContent = '⚠ duplicate';
           el.className = 'loc-duplicate';
           el.title = 'Two sync folders detected — click to resolve';
-        } else if (meta.folderOwnedByMe === false) {
+        } else if (isShared) {
           el.textContent = '🔓 shared';
           el.className = 'loc-shared';
-          el.title = 'Syncing to a folder shared with you — click for details';
+          el.title = 'Syncing to a file shared with you — click for details';
         } else {
           el.textContent = '🔒 owner';
           el.className = 'loc-owner';
@@ -5570,7 +5574,11 @@
               if (d.id && !d.trashed) {
                 _folderId = d.id;
                 // Aproveita o retorno para gravar folderOwnedByMe se ainda ausente
-                if (typeof meta.folderOwnedByMe !== 'boolean' && typeof d.ownedByMe === 'boolean') {
+                // Só enriquece folderOwnedByMe se NÃO foi vinculado via Picker de arquivo.
+                // pickedManually=true indica Shared user — folderOwnedByMe já foi gravado
+                // corretamente em pickSharedFolder e não deve ser sobrescrito pela API
+                // (que retornaria ownedByMe referente à pasta, não ao arquivo).
+                if (!meta.pickedManually && typeof meta.folderOwnedByMe !== 'boolean' && typeof d.ownedByMe === 'boolean') {
                   _saveMeta({ folderOwnedByMe: d.ownedByMe });
                   console.log('[DriveSync] folderOwnedByMe enriched from API:', d.ownedByMe);
                 }
@@ -5804,22 +5812,36 @@
                 console.log('[DriveSync] sync file found:', syncFileId);
               }
             } else {
-              // Já temos o ID — confirma existência e pega modifiedTime
-              try {
-                const r = await Drive._api(
-                  `/files/${syncFileId}?fields=id,modifiedTime&supportsAllDrives=true`
-                );
-                const d = await r.json();
-                if (d.id) {
-                  cloudDate = d.modifiedTime ? new Date(d.modifiedTime) : null;
-                } else {
-                  // Arquivo foi removido — esquece o ID e tenta re-descobrir
-                  console.warn('[DriveSync] syncFileId inválido — resetando', syncFileId);
-                  syncFileId = null;
-                  _saveMeta({ syncFileId: null });
-                }
-              } catch (e) {
-                console.warn('[DriveSync] meta check failed, proceeding without cloudDate', e);
+              // Já temos o ID — usa cloudModifiedAt gravado (tempo do servidor Drive)
+              // como fonte primária, evitando divergência com relógio do dispositivo.
+              // Se não houver cloudModifiedAt, confirma via API.
+              const cachedCloudTime = meta.cloudModifiedAt;
+              if (cachedCloudTime) {
+                cloudDate = new Date(cachedCloudTime);
+                console.log('[DriveSync] using cached cloudModifiedAt:', cachedCloudTime);
+                // Ainda valida que o arquivo existe (sem buscar modifiedTime de novo)
+                try {
+                  const r = await Drive._api(`/files/${syncFileId}?fields=id&supportsAllDrives=true`);
+                  const d = await r.json();
+                  if (!d.id) {
+                    console.warn('[DriveSync] syncFileId inválido — resetando', syncFileId);
+                    syncFileId = null; cloudDate = null;
+                    _saveMeta({ syncFileId: null, cloudModifiedAt: null });
+                  }
+                } catch (e) { console.warn('[DriveSync] existence check failed', e); }
+              } else {
+                // Sem cache — busca modifiedTime atual da API
+                try {
+                  const r = await Drive._api(`/files/${syncFileId}?fields=id,modifiedTime&supportsAllDrives=true`);
+                  const d = await r.json();
+                  if (d.id) {
+                    cloudDate = d.modifiedTime ? new Date(d.modifiedTime) : null;
+                  } else {
+                    console.warn('[DriveSync] syncFileId inválido — resetando', syncFileId);
+                    syncFileId = null;
+                    _saveMeta({ syncFileId: null });
+                  }
+                } catch (e) { console.warn('[DriveSync] meta check failed, proceeding without cloudDate', e); }
               }
             }
 
@@ -5859,17 +5881,22 @@
               console.log('[DriveSync] sync file created:', created.id);
 
             } else if (localMs > cloudMs + EPSILON) {
-              // Local mais recente → patch in-place
-              await Drive.patchSyncFile(syncFileId, localRaw);
-              _saveMeta({ lastSync: new Date().toISOString(), lastFile: Drive.SYNC_FILENAME });
+              // Local mais recente → patch in-place.
+              // Grava cloudModifiedAt com o modifiedTime retornado pelo servidor —
+              // na próxima comparação, cloudMs virá deste valor (tempo do servidor,
+              // não do relógio do dispositivo), eliminando divergência de clock.
+              const patched = await Drive.patchSyncFile(syncFileId, localRaw);
+              const serverTime = patched.modifiedTime || new Date().toISOString();
+              _saveMeta({ lastSync: new Date().toISOString(), lastFile: Drive.SYNC_FILENAME, cloudModifiedAt: serverTime });
               _setStatus('connected', '☁️ Synced to Drive');
-              console.log('[DriveSync] patched sync file:', syncFileId);
+              console.log('[DriveSync] patched sync file:', syncFileId, '| server modifiedTime:', serverTime);
 
             } else if (cloudMs > localMs + EPSILON) {
-              // Drive mais recente → download
+              // Drive mais recente → download.
               const txt = await Drive.downloadFile(syncFileId);
               Sync._applyCloud(txt);
-              _saveMeta({ lastSync: new Date().toISOString(), lastFile: Drive.SYNC_FILENAME });
+              // Grava cloudModifiedAt para que a próxima comparação use tempo do servidor
+              _saveMeta({ lastSync: new Date().toISOString(), lastFile: Drive.SYNC_FILENAME, cloudModifiedAt: cloudDate?.toISOString() });
               _setStatus('connected', '☁️ Data updated from Drive');
               console.log('[DriveSync] downloaded sync file:', syncFileId);
 
