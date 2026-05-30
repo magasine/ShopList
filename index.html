@@ -2914,11 +2914,11 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '2026.05.30-single-file-sync';
+    const APP_BUILD = '2026.05.30-single-file-sync.r2-modtime-fix';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
-    const STORAGE_KEY = 'Shop_List_v20260530';
+    const STORAGE_KEY = 'Shop_List_v20260527';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -5790,16 +5790,11 @@
          *  Um Shared sem permissão de edição recebe 403 aqui — capturado e propagado.
          */
         async patchSyncFile(fileId, content) {
-          // Inclui metadata com modifiedTime explícito (momento atual em RFC 3339).
-          // Sem isto, o PATCH multipart só-conteúdo pode NÃO atualizar modifiedTime
-          // no Drive, retornando a data antiga — o que gera re-upload em loop.
-          const nowISO = new Date().toISOString();
-          const metadata = { modifiedTime: nowISO };
-
+          // Atualiza o conteúdo do arquivo. A confirmação de sucesso é o status HTTP +
+          // id na resposta. O controle de conflito NÃO depende do modifiedTime do Drive
+          // (que pode vir estagnado) — usa o savedAt gravado dentro do próprio conteúdo.
           const form = new FormData();
-          form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
           form.append('file', new Blob([content], { type: 'application/json' }));
-
           const r = await Drive._upload(
             `/files/${fileId}?uploadType=multipart&fields=id,name,modifiedTime&supportsAllDrives=true`,
             { method: 'PATCH', body: form }
@@ -5812,29 +5807,11 @@
             }
             throw new Error(`patchSyncFile failed: ${msg}`);
           }
-          if (!d.modifiedTime) {
-            throw new Error('patchSyncFile: server did not confirm modifiedTime');
+          if (!d.id) {
+            throw new Error('patchSyncFile: server did not confirm file id');
           }
-
-          // Defesa contra modifiedTime estagnado: se o servidor devolveu uma data
-          // anterior ao momento do patch, relê via files.get para obter o valor real.
-          // (Cobre casos em que a resposta do upload traz metadados em cache.)
-          let confirmedTime = d.modifiedTime;
-          if (new Date(confirmedTime).getTime() < new Date(nowISO).getTime() - 1000) {
-            console.warn('[DriveSync] patch modifiedTime parece estagnado (' + confirmedTime +
-              ') — relendo via files.get');
-            try {
-              const r2 = await Drive._api(`/files/${fileId}?fields=modifiedTime&supportsAllDrives=true`);
-              const d2 = await r2.json();
-              if (d2.modifiedTime) {
-                confirmedTime = d2.modifiedTime;
-                console.log('[DriveSync] modifiedTime relido:', confirmedTime);
-              }
-            } catch (e) { console.warn('[DriveSync] releitura de modifiedTime falhou', e); }
-          }
-
-          console.log('[DriveSync] patchSyncFile confirmed:', d.id, confirmedTime);
-          return { ...d, modifiedTime: confirmedTime };
+          console.log('[DriveSync] patchSyncFile confirmed:', d.id);
+          return d;
         },
       };
 
@@ -5847,7 +5824,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260530');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260527');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -5888,7 +5865,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260530', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260527', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
@@ -5944,36 +5921,35 @@
                 console.log('[DriveSync] sync file found:', syncFileId);
               }
             } else {
-              // Já temos o ID — usa cloudModifiedAt gravado (tempo do servidor Drive)
-              // como fonte primária, evitando divergência com relógio do dispositivo.
-              // Se não houver cloudModifiedAt, confirma via API.
-              const cachedCloudTime = meta.cloudModifiedAt;
-              if (cachedCloudTime) {
-                cloudDate = new Date(cachedCloudTime);
-                console.log('[DriveSync] using cached cloudModifiedAt:', cachedCloudTime);
-                // Ainda valida que o arquivo existe (sem buscar modifiedTime de novo)
-                try {
-                  const r = await Drive._api(`/files/${syncFileId}?fields=id&supportsAllDrives=true`);
-                  const d = await r.json();
-                  if (!d.id) {
-                    console.warn('[DriveSync] syncFileId inválido — resetando', syncFileId);
-                    syncFileId = null; cloudDate = null;
-                    _saveMeta({ syncFileId: null, cloudModifiedAt: null });
-                  }
-                } catch (e) { console.warn('[DriveSync] existence check failed', e); }
-              } else {
-                // Sem cache — busca modifiedTime atual da API
-                try {
-                  const r = await Drive._api(`/files/${syncFileId}?fields=id,modifiedTime&supportsAllDrives=true`);
-                  const d = await r.json();
-                  if (d.id) {
-                    cloudDate = d.modifiedTime ? new Date(d.modifiedTime) : null;
-                  } else {
-                    console.warn('[DriveSync] syncFileId inválido — resetando', syncFileId);
-                    syncFileId = null;
-                    _saveMeta({ syncFileId: null });
-                  }
-                } catch (e) { console.warn('[DriveSync] meta check failed, proceeding without cloudDate', e); }
+              // Já temos o ID. Confirma existência via files.get.
+              // cloudDate virá do savedAt DENTRO do conteúdo (comparação robusta),
+              // resolvida mais abaixo ao baixar o arquivo. Aqui só valida existência.
+              try {
+                const r = await Drive._api(`/files/${syncFileId}?fields=id&supportsAllDrives=true`);
+                const d = await r.json();
+                if (!d.id) {
+                  console.warn('[DriveSync] syncFileId inválido — resetando', syncFileId);
+                  syncFileId = null;
+                  _saveMeta({ syncFileId: null, cloudModifiedAt: null });
+                }
+              } catch (e) { console.warn('[DriveSync] existence check failed', e); }
+            }
+
+            // ── Resolve cloudDate pelo savedAt DENTRO do arquivo (não pelo modifiedTime) ──
+            // Baixa o conteúdo e lê o savedAt interno. Ambos local e cloud savedAt são
+            // gerados pelo mesmo tipo de relógio (de quem salvou), eliminando a
+            // divergência entre relógio do dispositivo e modifiedTime do servidor.
+            let cloudContent = null;
+            if (syncFileId) {
+              try {
+                cloudContent = await Drive.downloadFile(syncFileId);
+                const cp = JSON.parse(cloudContent);
+                if (cp && cp.savedAt) {
+                  cloudDate = new Date(cp.savedAt);
+                  console.log('[DriveSync] cloud savedAt (from content):', cp.savedAt);
+                }
+              } catch (e) {
+                console.warn('[DriveSync] could not read cloud savedAt:', e);
               }
             }
 
@@ -5996,18 +5972,15 @@
 
             if (!localRaw) {
               // Sem dados locais reais (primeiro uso ou dados modelo)
-              if (syncFileId) {
-                const txt = await Drive.downloadFile(syncFileId);
-                Sync._applyCloud(txt);
-                // Grava cloudModifiedAt = data do arquivo baixado, para que a próxima
-                // comparação use o tempo do servidor (consistente com os demais branches).
+              if (syncFileId && cloudContent) {
+                Sync._applyCloud(cloudContent);   // reutiliza o conteúdo já baixado
                 _saveMeta({
                   lastSync: new Date().toISOString(),
                   lastFile: Drive.SYNC_FILENAME,
                   cloudModifiedAt: cloudDate?.toISOString() || null,
                 });
                 _setStatus('connected', '☁️ Data downloaded from Drive ✓');
-                console.log('[DriveSync] downloaded (no local data):', syncFileId, '| cloud:', cloudDate?.toISOString());
+                console.log('[DriveSync] downloaded (no local data):', syncFileId, '| cloud savedAt:', cloudDate?.toISOString());
               } else {
                 _setStatus('connected', '☁️ Drive is empty, nothing to sync');
               }
@@ -6030,26 +6003,25 @@
               // Grava cloudModifiedAt com o modifiedTime retornado pelo servidor —
               // na próxima comparação, cloudMs virá deste valor (tempo do servidor,
               // não do relógio do dispositivo), eliminando divergência de clock.
-              // patchSyncFile lança erro se o servidor não confirmar (403, etc).
-              // serverTime vem garantidamente da resposta confirmada — sem fallback
-              // para new Date() que poderia mascarar uma gravação que não ocorreu.
-              const patched = await Drive.patchSyncFile(syncFileId, localRaw);
+              // Patch in-place. patchSyncFile lança erro se o servidor não confirmar (403).
+              // Grava cloudModifiedAt = savedAt LOCAL: como acabamos de subir o conteúdo
+              // local, o savedAt dentro do arquivo no Drive agora É o savedAt local.
+              // Assim a próxima comparação (cloud savedAt vs local savedAt) será igual.
+              await Drive.patchSyncFile(syncFileId, localRaw);
               _saveMeta({
                 lastSync: new Date().toISOString(),
                 lastFile: Drive.SYNC_FILENAME,
-                cloudModifiedAt: patched.modifiedTime,   // confirmação real do servidor
+                cloudModifiedAt: localDate ? localDate.toISOString() : new Date().toISOString(),
               });
               _setStatus('connected', '☁️ Synced to Drive ✓');
-              console.log('[DriveSync] patch confirmed:', syncFileId, '| modifiedTime:', patched.modifiedTime);
+              console.log('[DriveSync] patch confirmed:', syncFileId, '| local savedAt now in cloud:', localDate?.toISOString());
 
             } else if (cloudMs > localMs + EPSILON) {
-              // Drive mais recente → download.
-              const txt = await Drive.downloadFile(syncFileId);
-              Sync._applyCloud(txt);
-              // Grava cloudModifiedAt para que a próxima comparação use tempo do servidor
+              // Drive mais recente → aplica o conteúdo já baixado (reusa cloudContent)
+              if (cloudContent) Sync._applyCloud(cloudContent);
               _saveMeta({ lastSync: new Date().toISOString(), lastFile: Drive.SYNC_FILENAME, cloudModifiedAt: cloudDate?.toISOString() });
-              _setStatus('connected', '☁️ Data updated from Drive');
-              console.log('[DriveSync] downloaded sync file:', syncFileId);
+              _setStatus('connected', '☁️ Data updated from Drive ✓');
+              console.log('[DriveSync] downloaded sync file:', syncFileId, '| cloud savedAt:', cloudDate?.toISOString());
 
             } else {
               _saveMeta({ lastSync: new Date().toISOString() });
