@@ -7,7 +7,7 @@
    detecte a mudança e dispare o fluxo de atualização no cliente.
    ────────────────────────────────────────────────────────────────────────── */
 
-const CACHE_VERSION = 'shoplist-v2';   // ← incremente a cada release: v3, v4, ...
+const CACHE_VERSION = 'shoplist-v3';   // ← incremente a cada release: v4, v5, ...
 const CACHE_NAME     = CACHE_VERSION;
 
 // Recursos do app shell para precache. Ajuste conforme os arquivos do projeto.

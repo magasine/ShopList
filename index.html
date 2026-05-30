@@ -2912,7 +2912,13 @@
     };
 
     // ==================== CONSTANTES E VARIÁVEIS ====================
-    const STORAGE_KEY = 'Shop_List_v20260529';
+    // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
+    // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
+    const APP_BUILD = '2026.05.30-single-file-sync';
+    console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
+    console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
+
+    const STORAGE_KEY = 'Shop_List_v20260527';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -5363,6 +5369,7 @@
     // Exporta critério de detecção de dados modelo para uso no módulo DriveSync
     window.MODEL_ID_PREFIX = MODEL_ID_PREFIX;
     window.isModelData = isModelData;
+    window.APP_BUILD = APP_BUILD;   // digite window.APP_BUILD no console para verificar a versão
   </script>
   <!-- ═══════════════════════════════════════════════════════════════
        GOOGLE DRIVE SYNC MODULE
@@ -5815,7 +5822,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260529');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260527');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -5856,7 +5863,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260529', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260527', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
