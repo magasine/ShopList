@@ -2918,7 +2918,7 @@
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
-    const STORAGE_KEY = 'Shop_List_v20260527';
+    const STORAGE_KEY = 'Shop_List_v20260530';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -5822,7 +5822,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260527');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260530');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -5863,7 +5863,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260527', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260530', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
@@ -5974,8 +5974,15 @@
               if (syncFileId) {
                 const txt = await Drive.downloadFile(syncFileId);
                 Sync._applyCloud(txt);
-                _saveMeta({ lastSync: new Date().toISOString(), lastFile: Drive.SYNC_FILENAME });
-                _setStatus('connected', '☁️ Data downloaded from Drive');
+                // Grava cloudModifiedAt = data do arquivo baixado, para que a próxima
+                // comparação use o tempo do servidor (consistente com os demais branches).
+                _saveMeta({
+                  lastSync: new Date().toISOString(),
+                  lastFile: Drive.SYNC_FILENAME,
+                  cloudModifiedAt: cloudDate?.toISOString() || null,
+                });
+                _setStatus('connected', '☁️ Data downloaded from Drive ✓');
+                console.log('[DriveSync] downloaded (no local data):', syncFileId, '| cloud:', cloudDate?.toISOString());
               } else {
                 _setStatus('connected', '☁️ Drive is empty, nothing to sync');
               }
