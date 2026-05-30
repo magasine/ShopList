@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reset — Shop List</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0E1611; color: #E8F0E8;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; margin: 0; padding: 20px;
+    }
+    .card {
+      background: #162019; border: 1px solid #263626;
+      border-radius: 16px; padding: 32px; max-width: 440px; width: 100%;
+    }
+    h1 { font-size: 20px; margin: 0 0 8px; color: #4DB6AC; }
+    p { font-size: 14px; line-height: 1.6; color: #8FAF8F; margin: 0 0 20px; }
+    button {
+      width: 100%; padding: 14px; border: none; border-radius: 10px;
+      background: #00796B; color: #fff; font-size: 15px; font-weight: 600;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    button:active { opacity: 0.8; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    #log {
+      margin-top: 20px; font-family: monospace; font-size: 12px;
+      color: #5A7A5A; white-space: pre-wrap; line-height: 1.5;
+    }
+    .done { color: #4DB6AC; font-weight: 600; }
+    a { color: #4DB6AC; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🧹 Reset Shop List cache</h1>
+    <p>
+      This clears all cached versions of the app and unregisters the service worker.
+      Use this if the app is showing outdated behavior. Your shopping list data
+      (in localStorage) is <strong>not</strong> deleted.
+    </p>
+    <button id="btn" onclick="doReset()">Clear cache & service workers</button>
+    <div id="log"></div>
+  </div>
+
+  <script>
+    const log = (msg, done) => {
+      const el = document.getElementById('log');
+      el.innerHTML += (done ? '<span class="done">' + msg + '</span>' : msg) + '\n';
+    };
+
+    async function doReset() {
+      const btn = document.getElementById('btn');
+      btn.disabled = true;
+      document.getElementById('log').textContent = '';
+
+      // 1. Unregister all service workers
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        log('Found ' + regs.length + ' service worker(s)');
+        for (const reg of regs) {
+          await reg.unregister();
+          log('  ✓ unregistered: ' + (reg.scope || 'scope'));
+        }
+      } else {
+        log('Service workers not supported');
+      }
+
+      // 2. Delete all caches
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        log('Found ' + keys.length + ' cache(s)');
+        for (const key of keys) {
+          await caches.delete(key);
+          log('  ✓ deleted cache: ' + key);
+        }
+      } else {
+        log('Cache API not supported');
+      }
+
+      log('');
+      log('✅ Done! Cache fully cleared.', true);
+      log('Redirecting to the app in 3s…');
+      setTimeout(() => { window.location.href = './index.html'; }, 3000);
+    }
+  </script>
+</body>
+</html>
