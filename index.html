@@ -3000,7 +3000,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '2026.05.30-single-file-sync.r3-parity-panel';
+    const APP_BUILD = '2026.05.30-single-file-sync.r4-parity-live';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -6383,6 +6383,47 @@
 
           if (typeof openModal !== 'function') return;
 
+          // Revalida o cloud savedAt buscando o conteúdo REAL do Drive em background.
+          // O painel abre instantâneo com o valor em cache (meta.cloudModifiedAt) e,
+          // se o arquivo no Drive tiver sido alterado por outro usuário (ex: o Shared),
+          // atualiza o painel para refletir a verdade absoluta.
+          if (connected && (meta.syncFileId)) {
+            (async () => {
+              try {
+                const txt = await Drive.downloadFile(meta.syncFileId);
+                const cp = JSON.parse(txt);
+                const realCloud = cp && cp.savedAt ? cp.savedAt : null;
+                const panel = document.getElementById('ds-parity-panel');
+                const cloudEl = document.getElementById('ds-parity-cloud');
+                const badgeEl = document.getElementById('ds-parity-badge');
+                const titleEl = document.getElementById('ds-parity-title');
+                if (!panel || !cloudEl) return;   // modal pode ter sido fechado
+
+                const realMs = realCloud ? new Date(realCloud).getTime() : null;
+                const locMs = localSavedAt ? new Date(localSavedAt).getTime() : null;
+                const match = realMs !== null && locMs !== null && Math.abs(locMs - realMs) <= 30000;
+
+                cloudEl.textContent = realCloud
+                  ? new Date(realCloud).toLocaleString('pt-BR') : '—';
+                panel.classList.toggle('ds-parity--match', match);
+                panel.classList.toggle('ds-parity--diff', !match);
+                if (badgeEl) badgeEl.textContent = match ? '✓ in sync' : '⚠ out of sync';
+                if (titleEl) titleEl.textContent = match
+                  ? 'Local and Drive data match'
+                  : 'Local and Drive data differ — next sync will reconcile';
+
+                // Mantém meta.cloudModifiedAt coerente com a verdade do Drive
+                if (realCloud && realCloud !== meta.cloudModifiedAt) {
+                  _saveMeta({ cloudModifiedAt: realCloud });
+                }
+              } catch (e) {
+                console.warn('[DriveSync] parity revalidation failed:', e);
+                const cloudEl = document.getElementById('ds-parity-cloud');
+                if (cloudEl) cloudEl.innerHTML = cloudEl.textContent.replace(' ⟳', '');
+              }
+            })();
+          }
+
           openModal(`
           <div class="modal-header">
             <div class="modal-title">Google Drive Sync</div>
@@ -6393,10 +6434,10 @@
             ${folderSection}
 
             ${connected && (localSavedAt || cloudSavedAt) ? `
-            <div class="ds-parity ${inParity ? 'ds-parity--match' : 'ds-parity--diff'}">
+            <div id="ds-parity-panel" class="ds-parity ${inParity ? 'ds-parity--match' : 'ds-parity--diff'}">
               <div class="ds-parity__head">
-                <span class="ds-parity__badge">${inParity ? '✓ in sync' : '⚠ out of sync'}</span>
-                <span class="ds-parity__title">${inParity
+                <span class="ds-parity__badge" id="ds-parity-badge">${inParity ? '✓ in sync' : '⚠ out of sync'}</span>
+                <span class="ds-parity__title" id="ds-parity-title">${inParity
                 ? 'Local and Drive data match'
                 : 'Local and Drive data differ — next sync will reconcile'}</span>
               </div>
@@ -6407,7 +6448,7 @@
               <div class="ds-parity__sep"></div>
               <div class="ds-parity__row">
                 <span class="ds-parity__key">☁️ cloud savedAt</span>
-                <span class="ds-parity__val">${fmt(cloudSavedAt)}</span>
+                <span class="ds-parity__val" id="ds-parity-cloud">${fmt(cloudSavedAt)} <span style="opacity:0.5">⟳</span></span>
               </div>
             </div>` : ''}
 
