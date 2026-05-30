@@ -3000,7 +3000,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '2026.05.30-single-file-sync.r7-shared-guard';
+    const APP_BUILD = '2026.05.30-single-file-sync.r8-picker-fix';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -6447,10 +6447,11 @@
                 const locMs = localSavedAt ? new Date(localSavedAt).getTime() : null;
                 const match = realMs !== null && locMs !== null && Math.abs(locMs - realMs) <= 30000;
 
+                // Atualiza TODOS os elementos de forma coerente (cor + badge + título)
                 cloudEl.textContent = realCloud
                   ? new Date(realCloud).toLocaleString('pt-BR') : '—';
-                panel.classList.toggle('ds-parity--match', match);
-                panel.classList.toggle('ds-parity--diff', !match);
+                panel.classList.remove('ds-parity--match', 'ds-parity--diff');
+                panel.classList.add(match ? 'ds-parity--match' : 'ds-parity--diff');
                 if (badgeEl) badgeEl.textContent = match ? '✓ in sync' : '⚠ out of sync';
                 if (titleEl) titleEl.textContent = match
                   ? 'Local and Drive data match'
@@ -6480,7 +6481,7 @@
             ${connected && (localSavedAt || cloudSavedAt) ? `
             <div id="ds-parity-panel" class="ds-parity ${inParity ? 'ds-parity--match' : 'ds-parity--diff'}">
               <div class="ds-parity__head">
-                <span class="ds-parity__badge" id="ds-parity-badge">${inParity ? '✓ in sync' : '⚠ out of sync'}</span>
+                <span class="ds-parity__badge" id="ds-parity-badge">${inParity ? '✓ in sync' : '⚠ out of sync'}</span><!-- badge state -->
                 <span class="ds-parity__title" id="ds-parity-title">${inParity
                 ? 'Local and Drive data match'
                 : 'Local and Drive data differ — next sync will reconcile'}</span>
@@ -6625,24 +6626,48 @@
               throw e;
             }
 
-            // Valida que o arquivo selecionado tem o nome correto
-            if (picked.name !== Drive.SYNC_FILENAME) {
-              if (typeof toast === 'function')
-                toast(`⚠️ Please select the file named "${Drive.SYNC_FILENAME}"`);
+            console.log('[DriveSync] picker returned:', JSON.stringify(picked));
+
+            // Valida que algo foi selecionado e tem id
+            if (!picked || !picked.id) {
+              if (typeof toast === 'function') toast('⚠️ No file selected');
               return;
             }
 
-            // Grava syncFileId — Sync.run usará este ID diretamente, sem busca na pasta
+            // Aviso (não-bloqueante) se o nome diferir do esperado — o usuário
+            // escolheu conscientemente via Picker, então respeitamos a escolha,
+            // mas alertamos caso tenha pego o arquivo errado.
+            if (picked.name && picked.name !== Drive.SYNC_FILENAME) {
+              console.warn('[DriveSync] picked file name differs from expected:',
+                picked.name, '!=', Drive.SYNC_FILENAME);
+              if (typeof toast === 'function')
+                toast(`⚠️ Linked "${picked.name}" (expected ${Drive.SYNC_FILENAME})`);
+            }
+
+            // GRAVA syncFileId — este é o vínculo essencial. Sem isto o SHARED
+            // fica sem arquivo. Limpa dados locais antigos para forçar download
+            // do conteúdo do OWNER no próximo sync (local=none → baixa do Drive).
             _folderId = null;
             _saveMeta({
               syncFileId: picked.id,
               folderId: picked.parentId || null,
-              folderOwnedByMe: false,   // arquivo do dono → pasta não é própria
+              folderOwnedByMe: false,
               duplicateFolderId: null,
               lastFile: Drive.SYNC_FILENAME,
               lastSync: null,
+              cloudModifiedAt: null,   // será preenchido ao baixar o conteúdo real
               pickedManually: true,
             });
+
+            // Limpa dados locais para que o SHARED baixe os dados do OWNER
+            // (evita que dados próprios antigos vençam o conflito por engano).
+            try {
+              localStorage.removeItem(STORAGE_KEY);
+              if (typeof window._applyItems === 'function') window._applyItems([]);
+              console.log('[DriveSync] local data cleared — will download owner data');
+            } catch (_) { }
+
+            console.log('[DriveSync] syncFileId saved:', picked.id);
 
             _setStatus('connected', '☁️ Drive connected');
             _startTimer();
