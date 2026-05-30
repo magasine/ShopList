@@ -1,130 +1,121 @@
-// ============================================================
-//  Shop List — Service Worker
-//  Estratégia: Cache-First para assets estáticos,
-//              Network-First para navegação (HTML)
-// ============================================================
+/* ──────────────────────────────────────────────────────────────────────────
+   Shop List — Service Worker
+   Estratégia: cache-first para o app shell, com atualização controlada pelo
+   usuário (skipWaiting só acontece quando o cliente envia 'SKIP_WAITING').
 
-const CACHE_VERSION = 'shoplist-v1';
+   IMPORTANTE: incremente CACHE_VERSION a cada deploy para que o navegador
+   detecte a mudança e dispare o fluxo de atualização no cliente.
+   ────────────────────────────────────────────────────────────────────────── */
 
-// Assets que serão cacheados na instalação do SW
-const PRECACHE_ASSETS = [
+const CACHE_VERSION = 'shoplist-v1';   // ← incremente a cada release: v2, v3, ...
+const CACHE_NAME     = CACHE_VERSION;
+
+// Recursos do app shell para precache. Ajuste conforme os arquivos do projeto.
+const PRECACHE_URLS = [
+  './',
   './index.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
   './icon-maskable.png',
-  // Fontes do Google (serão cacheadas na primeira visita via runtime caching)
 ];
 
-// Domínios externos tratados com runtime caching
-const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
-
-// ── INSTALL ──────────────────────────────────────────────────
-// Pré-cacheia os assets locais e ativa imediatamente
-self.addEventListener('install', event => {
+// ── INSTALL ──────────────────────────────────────────────────────────────
+// NÃO chamamos skipWaiting() aqui. O novo SW fica em "waiting" até o usuário
+// clicar em "Update", momento em que o cliente envia a mensagem SKIP_WAITING.
+// Isto é o que evita o loop de reloads automáticos.
+self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_VERSION)
-      .then(cache => cache.addAll(PRECACHE_ASSETS))
-      .then(() => self.skipWaiting()) // ativa sem esperar aba fechar
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.addAll(PRECACHE_URLS))
+      .catch((err) => console.warn('[SW] precache falhou (continua):', err))
   );
 });
 
-// ── ACTIVATE ─────────────────────────────────────────────────
-// Remove caches de versões anteriores
-self.addEventListener('activate', event => {
+// ── ACTIVATE ─────────────────────────────────────────────────────────────
+// Limpa caches de versões antigas e assume controle das páginas abertas.
+self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys
-          .filter(key => key !== CACHE_VERSION)
-          .map(key => caches.delete(key))
-      )
-    ).then(() => self.clients.claim()) // assume controle imediato das abas abertas
+    caches.keys()
+      .then((keys) => Promise.all(
+        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+      ))
+      .then(() => self.clients.claim())
   );
 });
 
-// ── FETCH ────────────────────────────────────────────────────
-self.addEventListener('fetch', event => {
-  const { request } = event;
-  const url = new URL(request.url);
-
-  // Ignora requisições não-GET e extensões de browser
-  if (request.method !== 'GET') return;
-  if (url.protocol === 'chrome-extension:') return;
-
-  // Fontes Google — Cache-First com fallback de rede
-  if (FONT_HOSTS.includes(url.hostname)) {
-    event.respondWith(cacheFirst(request));
-    return;
-  }
-
-  // HTML principal — Network-First: tenta buscar versão fresca,
-  // cai no cache se offline
-  if (request.mode === 'navigate' || url.pathname.endsWith('.html')) {
-    event.respondWith(networkFirstWithCache(request));
-    return;
-  }
-
-  // Demais assets locais — Cache-First
-  if (url.origin === self.location.origin) {
-    event.respondWith(cacheFirst(request));
-    return;
-  }
-});
-
-// ── ESTRATÉGIAS ──────────────────────────────────────────────
-
-/**
- * Cache-First: retorna do cache se disponível, senão busca na rede
- * e armazena para próximas requisições.
- */
-async function cacheFirst(request) {
-  const cached = await caches.match(request);
-  if (cached) return cached;
-
-  try {
-    const response = await fetch(request);
-    if (response.ok) {
-      const cache = await caches.open(CACHE_VERSION);
-      cache.put(request, response.clone());
-    }
-    return response;
-  } catch {
-    // Sem cache e sem rede — retorna 503 silencioso
-    return new Response('Sem conexão e sem cache disponível.', {
-      status: 503,
-      statusText: 'Service Unavailable',
-    });
-  }
-}
-
-/**
- * Network-First: tenta a rede primeiro; se falhar (offline),
- * usa o cache. Ideal para o HTML principal que pode ser atualizado.
- */
-async function networkFirstWithCache(request) {
-  const cache = await caches.open(CACHE_VERSION);
-
-  try {
-    const response = await fetch(request);
-    if (response.ok) {
-      cache.put(request, response.clone()); // atualiza cache em background
-    }
-    return response;
-  } catch {
-    const cached = await cache.match(request);
-    if (cached) return cached;
-
-    // Fallback de emergência: retorna o ShopList.html cacheado
-    const fallback = await cache.match('./index.html');
-    return fallback || new Response('App offline e sem cache.', { status: 503 });
-  }
-}
-
-// ── MENSAGENS ────────────────────────────────────────────────
-// Permite que o app force uma atualização do SW via postMessage
-self.addEventListener('message', event => {
-  if (event.data === 'SKIP_WAITING') {
+// ── MESSAGE ──────────────────────────────────────────────────────────────
+// O cliente envia 'SKIP_WAITING' quando o usuário clica em "Update".
+// Só então o SW novo ativa, dispara 'controllerchange' no cliente,
+// e o cliente recarrega UMA vez (guarda _swReloading no index.html).
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING' || (event.data && event.data.type === 'SKIP_WAITING')) {
     self.skipWaiting();
   }
+});
+
+// ── FETCH ────────────────────────────────────────────────────────────────
+// Estratégia:
+//  - Navegação (HTML): network-first com fallback para cache (garante que o
+//    usuário receba a versão mais nova quando online, mas funcione offline).
+//  - Demais GETs same-origin: cache-first com atualização em background.
+//  - Requisições para APIs externas (googleapis, etc.): sempre network, sem cache.
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+
+  // Só intercepta GET
+  if (req.method !== 'GET') return;
+
+  const url = new URL(req.url);
+
+  // Fontes Google (fonts.googleapis.com / fonts.gstatic.com) → cache-first.
+  // São estáticas e versionadas, seguras para cachear entre sessões.
+  const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
+  if (FONT_HOSTS.includes(url.hostname)) {
+    event.respondWith(
+      caches.match(req).then((cached) => cached || fetch(req).then((res) => {
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => {});
+        }
+        return res;
+      }).catch(() => cached))
+    );
+    return;
+  }
+
+  // Não intercepta outras chamadas externas (Google Drive API, GIS, Picker)
+  if (url.origin !== self.location.origin) return;
+
+  // Navegação / documentos HTML → network-first
+  if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => {});
+          return res;
+        })
+        .catch(() => caches.match(req).then((cached) => cached || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // Demais assets same-origin → cache-first
+  event.respondWith(
+    caches.match(req).then((cached) => {
+      if (cached) {
+        // Atualiza em background sem bloquear a resposta
+        fetch(req).then((res) => {
+          caches.open(CACHE_NAME).then((c) => c.put(req, res)).catch(() => {});
+        }).catch(() => {});
+        return cached;
+      }
+      return fetch(req).then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => {});
+        return res;
+      });
+    })
+  );
 });

@@ -5202,32 +5202,69 @@
     let swRegistration = null;
     let newWorker = null;
 
+    let _swReloading = false;   // guarda contra reload em loop
+
+    function _showUpdateBanner() {
+      const b = document.getElementById('update-banner');
+      if (b) b.classList.add('visible');
+    }
+
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js')
         .then(reg => {
           swRegistration = reg;
 
-          // Detecta atualização disponível
+          // Caso 1: já existe um SW esperando no momento do registro
+          // (usuário recarregou sem aplicar a atualização anterior)
+          if (reg.waiting && navigator.serviceWorker.controller) {
+            newWorker = reg.waiting;
+            _showUpdateBanner();
+          }
+
+          // Caso 2: uma nova atualização é encontrada durante esta sessão
           reg.addEventListener('updatefound', () => {
-            newWorker = reg.installing;
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // Há um SW novo esperando — exibe banner de update
-                document.getElementById('update-banner').classList.add('visible');
+            const installing = reg.installing;
+            if (!installing) return;
+            installing.addEventListener('statechange', () => {
+              if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                // SW novo instalado e há um controller ativo → update disponível
+                newWorker = installing;
+                _showUpdateBanner();
               }
             });
           });
         })
         .catch(err => console.warn('SW: falha no registro:', err));
 
-      // Quando o SW novo tomar controle, recarrega para aplicar atualização
+      // Quando o SW novo tomar controle, recarrega UMA única vez
       navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (_swReloading) return;   // impede o loop de reloads
+        _swReloading = true;
         window.location.reload();
       });
     }
 
     function applyUpdate() {
-      if (newWorker) newWorker.postMessage('SKIP_WAITING');
+      // Esconde o banner imediatamente para feedback visual ao clique
+      const b = document.getElementById('update-banner');
+      if (b) b.classList.remove('visible');
+
+      // Alvo do postMessage: newWorker detectado, ou reg.waiting como fallback
+      const target = newWorker
+        || (swRegistration && swRegistration.waiting)
+        || null;
+
+      if (target) {
+        target.postMessage('SKIP_WAITING');
+        // Fallback de segurança: se controllerchange não disparar em 3s,
+        // força reload mesmo assim (alguns navegadores não emitem o evento)
+        setTimeout(() => {
+          if (!_swReloading) { _swReloading = true; window.location.reload(); }
+        }, 3000);
+      } else {
+        // Não há SW esperando — apenas recarrega para buscar a versão mais recente
+        if (!_swReloading) { _swReloading = true; window.location.reload(); }
+      }
     }
 
     // ── Install Prompt (Android/Chrome) ──────────────────────
