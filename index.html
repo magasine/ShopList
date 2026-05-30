@@ -3000,7 +3000,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '2026.05.30-single-file-sync.r5-nocache';
+    const APP_BUILD = '2026.05.30-single-file-sync.r6-media-patch';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -5886,14 +5886,18 @@
          *  Um Shared sem permissão de edição recebe 403 aqui — capturado e propagado.
          */
         async patchSyncFile(fileId, content) {
-          // Atualiza o conteúdo do arquivo. A confirmação de sucesso é o status HTTP +
-          // id na resposta. O controle de conflito NÃO depende do modifiedTime do Drive
-          // (que pode vir estagnado) — usa o savedAt gravado dentro do próprio conteúdo.
-          const form = new FormData();
-          form.append('file', new Blob([content], { type: 'application/json' }));
+          // Atualiza SOMENTE o conteúdo via uploadType=media (NÃO multipart).
+          // multipart exige duas partes (metadata + media); enviar só a parte 'file'
+          // num FormData fazia o Drive retornar 200 sem gravar o conteúdo novo —
+          // a causa do "cloud savedAt" preso no valor antigo.
+          // uploadType=media envia o conteúdo direto no body, atualizando o arquivo.
           const r = await Drive._upload(
-            `/files/${fileId}?uploadType=multipart&fields=id,name,modifiedTime&supportsAllDrives=true`,
-            { method: 'PATCH', body: form }
+            `/files/${fileId}?uploadType=media&fields=id,name,modifiedTime&supportsAllDrives=true`,
+            {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: content,   // string JSON direta, sem FormData
+            }
           );
           const d = await r.json().catch(() => ({}));
           if (!r.ok) {
@@ -5906,7 +5910,23 @@
           if (!d.id) {
             throw new Error('patchSyncFile: server did not confirm file id');
           }
-          console.log('[DriveSync] patchSyncFile confirmed:', d.id);
+
+          // Verificação pós-gravação: relê o conteúdo e confirma que o savedAt
+          // gravado corresponde ao que enviamos. Detecta gravações fantasma.
+          try {
+            const verify = await Drive.downloadFile(fileId);
+            const vp = JSON.parse(verify);
+            const sent = JSON.parse(content);
+            if (vp.savedAt === sent.savedAt) {
+              console.log('[DriveSync] patchSyncFile confirmed & verified:', d.id, '| savedAt:', vp.savedAt);
+            } else {
+              console.warn('[DriveSync] patchSyncFile: WROTE but verify mismatch! sent=' +
+                sent.savedAt + ' got=' + vp.savedAt);
+            }
+          } catch (e) {
+            console.warn('[DriveSync] patchSyncFile: post-write verify failed (gravação pode ter ocorrido):', e);
+          }
+
           return d;
         },
       };
