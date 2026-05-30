@@ -277,13 +277,11 @@
     /* Timestamp de dados — mais contrastado que antes */
     #app-title span#title-sub {
       color: inherit;
-      /* var(--text2); */
       font-weight: 500;
       font-size: var(--fs-xs);
       font-family: 'DM Mono', monospace;
       white-space: nowrap;
       opacity: 0.6;
-      /* 0.88 */
       letter-spacing: 0.02em;
       margin-right: 4px;
     }
@@ -3118,7 +3116,7 @@
               <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z"/>
               <path d="m73.4 26.15-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z"/>
             </svg>
-            ☁️ Link shared Drive folder
+            ☁️ Link shared file (Shop-List-Sync.json)
           </div>
         </div>
       `);
@@ -5318,11 +5316,10 @@
       // Passos: console.cloud.google.com → APIs & Services → Credentials → Create OAuth 2.0 Client ID
       // Authorized JavaScript origins: coloque a URL onde o app está hospedado.
       const DRIVE_CLIENT_ID = '752295122192-chaj5pnuk6u9brpra192q5ob9b33rp5v.apps.googleusercontent.com';
-      // drive.file  — cria/escreve arquivos que o app abriu ou criou
-      // drive.readonly — lê qualquer arquivo que o usuário tem acesso,
-      //                 incluindo arquivos criados pelo dono em pasta compartilhada
-      const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file' +
-        ' https://www.googleapis.com/auth/drive.readonly';
+      // drive.file — escrita e leitura de arquivos criados ou abertos pelo app.
+      // O usuário Shared usa o Picker para selecionar o arquivo fixo diretamente,
+      // introduzindo-o ao escopo sem necessidade de drive.readonly.
+      const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
       const FOLDER_NAME = '_ShopList_Sync';
       const SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
       const SYNC_KEY = 'ShopList_driveSync';    // localStorage para meta
@@ -5393,24 +5390,13 @@
           try { localStorage.setItem(TOKEN_KEY, JSON.stringify(t)); } catch (_) { }
         },
 
-        /** Verifica se o token atual inclui todos os escopos necessários */
-        hasRequiredScopes() {
-          if (!_token || !_token.scope) return false;
-          const granted = _token.scope.split(' ');
-          const required = DRIVE_SCOPE.split(' ').filter(Boolean);
-          return required.every(s => granted.includes(s));
-        },
 
         isValid() {
           return _token && Date.now() < _token.expires_at;
         },
 
-        /** Dispara o popup OAuth do Google Identity Services.
-         *  @param {object} [opts]
-         *  @param {string} [opts.prompt] — 'consent' força tela de permissão (default),
-         *                                   '' deixa o Google decidir (útil para scope upgrade silencioso)
-         */
-        requestToken(opts = {}) {
+        /** Dispara o popup OAuth do Google Identity Services */
+        requestToken() {
           return new Promise((resolve, reject) => {
             if (typeof google === 'undefined' || !google.accounts) {
               reject(new Error('Google Identity Services não carregado'));
@@ -5425,22 +5411,13 @@
                 resolve(resp.access_token);
               },
             });
-            client.requestAccessToken({ prompt: opts.prompt ?? 'consent' });
+            client.requestAccessToken({ prompt: 'consent' });
           });
         },
 
-        /** Garante token válido e com todos os escopos necessários.
-         *  Se o token em cache não inclui drive.readonly (tokens pré-expansão de scope),
-         *  força re-consent silencioso com prompt='' para o usuário já conectado
-         *  (sem tela de escolha de conta, apenas a tela de permissão se necessário).
-         */
+        /** Garante token válido — usa cache ou solicita novo */
         async ensureToken() {
-          if (Auth.isValid() && Auth.hasRequiredScopes()) return _token.access_token;
-          if (Auth.isValid() && !Auth.hasRequiredScopes()) {
-            // Token válido mas sem readonly — re-consent para ampliar escopo
-            console.log('[DriveSync] token sem drive.readonly — solicitando re-consent');
-            return Auth.requestToken({ prompt: '' }); // sem force-consent, apenas scope upgrade
-          }
+          if (Auth.isValid()) return _token.access_token;
           return Auth.requestToken();
         },
 
@@ -5664,29 +5641,23 @@
           return _folderId;
         },
 
-        /** Lista arquivos JSON na pasta, ordenados pelo nome (= timestamp) descendente */
-        async listFiles(folderId) {
+        // Nome fixo do arquivo de sync — único arquivo por pasta, atualizado in-place.
+        // Elimina a necessidade de versionamento por nome e de drive.readonly para o Shared.
+        SYNC_FILENAME: 'Shop-List-Sync.json',
+
+        /** Busca o arquivo de sync pelo nome fixo na pasta. Retorna { id, modifiedTime } ou null */
+        async findSyncFile(folderId) {
           const q = encodeURIComponent(
-            `'${folderId}' in parents and name contains 'Shop-List.json' and trashed=false`
+            `'${folderId}' in parents and name='${Drive.SYNC_FILENAME}' and trashed=false`
           );
-          // orderBy=modifiedTime desc: o arquivo mais recente vem primeiro.
-          // corpora=allDrives: necessário para pastas em Shared Drives corporativos.
-          // includeItemsFromAllDrives + supportsAllDrives: requeridos pela API quando
-          // corpora=allDrives ou quando a pasta pertence a outro usuário.
           const r = await Drive._api(
-            `/files?q=${q}&orderBy=modifiedTime%20desc` +
-            `&fields=files(id,name,modifiedTime,size)` +
-            `&spaces=drive&corpora=allDrives` +
-            `&includeItemsFromAllDrives=true&supportsAllDrives=true`
+            `/files?q=${q}&fields=files(id,name,modifiedTime)&spaces=drive&supportsAllDrives=true`
           );
           const d = await r.json();
-          if (d.error) {
-            console.warn('[DriveSync] listFiles API error:', JSON.stringify(d.error));
-            return [];
-          }
+          if (d.error) { console.warn('[DriveSync] findSyncFile error:', d.error); return null; }
           const files = d.files || [];
-          console.log(`[DriveSync] listFiles: ${files.length} file(s) found in folder ${folderId}`);
-          return files;
+          console.log(`[DriveSync] findSyncFile: ${files.length} result(s) in folder ${folderId}`);
+          return files[0] || null;
         },
 
         /** Baixa conteúdo de um arquivo pelo ID */
@@ -5695,22 +5666,27 @@
           return r.text();
         },
 
-        /** Faz upload de novo arquivo JSON (nunca sobrescreve) */
-        async uploadFile(folderId, filename, content) {
-          const metadata = {
-            name: filename,
-            parents: [folderId],
-            mimeType: 'application/json',
-          };
+        /** Cria o arquivo de sync (primeira vez — Owner) */
+        async createSyncFile(folderId, content) {
+          const metadata = { name: Drive.SYNC_FILENAME, parents: [folderId], mimeType: 'application/json' };
           const form = new FormData();
           form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
           form.append('file', new Blob([content], { type: 'application/json' }));
-
           const r = await Drive._upload(
-            '/files?uploadType=multipart&fields=id,name&supportsAllDrives=true', {
-            method: 'POST',
-            body: form,
-          });
+            '/files?uploadType=multipart&fields=id,name,modifiedTime&supportsAllDrives=true',
+            { method: 'POST', body: form }
+          );
+          return r.json();
+        },
+
+        /** Atualiza o arquivo de sync existente in-place (Owner e Shared) */
+        async patchSyncFile(fileId, content) {
+          const form = new FormData();
+          form.append('file', new Blob([content], { type: 'application/json' }));
+          const r = await Drive._upload(
+            `/files/${fileId}?uploadType=multipart&fields=id,name,modifiedTime&supportsAllDrives=true`,
+            { method: 'PATCH', body: form }
+          );
           return r.json();
         },
       };
@@ -5807,101 +5783,102 @@
 
           try {
             await Auth.ensureToken();
-            const folderId = await Drive.ensureFolder();
-            // Atualiza badge imediatamente após resolução da pasta
-            if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
-            const files = await Drive.listFiles(folderId);
+            const meta = _loadMeta();
 
-            // Identifica o arquivo mais recente no Drive com critério em cascata:
-            //   1º filenameToDate() — timestamp canônico no nome (YYYYMMDD.HHmm), precisão de minuto
-            //   2º modifiedTime     — metadado do Drive, sempre presente, fallback para nomes não-canônicos
-            // A API já retorna os arquivos ordenados por modifiedTime desc (listFiles),
-            // portanto files[0] é sempre o candidato mais provável — o loop confirma isso
-            // e permite que filenameToDate() sobreponha quando disponível.
-            let cloudFile = null;
+            // ── Resolve o fileId do arquivo fixo ───────────────────────────────
+            // Opção A: syncFileId gravado (já conhecido — Owner ou Shared pós-Picker)
+            // Opção B: busca pelo nome fixo na pasta (Owner no primeiro sync)
+            // Opção C: cria o arquivo (Owner, pasta vazia)
+            let syncFileId = meta.syncFileId || null;
             let cloudDate = null;
+            const folderId = await Drive.ensureFolder();
+            if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
 
-            for (const f of files) {
-              // Critério 1: data extraída do nome canônico (maior precisão)
-              const nameDate = Sync.filenameToDate(f.name);
-              // Critério 2: modifiedTime do Drive (sempre presente)
-              const metaDate = f.modifiedTime ? new Date(f.modifiedTime) : null;
-              // Usa nameDate se disponível, senão metaDate como fallback
-              const fileDate = nameDate || metaDate;
-
-              if (fileDate && (!cloudDate || fileDate > cloudDate)) {
-                cloudDate = fileDate;
-                cloudFile = f;
-                // Loga qual critério foi usado — útil para diagnóstico do modo Shared
-                console.log(
-                  `[DriveSync] candidate: ${f.name}` +
-                  ` | nameDate=${nameDate ? nameDate.toISOString() : 'n/a'}` +
-                  ` | metaDate=${metaDate ? metaDate.toISOString() : 'n/a'}` +
-                  ` | using=${nameDate ? 'name' : 'modifiedTime'}`
+            if (!syncFileId) {
+              // Ainda não conhecemos o fileId — busca pelo nome na pasta
+              const found = await Drive.findSyncFile(folderId);
+              if (found) {
+                syncFileId = found.id;
+                cloudDate = found.modifiedTime ? new Date(found.modifiedTime) : null;
+                _saveMeta({ syncFileId });
+                console.log('[DriveSync] sync file found:', syncFileId);
+              }
+            } else {
+              // Já temos o ID — confirma existência e pega modifiedTime
+              try {
+                const r = await Drive._api(
+                  `/files/${syncFileId}?fields=id,modifiedTime&supportsAllDrives=true`
                 );
+                const d = await r.json();
+                if (d.id) {
+                  cloudDate = d.modifiedTime ? new Date(d.modifiedTime) : null;
+                } else {
+                  // Arquivo foi removido — esquece o ID e tenta re-descobrir
+                  console.warn('[DriveSync] syncFileId inválido — resetando', syncFileId);
+                  syncFileId = null;
+                  _saveMeta({ syncFileId: null });
+                }
+              } catch (e) {
+                console.warn('[DriveSync] meta check failed, proceeding without cloudDate', e);
               }
             }
 
-            // Se ainda não há candidato (lista vazia ou todos sem data), loga para diagnóstico
-            if (!cloudFile && files.length > 0) {
-              console.warn('[DriveSync] listFiles retornou arquivos mas nenhum pôde ser datado:', files.map(f => f.name));
-            }
-
-            // Timestamp local
+            // ── Payload local ───────────────────────────────────────────────────
             const localRaw = Sync._localPayload();
-            let localDate = null;
-            if (localRaw) {
-              try {
-                const lp = JSON.parse(localRaw);
-                if (lp.savedAt) localDate = new Date(lp.savedAt);
-              } catch (_) { }
-            }
+            const localDate = localRaw ? (() => {
+              try { const p = JSON.parse(localRaw); return p.savedAt ? new Date(p.savedAt) : null; }
+              catch { return null; }
+            })() : null;
 
-            // ── Regras de conflito ─────────────────────────────────────────────
             const localMs = localDate ? localDate.getTime() : 0;
             const cloudMs = cloudDate ? cloudDate.getTime() : 0;
-            const EPSILON = 30_000; // 30 s de tolerância para "iguais"
+            const EPSILON = 30_000;
 
             console.log(
-              `[DriveSync] conflict check | local=${localDate?.toISOString() ?? 'none'}` +
+              `[DriveSync] conflict | local=${localDate?.toISOString() ?? 'none'}` +
               ` | cloud=${cloudDate?.toISOString() ?? 'none'}` +
-              ` | cloudFile=${cloudFile?.name ?? 'none'}`
+              ` | syncFileId=${syncFileId ?? 'none'}`
             );
 
             if (!localRaw) {
-              // Sem dados reais locais — cobre dois casos:
-              //   1. Primeiro uso: localStorage vazio
-              //   2. Dados modelo: todos os IDs começam com 'model-' → _localPayload() retornou null
-              // Em ambos, baixa do Drive se houver arquivo — nunca faz upload do modelo.
-              if (cloudFile) {
-                const txt = await Drive.downloadFile(cloudFile.id);
+              // Sem dados locais reais (primeiro uso ou dados modelo)
+              if (syncFileId) {
+                const txt = await Drive.downloadFile(syncFileId);
                 Sync._applyCloud(txt);
-                _saveMeta({ lastSync: new Date().toISOString(), lastFile: cloudFile.name });
+                _saveMeta({ lastSync: new Date().toISOString(), lastFile: Drive.SYNC_FILENAME });
                 _setStatus('connected', '☁️ Data downloaded from Drive');
               } else {
                 _setStatus('connected', '☁️ Drive is empty, nothing to sync');
               }
-            } else if (!cloudFile || localMs > cloudMs + EPSILON) {
-              // LOCAL mais recente → upload
-              const now = new Date();
-              const filename = Sync.dateToFilename(now);
-              await Drive.uploadFile(folderId, filename, localRaw);
-              _saveMeta({ lastSync: now.toISOString(), lastFile: filename });
-              _setStatus('connected', '☁️ Uploaded to Drive');
-              console.log('[DriveSync] uploaded:', filename);
+
+            } else if (!syncFileId) {
+              // Dados locais existem mas arquivo ainda não existe no Drive → cria
+              const created = await Drive.createSyncFile(folderId, localRaw);
+              _saveMeta({ syncFileId: created.id, lastSync: new Date().toISOString(), lastFile: Drive.SYNC_FILENAME });
+              _setStatus('connected', '☁️ Synced to Drive');
+              console.log('[DriveSync] sync file created:', created.id);
+
+            } else if (localMs > cloudMs + EPSILON) {
+              // Local mais recente → patch in-place
+              await Drive.patchSyncFile(syncFileId, localRaw);
+              _saveMeta({ lastSync: new Date().toISOString(), lastFile: Drive.SYNC_FILENAME });
+              _setStatus('connected', '☁️ Synced to Drive');
+              console.log('[DriveSync] patched sync file:', syncFileId);
+
             } else if (cloudMs > localMs + EPSILON) {
-              // CLOUD mais recente → download
-              const txt = await Drive.downloadFile(cloudFile.id);
+              // Drive mais recente → download
+              const txt = await Drive.downloadFile(syncFileId);
               Sync._applyCloud(txt);
-              _saveMeta({ lastSync: new Date().toISOString(), lastFile: cloudFile.name });
-              _setStatus('connected', '☁️ Data downloaded from Drive');
-              console.log('[DriveSync] downloaded:', cloudFile.name);
+              _saveMeta({ lastSync: new Date().toISOString(), lastFile: Drive.SYNC_FILENAME });
+              _setStatus('connected', '☁️ Data updated from Drive');
+              console.log('[DriveSync] downloaded sync file:', syncFileId);
+
             } else {
-              // Iguais → nenhuma ação
               _saveMeta({ lastSync: new Date().toISOString() });
               _setStatus('connected', '☁️ Already in sync');
               console.log('[DriveSync] already in sync');
             }
+
           } catch (e) {
             console.error('[DriveSync] sync error:', e);
             _setStatus('error', '⚠️ Drive sync failed: ' + (e.message || 'unknown error'));
@@ -5936,38 +5913,52 @@
          * Abre o Picker em modo de seleção de pasta.
          * Resolve com { id, name } da pasta escolhida, ou rejeita se o usuário cancelar.
          */
-        open(accessToken) {
+        /**
+         * Abre o Picker em dois modos:
+         *   mode='file'   (default) — seleciona o arquivo Shop-List-Sync.json
+         *                             usado pelo usuário Shared para vincular o arquivo do dono
+         *   mode='folder' — seleciona a pasta (usado pelo Owner na configuração inicial)
+         */
+        open(accessToken, mode = 'file') {
           return new Promise((resolve, reject) => {
-            // View 1: "Compartilhados comigo" — prioridade para o usuário compartilhado
-            const sharedView = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
-              .setSelectFolderEnabled(true)
-              .setOwnedByMe(false)   // mostra somente pastas de outros
-              .setLabel('Shared with me');
+            let view;
+            if (mode === 'folder') {
+              view = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
+                .setSelectFolderEnabled(true)
+                .setIncludeFolders(true);
+            } else {
+              // Seleciona arquivo JSON — filtra por mimeType para mostrar só JSON
+              view = new google.picker.DocsView()
+                .setMimeTypes('application/json')
+                .setOwnedByMe(false)  // prioriza arquivos de outros (pasta do dono)
+                .setLabel('Shared with me');
+            }
 
-            // View 2: My Drive — fallback para o proprietário que quer usar sua própria pasta
-            const myView = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
-              .setSelectFolderEnabled(true)
-              .setOwnedByMe(true)
-              .setLabel('My Drive');
+            // Segunda view: My Drive (fallback para o Owner)
+            const myView = mode === 'folder'
+              ? null
+              : new google.picker.DocsView()
+                .setMimeTypes('application/json')
+                .setOwnedByMe(true)
+                .setLabel('My Drive');
 
-            const picker = new google.picker.PickerBuilder()
+            let builder = new google.picker.PickerBuilder()
               .setOAuthToken(accessToken)
-              .setDeveloperKey('')          // deixe vazio — não necessário para drive.file
-              .addView(sharedView)
-              .addView(myView)
-              .setTitle('Select the sync folder')
+              .setDeveloperKey('')
+              .addView(view)
+              .setTitle(mode === 'folder' ? 'Select sync folder' : 'Select the Shop-List-Sync.json file')
               .setMaxItems(1)
               .setCallback((data) => {
                 if (data.action === google.picker.Action.PICKED) {
                   const doc = data.docs[0];
-                  resolve({ id: doc.id, name: doc.name, ownedByMe: doc.isOwned || false });
+                  resolve({ id: doc.id, name: doc.name, ownedByMe: doc.isOwned || false, parentId: doc.parentId });
                 } else if (data.action === google.picker.Action.CANCEL) {
                   reject(new Error('picker-cancelled'));
                 }
-              })
-              .build();
+              });
 
-            picker.setVisible(true);
+            if (myView) builder = builder.addView(myView);
+            builder.build().setVisible(true);
           });
         },
       };
@@ -6003,11 +5994,7 @@
           if (hasToken) {
             _setStatus('connected', '☁️ Drive connected');
             _startTimer();
-            // Detecta token legado sem drive.readonly — re-consent na próxima operação
-            if (!Auth.hasRequiredScopes()) {
-              console.log('[DriveSync] init: token sem drive.readonly — será atualizado na próxima sync');
-              _setStatus('connected', '☁️ Drive connected (authorization update needed)');
-            }
+
             await Sync.run('startup');
           } else {
             _setStatus('', 'Google Drive (not connected)');
@@ -6142,7 +6129,7 @@
               ? `<div class="modal-btn" style="background:var(--surface2);color:var(--text)"
                       onclick="closeModal();DriveSync.manualSync()">🔄 Sync now</div>
                  <div class="modal-btn" style="background:var(--accent-light);color:var(--accent-text);border:1.5px solid var(--row-ok-border)"
-                      onclick="closeModal();DriveSync.pickSharedFolder()">🔗 Link folder</div>
+                      onclick="closeModal();DriveSync.pickSharedFolder()">🔗 Link shared file</div>
                  <div class="modal-btn danger-btn"
                       onclick="closeModal();DriveSync.disconnect()">Disconnect</div>`
               : `<div class="modal-btn confirm"
@@ -6161,11 +6148,6 @@
 
         async connect() {
           try {
-            // Se já havia token mas sem readonly, informa o usuário antes do re-consent
-            const needsUpgrade = Auth.isValid() && !Auth.hasRequiredScopes();
-            if (needsUpgrade && typeof toast === 'function')
-              toast('🔑 Permissões adicionais necessárias — atualizando autorização…');
-
             await Auth.ensureToken();
             _setStatus('connected', '☁️ Drive connected');
             _startTimer();
@@ -6226,33 +6208,40 @@
          * Resolve o problema central: introduz o folderId ao escopo drive.file
          * sem depender de queries de descoberta (sharedWithMe / allDrives).
          */
+        /**
+         * Abre o Picker para o usuário Shared vincular o arquivo Shop-List-Sync.json
+         * do dono. O fileId selecionado é gravado como syncFileId — o Sync.run
+         * opera diretamente sobre ele, sem query de descoberta e sem drive.readonly.
+         */
         async pickSharedFolder() {
           try {
-            // Garante autenticação OAuth antes de abrir o Picker
             const token = await Auth.ensureToken();
-
-            // Carrega a Picker API (gapi.load — idempotente)
-            if (typeof toast === 'function') toast('📂 Opening Drive folder picker…');
+            if (typeof toast === 'function') toast('📂 Select the Shop-List-Sync.json file…');
             await Picker.load();
 
-            // Abre o Picker — o usuário escolhe a pasta
             let picked;
             try {
-              picked = await Picker.open(token);
+              picked = await Picker.open(token, 'file');  // modo arquivo
             } catch (e) {
-              if (e.message === 'picker-cancelled') return; // usuário fechou — sem erro
+              if (e.message === 'picker-cancelled') return;
               throw e;
             }
 
-            // Grava o folderId escolhido como pasta ativa.
-            // _folderId em memória é zerado para que ensureFolder execute o files.get
-            // de verificação no próximo Sync.run, ativando o acesso aos filhos da pasta.
+            // Valida que o arquivo selecionado tem o nome correto
+            if (picked.name !== Drive.SYNC_FILENAME) {
+              if (typeof toast === 'function')
+                toast(`⚠️ Please select the file named "${Drive.SYNC_FILENAME}"`);
+              return;
+            }
+
+            // Grava syncFileId — Sync.run usará este ID diretamente, sem busca na pasta
             _folderId = null;
             _saveMeta({
-              folderId: picked.id,
-              folderOwnedByMe: picked.ownedByMe,
+              syncFileId: picked.id,
+              folderId: picked.parentId || null,
+              folderOwnedByMe: false,   // arquivo do dono → pasta não é própria
               duplicateFolderId: null,
-              lastFile: null,
+              lastFile: Drive.SYNC_FILENAME,
               lastSync: null,
               pickedManually: true,
             });
@@ -6260,18 +6249,15 @@
             _setStatus('connected', '☁️ Drive connected');
             _startTimer();
             if (typeof toast === 'function')
-              toast('✅ Folder linked: ' + picked.name + ' — syncing…');
+              toast('✅ File linked: ' + picked.name + ' — syncing…');
             if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
 
-            // Sync imediato com a pasta recém-vinculada
             await Sync.run('manual');
-
-            // Reabre painel com o estado atualizado
             setTimeout(() => window.DriveSync.openPanel(), 1800);
 
           } catch (e) {
             console.error('[DriveSync] pickSharedFolder error:', e);
-            if (typeof toast === 'function') toast('❌ Could not link folder: ' + e.message);
+            if (typeof toast === 'function') toast('❌ Could not link file: ' + e.message);
           }
         },
 
