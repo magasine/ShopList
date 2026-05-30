@@ -4741,41 +4741,61 @@
 
           // Suporte a arquivo exportado com payload ou array legado
           let data = null;
-          let importedSavedAt = null;
+          let originalSavedAt = null;
 
           if (Array.isArray(parsed)) {
-            // Formato legado (array puro)
+            // Formato legado (array puro) — sem savedAt interno
             data = parsed;
-            importedSavedAt = new Date().toISOString(); // data atual como fallback
           } else if (parsed && Array.isArray(parsed.data)) {
-            // Formato novo com savedAt
+            // Formato novo — guarda o savedAt original apenas para log
             data = parsed.data;
-            importedSavedAt = parsed.savedAt || new Date().toISOString();
+            originalSavedAt = parsed.savedAt || null;
           } else {
             throw new Error('Invalid format');
           }
 
           if (!data) throw new Error('Invalid format');
 
+          // Rejeita import de dados modelo (IDs com prefixo 'model-')
+          if (data.length > 0 && data.every(i => typeof i.id === 'string' && i.id.startsWith('model-'))) {
+            toast('⚠️ This file contains only sample data — nothing imported');
+            e.target.value = '';
+            return;
+          }
+
           // Atualiza os itens
           items = data;
-
-          // Remove _done antes de salvar (estado de sessão)
           const toSave = items.map(({ _done, ...rest }) => rest);
 
-          // PRESERVA O TIMESTAMP DO ARQUIVO IMPORTADO
-          const payload = {
-            savedAt: importedSavedAt,
-            data: toSave
-          };
-
+          // CARIMBA COM O MOMENTO DO IMPORT, não com o savedAt antigo do arquivo.
+          // A intenção do import é "estes dados passam a valer agora" — então
+          // devem ser a versão mais recente no próximo sync, vencendo o conflito.
+          // (O nome versionado do arquivo, se houver, é ignorado: só o conteúdo importa.)
+          const importNow = new Date().toISOString();
+          const payload = { savedAt: importNow, data: toSave };
           localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-          changeCounter = 0; // Reset contador após importação
+          changeCounter = 0;
+
+          console.log('[Import] file savedAt was', originalSavedAt,
+            '→ re-stamped as', importNow, '(import = newest)');
 
           closeModal();
-          render();         // re-renderiza painéis com os novos dados
-          updateBadges();   // garante que o badge leia o savedAt recém-gravado no storage
-          toast('Data imported successfully');
+          render();
+          updateBadges();
+
+          // Avisa o usuário sobre a próxima sincronização se o Drive estiver conectado
+          const driveConnected = (() => {
+            try {
+              const t = JSON.parse(localStorage.getItem('ShopList_driveToken') || 'null');
+              return t && t.access_token && Date.now() < t.expires_at;
+            } catch { return false; }
+          })();
+
+          if (driveConnected) {
+            toast('Data imported — will overwrite the Drive copy on next sync');
+          } else {
+            toast('Data imported successfully');
+          }
 
         } catch (err) {
           toast('Error: invalid file');
@@ -5753,7 +5773,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260529');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260527');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
