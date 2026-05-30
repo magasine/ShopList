@@ -277,13 +277,14 @@
     /* Timestamp de dados — mais contrastado que antes */
     #app-title span#title-sub {
       color: inherit;
+      /* var(--text2); */
       font-weight: 500;
       font-size: var(--fs-xs);
       font-family: 'DM Mono', monospace;
       white-space: nowrap;
       opacity: 0.6;
+      /* 0.88 */
       letter-spacing: 0.02em;
-      margin-right: 4px;
     }
 
     /* Badge de localidade do sync (owner · shared · ⚠️ duplicate) */
@@ -293,12 +294,12 @@
       gap: 4px;
       font-size: 10px;
       font-family: 'DM Mono', monospace;
-      font-weight: 600;
-      letter-spacing: 0.12em;
+      font-weight: 700;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
       padding: 2px 7px;
       border-radius: 20px;
-      margin-left: 0px;
+      margin-left: 4px;
       vertical-align: middle;
       cursor: pointer;
       border: 1.5px solid transparent;
@@ -2911,7 +2912,7 @@
     };
 
     // ==================== CONSTANTES E VARIÁVEIS ====================
-    const STORAGE_KEY = 'Shop_List_v20260529';
+    const STORAGE_KEY = 'Shop_List_v20260527';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -5537,26 +5538,33 @@
           // Sem esse GET, a query "'X' in parents" retorna vazio mesmo com folderId correto.
           {
             const _m = _loadMeta();
-            if (_m.pickedManually && _m.folderId) {
-              try {
-                const chk = await Drive._api(
-                  `/files/${_m.folderId}?fields=id,name,mimeType` +
-                  `&supportsAllDrives=true&includeItemsFromAllDrives=true`
-                );
-                const chkData = await chk.json();
-                if (chkData.id) {
-                  _folderId = chkData.id;
-                  console.log('[DriveSync] ensureFolder: picker folder verified', _folderId, chkData.name);
-                  return _folderId;
+            if (_m.pickedManually) {
+              // Shared vinculou pelo Picker de arquivo — syncFileId é o vínculo real.
+              // folderId pode ser null (parentId não garantido pelo Picker).
+              // ensureFolder retorna folderId apenas para o Owner; para o Shared,
+              // Sync.run usa syncFileId diretamente e não depende do retorno de ensureFolder.
+              if (_m.folderId) {
+                // folderId disponível — verifica via API e retorna
+                try {
+                  const chk = await Drive._api(
+                    `/files/${_m.folderId}?fields=id,name,mimeType&supportsAllDrives=true`
+                  );
+                  const chkData = await chk.json();
+                  if (chkData.id) {
+                    _folderId = chkData.id;
+                    console.log('[DriveSync] ensureFolder: picker folder verified', _folderId);
+                    return _folderId;
+                  }
+                } catch (e) {
+                  console.warn('[DriveSync] ensureFolder: folder check failed', e);
                 }
-                console.warn('[DriveSync] ensureFolder: folder get returned no id', chkData);
-              } catch (e) {
-                console.warn('[DriveSync] ensureFolder: picker folder verification failed', e);
+                _folderId = _m.folderId;
+                return _folderId;
               }
-              // Fallback: usa ID gravado mesmo sem verificação
-              _folderId = _m.folderId;
-              console.log('[DriveSync] ensureFolder: using picker folder (unverified)', _folderId);
-              return _folderId;
+              // folderId null — Shared sem pasta conhecida.
+              // Retorna um placeholder; Sync.run vai usar syncFileId diretamente.
+              console.log('[DriveSync] ensureFolder: Shared user without folderId — syncFileId will be used directly');
+              return null;
             }
           }
 
@@ -5722,7 +5730,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260529');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260527');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -5763,7 +5771,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260529', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260527', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
@@ -5802,8 +5810,15 @@
             const folderId = await Drive.ensureFolder();
             if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
 
+            if (!syncFileId && !folderId) {
+              // Shared sem folderId e sem syncFileId — não há como sincronizar
+              console.warn('[DriveSync] Shared user: no syncFileId and no folderId — use Link shared file');
+              _setStatus('connected', '☁️ Link the shared file to enable sync');
+              return;
+            }
+
             if (!syncFileId) {
-              // Ainda não conhecemos o fileId — busca pelo nome na pasta
+              // Owner sem syncFileId ainda — busca pelo nome na pasta
               const found = await Drive.findSyncFile(folderId);
               if (found) {
                 syncFileId = found.id;
@@ -6052,8 +6067,15 @@
             ? new Date(meta.lastSync).toLocaleString('pt-BR') : '—';
           const lastFile = meta.lastFile || '—';
           const hasDuplicate = !!meta.duplicateFolderId;
-          const ownedByMe = meta.folderOwnedByMe;
-          const folderKnown = meta.folderId && typeof ownedByMe === 'boolean';
+
+          // isShared: pickedManually é a fonte primária (Shared via Picker de arquivo).
+          // folderOwnedByMe é fallback para Owner que encontrou pasta via descoberta.
+          const isSharedUser = meta.pickedManually === true || meta.folderOwnedByMe === false;
+          const ownedByMe = !isSharedUser;
+
+          // folderKnown: tem alvo de sync se há syncFileId (Shared) OU folderId (Owner)
+          const syncTarget = meta.syncFileId || meta.folderId;
+          const folderKnown = !!syncTarget;
 
           // ── Helper: gera um card de pasta ─────────────────────────────────────
           // Usa exclusivamente CSS vars do tema — sem hex hardcoded — para que
@@ -6087,7 +6109,7 @@
             <div class="ds-card ${paletteClass}${inuseClass}">
               <div class="ds-card__head">
                 <span class="ds-card__icon">${icon}</span>
-                <span class="ds-card__name">${FOLDER_NAME}</span>
+                <span class="ds-card__name">${isShared ? Drive.SYNC_FILENAME : FOLDER_NAME}</span>
                 <span class="ds-card__type">${typeLabel}</span>
                 ${inUseBadge}
               </div>
@@ -6112,10 +6134,13 @@
               ${_folderCard({ id: meta.folderId, isShared: !ownedByMe, inUse: true, fileCount: null, lastFileName: meta.lastFile })}
               ${_folderCard({ id: meta.duplicateFolderId, isShared: !!ownedByMe, inUse: false, fileCount: null, lastFileName: null })}`;
             } else {
-              // Pasta única em uso
+              // Alvo único em uso — usa syncFileId se disponível (Shared), folderId caso contrário (Owner)
               folderSection = _folderCard({
-                id: meta.folderId, isShared: !ownedByMe,
-                inUse: true, fileCount: null, lastFileName: meta.lastFile,
+                id: meta.syncFileId || meta.folderId,
+                isShared: isSharedUser,
+                inUse: true,
+                fileCount: null,
+                lastFileName: meta.lastFile,
               });
             }
           }
