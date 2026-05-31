@@ -187,6 +187,11 @@
       -webkit-tap-highlight-color: transparent;
     }
 
+    html {
+      /* Bloqueia scroll horizontal no nível raiz */
+      overflow-x: hidden;
+    }
+
     body {
       font-family: 'DM Sans', sans-serif;
       background: var(--bg);
@@ -197,6 +202,8 @@
       flex-direction: column;
       align-items: center;
       transition: background var(--transition), color var(--transition);
+      /* Previne scroll horizontal causado por filhos que extravasem */
+      overflow-x: hidden;
     }
 
     #app {
@@ -211,6 +218,8 @@
       flex-direction: column;
       position: relative;
       box-shadow: 0 0 60px rgba(13, 27, 42, 0.12);
+      /* Contém filhos que possam extravazar horizontalmente */
+      overflow-x: hidden;
     }
 
     #title-link {
@@ -237,16 +246,14 @@
 
     #header-top {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 8px;
       padding-bottom: 12px;
       justify-content: flex-end;
       flex-wrap: nowrap;
-      /* linha única; botões não somem */
       min-width: 0;
-      /* permite shrink interno */
-      overflow: visible;
-      align-items: flex-start;
+      /* Contém o conteúdo dentro da largura do header */
+      overflow: hidden;
     }
 
     #app-title {
@@ -762,6 +769,7 @@
       -webkit-flex: 1;
       flex: 1;
       overflow-y: auto;
+      overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
       /* Evita flash de borda no Safari ao scrollar */
       -webkit-transform: translateZ(0);
@@ -940,6 +948,8 @@
       border-radius: 14px;
       box-shadow: 0 10px 32px rgba(13, 27, 42, 0.18);
       min-width: 210px;
+      /* Nunca ultrapassa a largura do viewport, com margem de 12px */
+      max-width: calc(100vw - 24px);
       overflow: hidden;
       animation: acFadeIn 0.14s cubic-bezier(0.4, 0, 0.2, 1);
     }
@@ -1124,13 +1134,10 @@
       color: var(--text2);
       font-family: 'DM Mono', monospace;
       margin-top: 2px;
-    }
-
-    font-size: var(--fs-xs);
-    color: var(--text2);
-    font-family: 'DM Mono',
-    monospace;
-    margin-top: 2px;
+      /* Evita que descrições longas causem overflow horizontal na row */
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     /* .status-tag {
@@ -2168,7 +2175,10 @@
       opacity: 0;
       transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
       z-index: 300;
-      white-space: nowrap;
+      /* Limita largura para nunca ultrapassar o viewport */
+      max-width: calc(100vw - 32px);
+      white-space: normal;
+      text-align: center;
       pointer-events: none;
       box-shadow: 0 8px 24px rgba(13, 27, 42, 0.22);
       letter-spacing: 0.01em;
@@ -4932,13 +4942,16 @@
 
       // Posicionamento: abaixo do trigger, alinhado à direita
       const rect = triggerEl.getBoundingClientRect();
-      const menuW = 220;
+      const menuW = Math.min(220, window.innerWidth - 24); // nunca maior que viewport - 24px
       let left = rect.right - menuW;
       let top = rect.bottom + 6;
 
-      // Garante que não sai da tela
+      // Clipa horizontal: nunca sai pela esquerda nem pela direita
       if (left < 8) left = 8;
-      if (top + 220 > window.innerHeight) top = rect.top - 220;
+      if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
+
+      // Clipa vertical: se não couber abaixo, abre acima do trigger
+      if (top + 240 > window.innerHeight) top = Math.max(8, rect.top - 240);
 
       menu.style.left = left + 'px';
       menu.style.top = top + 'px';
