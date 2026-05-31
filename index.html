@@ -190,27 +190,33 @@
     html {
       /* Bloqueia scroll horizontal no nível raiz */
       overflow-x: hidden;
+      /* Garante que html ocupa exatamente o viewport — base para o #app fixo */
+      height: 100%;
     }
 
     body {
       font-family: 'DM Sans', sans-serif;
       background: var(--bg);
       color: var(--text);
-      min-height: 100vh;
-      min-height: -webkit-fill-available;
+      /* Ocupa exatamente o viewport — sem crescer além dele */
+      height: 100%;
+      /* Fallback para iOS Safari (vh desconsidera a barra de endereço) */
+      height: -webkit-fill-available;
       display: flex;
       flex-direction: column;
       align-items: center;
       transition: background var(--transition), color var(--transition);
-      /* Previne scroll horizontal causado por filhos que extravasem */
-      overflow-x: hidden;
+      overflow: hidden;
     }
 
     #app {
       width: 100%;
       max-width: 480px;
-      min-height: 100vh;
-      min-height: -webkit-fill-available;
+      /* Altura fixa = viewport: header e footer ficam fixos, apenas #panels rola */
+      height: 100%;
+      height: -webkit-fill-available;
+      /* dvh: desconta barra de endereço no Chrome/Safari mobile */
+      height: 100dvh;
       background: var(--surface);
       display: -webkit-flex;
       display: flex;
@@ -218,8 +224,7 @@
       flex-direction: column;
       position: relative;
       box-shadow: 0 0 60px rgba(13, 27, 42, 0.12);
-      /* Contém filhos que possam extravazar horizontalmente */
-      overflow-x: hidden;
+      overflow: hidden;
     }
 
     #title-link {
@@ -238,9 +243,9 @@
       padding: 14px 16px 0;
       background: var(--header-bg);
       border-bottom: 1px solid var(--header-border);
-      position: -webkit-sticky;
-      position: sticky;
-      top: 0;
+      /* flex-shrink:0 garante que o header nunca encolhe — ocupa sempre seu espaço natural */
+      flex-shrink: 0;
+      /* z-index mantido para dropdowns/autocomplete ficarem sobre o conteúdo */
       z-index: 100;
     }
 
@@ -768,12 +773,13 @@
     #panels {
       -webkit-flex: 1;
       flex: 1;
+      /* Única região que rola — header e footer ficam fixos pelo flex layout do #app */
       overflow-y: auto;
       overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
-      /* Evita flash de borda no Safari ao scrollar */
-      -webkit-transform: translateZ(0);
-      transform: translateZ(0);
+      overscroll-behavior-y: contain;
+      /* min-height:0 necessário para flex children não ultrapassarem o pai em alguns navegadores */
+      min-height: 0;
     }
 
     .panel {
@@ -1560,9 +1566,8 @@
 
     /* FOOTER */
     #footer {
-      position: -webkit-sticky;
-      position: sticky;
-      bottom: 0;
+      /* flex-shrink:0 garante que o footer sempre ocupa seu espaço natural — nunca some */
+      flex-shrink: 0;
       background: var(--footer-bg);
       border-top: 1px solid var(--header-border);
       padding: 8px 12px;
@@ -2443,6 +2448,9 @@
       body {
         padding: 24px 0;
         background: linear-gradient(160deg, #D4E8ED 0%, #E8EEF5 50%, #D8E4F0 100%);
+        /* No desktop o body pode rolar se a janela for menor que o app */
+        overflow: auto;
+        height: auto;
       }
 
       [data-theme="dark"] body {
@@ -2451,17 +2459,14 @@
 
       #app {
         border-radius: 24px;
-        min-height: auto;
-        max-height: 90vh;
+        /* No desktop: altura máxima de 90vh, centralizado verticalmente */
+        height: min(90vh, 800px);
+        height: min(90dvh, 800px);
         box-shadow: 0 24px 80px rgba(13, 27, 42, 0.20);
       }
 
       [data-theme="dark"] #app {
         box-shadow: 0 24px 80px rgba(0, 0, 0, 0.50);
-      }
-
-      #panels {
-        max-height: calc(90vh - 180px);
       }
     }
 
