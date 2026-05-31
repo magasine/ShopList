@@ -6942,19 +6942,22 @@
             </div>` : ''}
 
           </div>
+
           <div class="modal-foot modal-foot--wrap">
+            <div class="modal-btn link-file"
+                 onclick="closeModal();DriveSync.pickSharedFolder()">Link shared file</div>
             <div class="modal-btn cancel" onclick="closeModal()">Close</div>
             ${connected
               ? `<div class="modal-btn neutral"
                       onclick="closeModal();DriveSync.manualSync()">Sync now</div>
-                 <div class="modal-btn link-file"
-                      onclick="closeModal();DriveSync.pickSharedFolder()">Link shared file</div>
+                 <div class="modal-btn cancel" onclick="closeModal()">Close</div>
                  <div class="modal-btn danger-btn"
                       onclick="closeModal();DriveSync.disconnect()">Disconnect</div>`
               : `<div class="modal-btn confirm"
                       onclick="closeModal();DriveSync.connect()">Connect Google Drive</div>`
             }
           </div>
+
           <div class="ds-pwa-strip" onclick="closeModal();showPWAInstructions()">
             <div class="ds-pwa-strip__icon">📲</div>
             <div>
