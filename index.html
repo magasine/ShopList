@@ -1754,7 +1754,7 @@
     }
 
     .modal-body {
-      padding: 16px 22px 20px;
+      padding: 16px;
     }
 
     .modal-label {
@@ -1795,16 +1795,18 @@
     .modal-foot {
       display: flex;
       border-top: 1px solid var(--border);
+      align-items: center;
     }
 
     .modal-btn {
       flex: 1;
-      padding: 16px;
+      padding: 2px;
       text-align: center;
       font-size: var(--fs-sm);
       cursor: pointer;
       font-weight: 600;
       transition: background var(--transition);
+      align-content: center;
     }
 
     .modal-btn:hover {
@@ -2511,6 +2513,7 @@
       flex-wrap: wrap;
       gap: 6px;
       margin-top: 10px;
+      justify-content: center;
     }
 
     .ds-card__btn {
@@ -2574,7 +2577,7 @@
       border-radius: 10px;
       padding: 12px 14px;
       display: flex;
-      flex-direction: column;
+      /* flex-direction: column; */
       gap: 4px;
       margin-bottom: 12px;
     }
@@ -2661,9 +2664,9 @@
 
     .ds-parity__row {
       display: flex;
-      justify-content: space-between;
+      /* justify-content: space-between; */
       align-items: center;
-      gap: 10px;
+      gap: 5px;
       padding: 4px 0;
       font-family: 'DM Mono', monospace;
       font-size: var(--fs-xs);
@@ -2678,7 +2681,7 @@
     .ds-parity__val {
       color: var(--text);
       text-align: right;
-      word-break: break-all;
+      /* word-break: break-all; */
     }
 
     .ds-parity__sep {
@@ -6539,8 +6542,7 @@
 
             <div class="ds-note">
               Sync uses a single file <code style="font-family:'DM Mono',monospace;font-size:11px">${Drive.SYNC_FILENAME}</code>,
-              updated in place.<br>
-              Share that file in Drive (with edit access) to collaborate with others.
+              updated in place. Share that file in Drive (with edit access) to collaborate with others.
             </div>
 
             ${!connected ? `
@@ -6555,9 +6557,9 @@
             <div class="modal-btn cancel" onclick="closeModal()">Close</div>
             ${connected
               ? `<div class="modal-btn" style="background:var(--surface2);color:var(--text)"
-                      onclick="closeModal();DriveSync.manualSync()">🔄 Sync now</div>
+                      onclick="closeModal();DriveSync.manualSync()">Sync now</div>
                  <div class="modal-btn" style="background:var(--accent-light);color:var(--accent-text);border:1.5px solid var(--row-ok-border)"
-                      onclick="closeModal();DriveSync.pickSharedFolder()">🔗 Link shared file</div>
+                      onclick="closeModal();DriveSync.pickSharedFolder()">Link shared file</div>
                  <div class="modal-btn danger-btn"
                       onclick="closeModal();DriveSync.disconnect()">Disconnect</div>`
               : `<div class="modal-btn confirm"
