@@ -1704,7 +1704,8 @@
       background: var(--surface);
       border-radius: 20px;
       width: 100%;
-      max-width: 360px;
+      /* Nunca ultrapassa 360px nem 95% da largura do viewport */
+      max-width: min(360px, 95vw);
       border: 1px solid var(--border);
       /* Layout interno em coluna: header fixo + body scroll + footer fixo */
       display: flex;
@@ -3052,6 +3053,18 @@
     /* modal-foot com wrap (ex: Drive panel — muitos botões) */
     .modal-foot.modal-foot--wrap {
       flex-wrap: wrap;
+      /* Alinha itens ao início da linha — sem esticar o botão órfão no final */
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    /* Botões dentro de --wrap: largura mínima fixa, crescem igualmente em pares */
+    .modal-foot.modal-foot--wrap .modal-btn {
+      /* Cresce para preencher, mas parte de uma base calculada:
+         2 botões por linha descontando o gap (6px) e o padding do footer (8px × 2) */
+      flex: 1 1 calc(50% - 3px);
+      /* Nunca menor que um touch-target legível */
+      min-width: 100px;
     }
 
     /* Barra de cor-accent usada no inline-rename do sec-label */
@@ -3095,8 +3108,7 @@
       }
 
       .modal {
-        /* Ocupa a largura disponível descontando o padding do overlay */
-        max-width: 100%;
+        /* max-width já resolvido por min(360px, 95vw) na regra base */
         max-height: calc(100dvh - 40px);
         max-height: calc(100vh - 40px);
       }
@@ -3166,18 +3178,6 @@
 
       .ds-card__btn {
         text-align: center;
-      }
-    }
-
-    /* ── modal-foot--wrap: nunca empilha botões verticalmente ── */
-    /* align-items: center no .modal-foot já impede stretch;     */
-    /* flex-wrap permite que botões menores quebrem linha         */
-    /* mantendo cada um com sua altura natural                   */
-    @media (max-width: 360px) {
-      .modal-foot.modal-foot--wrap .modal-btn {
-        /* Em telas muito estreitas o wrap pode gerar linha única por botão;
-           garante que cada um ainda ocupe a linha inteira de forma legível */
-        flex-basis: 100%;
       }
     }
   </style>
