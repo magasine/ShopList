@@ -1115,11 +1115,15 @@
       text-overflow: ellipsis;
     }
 
-    .item-sub {
-      font-size: var(--fs-xs);
-      color: var(--text2);
-      font-family: 'DM Mono', monospace;
-      margin-top: 2px;
+    .item-name--done {
+      text-decoration: line-through;
+    }
+
+    font-size: var(--fs-xs);
+    color: var(--text2);
+    font-family: 'DM Mono',
+    monospace;
+    margin-top: 2px;
     }
 
     /* .status-tag {
@@ -1815,12 +1819,29 @@
     }
 
     .modal-btn.cancel {
-      color: var(--crit);
+      color: var(--text2);
       border-right: 1px solid var(--border);
     }
 
     .modal-btn.confirm {
       color: var(--accent);
+    }
+
+    .modal-btn.neutral {
+      color: var(--text);
+    }
+
+    /* Botão de ação secundária accent (ex: "Link shared file") */
+    .modal-btn.link-file {
+      background: var(--accent-light);
+      color: var(--accent-text);
+      border: 1.5px solid var(--row-ok-border);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 16px;
     }
 
     .modal-btn.danger-btn {
@@ -2206,19 +2227,14 @@
       display: none;
       align-items: center;
       gap: 10px;
-      background: #ECEDFF;
-      border-bottom: 1px solid #C5C8F0;
+      background: var(--purple-light);
+      border-bottom: 1px solid var(--border2);
       padding: 10px 16px;
       font-size: var(--fs-xs);
       color: var(--purple);
       font-weight: 500;
       cursor: pointer;
       transition: background var(--transition);
-    }
-
-    [data-theme="dark"] #update-banner {
-      background: #181C42;
-      border-color: #2A2E68;
     }
 
     #update-banner.visible {
@@ -2711,7 +2727,61 @@
       line-height: 1.5;
     }
 
-    /* ── Footer PWA install strip ────────────────────────────────── */
+    /* ── Ícones do botão de ordenação ─────────────────────────────────────── */
+    .sort-icon-label {
+      font-family: 'DM Mono', monospace;
+      font-weight: 700;
+    }
+
+    .sort-icon-label--az,
+    .sort-icon-label--cat {
+      font-size: 12px;
+      letter-spacing: -0.5px;
+    }
+
+    .sort-icon-label--fav {
+      font-size: 11px;
+      letter-spacing: -1px;
+    }
+
+    /* sec-search label text: sem capitalize, com espaçamento menor */
+    .sec-search .sec-label-text {
+      text-transform: none;
+      letter-spacing: 0.04em;
+    }
+
+    /* modal-body com padding-top reduzido (antes de blocos de aviso) */
+    .modal-body--tight {
+      padding-top: 4px;
+    }
+
+    /* ds-parity sync-now link dentro do modal Drive */
+    .ds-parity__sync-link {
+      text-align: center;
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      color: var(--accent);
+      cursor: pointer;
+      padding: 6px 0 2px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .ds-parity__sync-link:hover {
+      opacity: 0.8;
+    }
+
+    /* Trecho de fileId truncado */
+    .ds-parity__file-id {
+      font-size: 10px;
+      opacity: 0.7;
+    }
+
+    /* Opacidade de ícone em linha (ex: ⟳ no parity date) */
+    .opacity-half {
+      opacity: 0.5;
+    }
+
+
     .ds-pwa-strip {
       border-top: 1px solid var(--border);
       padding: 12px 16px;
@@ -2755,6 +2825,278 @@
       color: var(--text3);
       margin-top: 1px;
     }
+
+    /* ═══════════════════════════════════════════════════════════════
+       MODAL UTILITIES — classes extraídas de styles inline nos modais
+       ═══════════════════════════════════════════════════════════════ */
+
+    /* Inputs de texto/nome: tamanho grande, alinhado à esquerda */
+    .modal-input-big.input-name {
+      font-size: var(--fs-xl);
+      text-align: left;
+    }
+
+    /* Inputs de descrição: tamanho menor, alinhado à esquerda */
+    .modal-input-big.input-desc {
+      font-size: var(--fs-sm);
+      text-align: left;
+      margin-top: 12px;
+    }
+
+    /* Espaçamento extra no modal-label quando antecede campo secundário */
+    .modal-label+.modal-input-big+.modal-label {
+      margin-top: 12px;
+    }
+
+    /* Centraliza o stepper dentro do modal-body */
+    .modal-stepper-center {
+      display: flex;
+      justify-content: center;
+      margin-top: 8px;
+    }
+
+    /* Stepper de largura fixa nos modais (ex: done-qty) */
+    .modal-stepper-fixed {
+      width: 160px;
+    }
+
+    /* Container de estatísticas do startup modal (last-saved) */
+    .modal-stat-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .modal-stat-card__label {
+      font-size: var(--fs-xs);
+      color: var(--text2);
+      font-family: 'DM Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .modal-stat-card__value {
+      font-size: var(--fs-md);
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .modal-stat-card__age {
+      font-size: var(--fs-sm);
+      font-weight: 500;
+    }
+
+    /* Grid de métricas (items / in stock) */
+    .modal-metrics {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .modal-metric {
+      flex: 1;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      text-align: center;
+      background: var(--surface2);
+    }
+
+    .modal-metric--accent {
+      background: var(--accent-light);
+      border-color: var(--row-ok-border);
+    }
+
+    .modal-metric__value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .modal-metric--accent .modal-metric__value {
+      color: var(--accent);
+    }
+
+    .modal-metric__label {
+      font-size: var(--fs-xs);
+      color: var(--text2);
+      font-family: 'DM Mono', monospace;
+    }
+
+    .modal-metric--accent .modal-metric__label {
+      color: var(--accent);
+    }
+
+    /* Hint de rodapé no modal-body */
+    .modal-body-hint {
+      font-size: var(--fs-xs);
+      color: var(--text2);
+      margin-top: 12px;
+      line-height: 1.5;
+    }
+
+    /* Corpo do modal PWA: instruções de instalação */
+    .modal-body--pwa {
+      font-size: var(--fs-sm);
+      line-height: 1.5;
+      color: var(--text2);
+    }
+
+    /* Bloco de instrução individual dentro do PWA modal */
+    .modal-pwa-block {
+      margin-top: 12px;
+      color: var(--text2);
+    }
+
+    /* modal-label que antecede o segundo input (desc) — adiciona margem superior */
+    .input-desc-label {
+      margin-top: 12px;
+      display: block;
+    }
+
+    /* Bloco de aviso destrutivo dentro de modals (bulk-delete, delete-cat) */
+    .modal-danger-block {
+      background: var(--crit-light);
+      border: 1px solid var(--row-crit-border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: var(--fs-xs);
+      color: var(--crit);
+      line-height: 1.5;
+    }
+
+    /* modal-foot com coluna vertical (ex: startup) */
+    .modal-foot.modal-foot--col {
+      flex-direction: column;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    /* Fila interna de botões dentro de modal-foot--col */
+    .modal-foot__row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .modal-foot__row .modal-btn {
+      flex: 1;
+    }
+
+    /* modal-foot com wrap (ex: Drive panel — muitos botões) */
+    .modal-foot.modal-foot--wrap {
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    /* Barra de cor-accent usada no inline-rename do sec-label */
+    .sec-label-bar {
+      width: 3px;
+      height: 11px;
+      border-radius: 2px;
+      background: var(--accent);
+      flex-shrink: 0;
+      opacity: 0.5;
+    }
+
+    /* Hint de teclado no inline-rename */
+    .sec-label-hint {
+      font-size: 10px;
+      color: var(--text3);
+      font-weight: 400;
+      letter-spacing: 0.02em;
+      flex-shrink: 0;
+    }
+
+    /* Texto extra dentro de ac-item (descrição menor) */
+    .ac-item-desc {
+      font-size: 10px;
+      color: var(--text3);
+      margin-left: 4px;
+    }
+
+    /* code inline no ds-note */
+    .ds-note code {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+    }
+
+    /* ─── Responsividade extra dos modais em telas pequenas ──────── */
+    @media (max-width: 400px) {
+      #overlay {
+        padding: 12px 8px;
+        align-items: flex-end;
+        /* sheet bottom em mobile narrow */
+      }
+
+      .modal {
+        border-radius: 20px 20px 12px 12px;
+        max-width: 100%;
+      }
+
+      .modal-header {
+        padding: 16px 16px 10px;
+      }
+
+      .modal-body {
+        padding: 12px 12px 4px;
+      }
+
+      .modal-foot {
+        padding: 8px;
+        gap: 6px;
+      }
+
+      .modal-btn {
+        padding: 13px 10px;
+        font-size: var(--fs-xs);
+      }
+
+      .modal-input-big {
+        padding: 12px;
+        font-size: var(--fs-lg) !important;
+      }
+
+      .modal-input-big.input-desc {
+        font-size: var(--fs-sm) !important;
+      }
+
+      .modal-metrics {
+        gap: 6px;
+      }
+
+      .modal-metric__value {
+        font-size: 17px;
+      }
+
+      .modal-stepper-fixed {
+        width: 140px;
+      }
+
+      .ds-card__actions {
+        flex-direction: column;
+      }
+
+      .ds-card__btn {
+        text-align: center;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .modal-foot.modal-foot--wrap {
+        flex-direction: column;
+      }
+
+      .modal-foot.modal-foot--wrap .modal-btn {
+        text-align: center;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+    }
   </style>
 </head>
 
@@ -2774,8 +3116,7 @@
         <!-- Controles fixos da linha 1: sort · 🚦 · search · close -->
         <div class="header-controls">
           <div id="btn-sort" title="Sort (A-Z, #-Z, ⭐)" onclick="toggleSortMode()">
-            <span id="sort-icon"><span
-                style="font-size:12px;font-family:'DM Mono',monospace;font-weight:700;letter-spacing:-0.5px">A·Z</span></span>
+            <span id="sort-icon"><span class="sort-icon-label sort-icon-label--az">A·Z</span></span>
           </div>
 
           <div id="btn-traffic" title="Status filters" onclick="toggleFilterBar()">🚦</div>
@@ -3008,7 +3349,7 @@
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
-    const STORAGE_KEY = 'Shop_List_v20260530';
+    const STORAGE_KEY = 'Shop_List_v20260531';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -3148,63 +3489,31 @@
           <div class="modal-sub">Startup check</div>
         </div>
         <div class="modal-body">
-          <div style="
-            background: var(--surface2);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 14px 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            margin-bottom: 4px;
-          ">
-            <div style="font-size:var(--fs-xs);color:var(--text2);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.06em">Last saved</div>
-            <div style="font-size:var(--fs-md);font-weight:600;color:var(--text)">${label}</div>
-            <div style="font-size:var(--fs-sm);color:${ageColor};font-weight:500">${ageIcon} ${age}</div>
+          <div class="modal-stat-card">
+            <div class="modal-stat-card__label">Last saved</div>
+            <div class="modal-stat-card__value">${label}</div>
+            <div class="modal-stat-card__age" style="color:${ageColor}">${ageIcon} ${age}</div>
           </div>
-          <div style="
-            display: flex;
-            gap: 8px;
-            margin-top: 10px;
-          ">
-            <div style="
-              flex: 1;
-              background: var(--surface2);
-              border: 1px solid var(--border);
-              border-radius: 8px;
-              padding: 10px 12px;
-              text-align: center;
-            ">
-              <div style="font-size:20px;font-weight:700;color:var(--text)">${count}</div>
-              <div style="font-size:var(--fs-xs);color:var(--text2);font-family:'DM Mono',monospace">items</div>
+          <div class="modal-metrics">
+            <div class="modal-metric">
+              <div class="modal-metric__value">${count}</div>
+              <div class="modal-metric__label">items</div>
             </div>
-            <div style="
-              flex: 1;
-              background: var(--accent-light);
-              border: 1px solid var(--row-ok-border);
-              border-radius: 8px;
-              padding: 10px 12px;
-              text-align: center;
-            ">
-              <div style="font-size:20px;font-weight:700;color:var(--accent)">${inStock}</div>
-              <div style="font-size:var(--fs-xs);color:var(--accent);font-family:'DM Mono',monospace">in stock</div>
+            <div class="modal-metric modal-metric--accent">
+              <div class="modal-metric__value">${inStock}</div>
+              <div class="modal-metric__label">in stock</div>
             </div>
           </div>
-          <div style="font-size:var(--fs-xs);color:var(--text2);margin-top:12px;line-height:1.5">
+          <div class="modal-body-hint">
             Continue with this data, import a local backup, or link a shared Drive folder.
           </div>
         </div>
-        <div class="modal-foot" style="flex-direction:column;gap:8px;align-items:stretch">
-          <div style="display:flex;gap:8px">
-            <div class="modal-btn cancel" style="flex:1" onclick="closeModal()">Use this data</div>
-            <div class="modal-btn confirm" style="flex:1" onclick="closeModal(); triggerImport()">Import backup</div>
+        <div class="modal-foot modal-foot--col">
+          <div class="modal-foot__row">
+            <div class="modal-btn cancel" onclick="closeModal()">Use this data</div>
+            <div class="modal-btn confirm" onclick="closeModal(); triggerImport()">Import backup</div>
           </div>
-          <div class="modal-btn" onclick="closeModal(); DriveSync.pickSharedFolder()"
-               style="background:var(--accent-light);color:var(--accent-text);
-                      border:1.5px solid var(--row-ok-border);font-weight:600;
-                      display:flex;align-items:center;justify-content:center;gap:8px;
-                      padding:11px 16px;border-radius:10px;cursor:pointer;
-                      -webkit-tap-highlight-color:transparent">
+          <div class="modal-btn link-file" onclick="closeModal(); DriveSync.pickSharedFolder()">
             <svg width="16" height="16" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
               <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" opacity=".72"/>
               <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" opacity=".72"/>
@@ -3485,16 +3794,16 @@
       btn.classList.remove('active', 'fav-active');
 
       if (sortMode === 'cat') {
-        icon.innerHTML = '<span style="font-size:12px;font-family:\'DM Mono\',monospace;font-weight:700;letter-spacing:-0.5px">#·Z</span>';
+        icon.innerHTML = '<span class="sort-icon-label sort-icon-label--cat">#·Z</span>';
         btn.classList.add('active');
         toast('Sorting by category');
       } else if (sortMode === 'fav') {
         // Ícone ★↕ — diferencia visualmente do filtro ⭐ no badge amarelo
-        icon.innerHTML = '<span style="font-size:11px;font-family:\'DM Mono\',monospace;font-weight:700;letter-spacing:-1px">★↕</span>';
+        icon.innerHTML = '<span class="sort-icon-label sort-icon-label--fav">★↕</span>';
         btn.classList.add('fav-active');
         toast('Sorting by favorites');
       } else {
-        icon.innerHTML = '<span style="font-size:12px;font-family:\'DM Mono\',monospace;font-weight:700;letter-spacing:-0.5px">A·Z</span>';
+        icon.innerHTML = '<span class="sort-icon-label sort-icon-label--az">A·Z</span>';
         toast('Sorting A–Z');
       }
       render();
@@ -3733,7 +4042,7 @@
         const q = searchQuery.trim();
         const label = createElement('div', 'sec-label sec-search');
         label.innerHTML = `
-          <span class="sec-label-text" style="text-transform:none;letter-spacing:0.04em">
+          <span class="sec-label-text">
             🔍 "${esc(q)}"
           </span>
           <span class="sec-label-count">${list.length}</span>
@@ -4060,7 +4369,7 @@
         // Info
         const info = createElement('div', 'buy-info');
         info.innerHTML = `
-          <div class="item-name" style="${it._done ? 'text-decoration:line-through' : ''}">${esc(it.name)}</div>
+          <div class="item-name ${it._done ? 'item-name--done' : ''}">${esc(it.name)}</div>
           <div class="item-sub">${esc(it.desc)}</div>
         `;
         row.appendChild(info);
@@ -4389,8 +4698,8 @@
         </div>
         <div class="modal-body">
           <label class="modal-label">How many units did you acquire?</label>
-          <div style="display:flex;justify-content:center;margin-top:8px">
-            <div class="stepper-wrap" style="width:160px">
+          <div class="modal-stepper-center">
+            <div class="stepper-wrap modal-stepper-fixed">
               <div class="stepper">
                 <div class="stepper-btn minus" ontouchstart="" onmousedown="doneStepperChange(-1)">−</div>
                 <input class="stepper-val" id="done-qty" type="number" min="0" value="${deficit}" />
@@ -4434,9 +4743,9 @@
         <div class="modal-header"><div class="modal-title">New item</div></div>
         <div class="modal-body">
           <label class="modal-label">Item name</label>
-          <input class="modal-input-big" style="font-size:18px;text-align:left" id="add-name" type="text" placeholder="e.g.: Butter" autofocus />
-          <label class="modal-label" style="margin-top:12px">Description (Unit/#Category)</label>
-          <input class="modal-input-big" style="font-size:14px;text-align:left" id="add-desc" type="text" placeholder="e.g.: 500g - #dairy" />
+          <input class="modal-input-big input-name" id="add-name" type="text" placeholder="e.g.: Butter" autofocus />
+          <label class="modal-label input-desc-label">Description (Unit/#Category)</label>
+          <input class="modal-input-big input-desc" id="add-desc" type="text" placeholder="e.g.: 500g - #dairy" />
         </div>
         <div class="modal-foot">
           <div class="modal-btn cancel" onclick="closeModal()">Cancel</div>
@@ -4462,9 +4771,9 @@
         <div class="modal-header"><div class="modal-title">Edit item</div></div>
         <div class="modal-body">
           <label class="modal-label">Item name</label>
-          <input class="modal-input-big" style="font-size:18px;text-align:left" id="edit-name" type="text" value="${esc(it.name)}" />
-          <label class="modal-label" style="margin-top:12px">Description</label>
-          <input class="modal-input-big" style="font-size:14px;text-align:left" id="edit-desc" type="text" value="${esc(it.desc)}" />
+          <input class="modal-input-big input-name" id="edit-name" type="text" value="${esc(it.name)}" />
+          <label class="modal-label input-desc-label">Description</label>
+          <input class="modal-input-big input-desc" id="edit-desc" type="text" value="${esc(it.desc)}" />
         </div>
         <div class="modal-foot">
           <div class="modal-btn cancel" onclick="closeModal()">Cancel</div>
@@ -4664,12 +4973,12 @@
       targetLabel.innerHTML = '';
       // Mantém o pseudo ::before visual mas o sec-label vira container do input
       const bar = document.createElement('span');
-      bar.style.cssText = 'width:3px;height:11px;border-radius:2px;background:var(--accent);flex-shrink:0;opacity:0.5';
+      bar.className = 'sec-label-bar';
       targetLabel.appendChild(bar);
       targetLabel.appendChild(input);
 
       const hint = document.createElement('span');
-      hint.style.cssText = 'font-size:10px;color:var(--text3);font-weight:400;letter-spacing:0.02em;flex-shrink:0';
+      hint.className = 'sec-label-hint';
       hint.textContent = 'Enter ↵ to save';
       targetLabel.appendChild(hint);
 
@@ -4733,8 +5042,8 @@
           <div class="modal-title">Delete category?</div>
           <div class="modal-sub">#${esc(cat)} · ${count} item${count !== 1 ? 's' : ''} will be permanently removed.</div>
         </div>
-        <div class="modal-body" style="padding-top:4px">
-          <div style="background:var(--crit-light);border:1px solid var(--row-crit-border);border-radius:10px;padding:10px 14px;font-size:var(--fs-xs);color:var(--crit);line-height:1.5">
+        <div class="modal-body modal-body--tight">
+          <div class="modal-danger-block">
             ⚠️ This will delete every item tagged <strong>#${esc(cat)}</strong>. This action cannot be undone.
           </div>
         </div>
@@ -4762,8 +5071,8 @@
           <div class="modal-title">Delete ${count} item${count !== 1 ? 's' : ''}?</div>
           <div class="modal-sub">${esc(label)}</div>
         </div>
-        <div class="modal-body" style="padding-top:4px">
-          <div style="background:var(--crit-light);border:1px solid var(--row-crit-border);border-radius:10px;padding:10px 14px;font-size:var(--fs-xs);color:var(--crit);line-height:1.5">
+        <div class="modal-body modal-body--tight">
+          <div class="modal-danger-block">
             ⚠️ ${count} item${count !== 1 ? 's' : ''} will be permanently deleted. This action cannot be undone.
           </div>
         </div>
@@ -4795,14 +5104,14 @@
     function showPWAInstructions() {
       openModal(`
         <div class="modal-header"><div class="modal-title">Install App</div></div>
-        <div class="modal-body" style="font-size:14px;line-height:1.5;color:var(--text2)">
-          <p>To use as an app with <strong>offline</strong> access:</p>
-          <div style="margin-top:12px">
+        <div class="modal-body modal-body--pwa">
+          <p class="modal-body-hint">To use as an app with <strong>offline</strong> access:</p>
+          <div class="modal-pwa-block">
             <strong>On iPhone (Safari):</strong><br>
             1. Tap the <strong>Share</strong> icon (square with arrow)<br>
             2. Scroll and tap <strong>"Add to Home Screen"</strong>.
           </div>
-          <div style="margin-top:12px">
+          <div class="modal-pwa-block">
             <strong>On Android (Chrome):</strong><br>
             1. Tap the <strong>three-dot menu</strong> in the top corner<br>
             2. Tap <strong>"Install app"</strong> or "Add to home screen".
@@ -5128,7 +5437,7 @@
       }
 
       const itemsHtml = suggestions.map((s, i) => {
-        const descHtml = s.desc ? `<span style="font-size:10px;color:var(--text3);margin-left:4px">${s.desc}</span>` : '';
+        const descHtml = s.desc ? `<span class="ac-item-desc">${s.desc}</span>` : '';
         return `<div class="ac-item" data-idx="${i}" onmousedown="acPick(${i})" onmouseover="acHover(${i})">
           <span class="ac-icon">${s.icon}</span>
           <span class="ac-label">${s.label}</span>${descHtml}
@@ -5280,13 +5589,13 @@
       if (!btn || !icon) return;
       btn.classList.remove('active', 'fav-active');
       if (sortMode === 'cat') {
-        icon.innerHTML = '<span style="font-size:12px;font-family:\'DM Mono\',monospace;font-weight:700;letter-spacing:-0.5px">#·Z</span>';
+        icon.innerHTML = '<span class="sort-icon-label sort-icon-label--cat">#·Z</span>';
         btn.classList.add('active');
       } else if (sortMode === 'fav') {
-        icon.innerHTML = '<span style="font-size:11px;font-family:\'DM Mono\',monospace;font-weight:700;letter-spacing:-1px">★↕</span>';
+        icon.innerHTML = '<span class="sort-icon-label sort-icon-label--fav">★↕</span>';
         btn.classList.add('fav-active');
       } else {
-        icon.innerHTML = '<span style="font-size:12px;font-family:\'DM Mono\',monospace;font-weight:700;letter-spacing:-0.5px">A·Z</span>';
+        icon.innerHTML = '<span class="sort-icon-label sort-icon-label--az">A·Z</span>';
       }
     })();
 
@@ -5949,7 +6258,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260530');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260531');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -5990,7 +6299,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260530', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260531', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
@@ -6517,20 +6826,16 @@
               <div class="ds-parity__sep"></div>
               <div class="ds-parity__row">
                 <span class="ds-parity__key">☁️ cloud savedAt</span>
-                <span class="ds-parity__val" id="ds-parity-cloud">${fmt(cloudSavedAt)} <span style="opacity:0.5">⟳</span></span>
+                <span class="ds-parity__val" id="ds-parity-cloud">${fmt(cloudSavedAt)} <span class="opacity-half">⟳</span></span>
               </div>
               <div class="ds-parity__sep"></div>
               <div class="ds-parity__row">
                 <span class="ds-parity__key">🔗 file id</span>
-                <span class="ds-parity__val" style="font-size:10px;opacity:0.7">${(meta.syncFileId || '—').slice(0, 18)}${meta.syncFileId && meta.syncFileId.length > 18 ? '…' : ''}</span>
+                <span class="ds-parity__val ds-parity__file-id">${(meta.syncFileId || '—').slice(0, 18)}${meta.syncFileId && meta.syncFileId.length > 18 ? '…' : ''}</span>
               </div>
               ${!localSavedAt && meta.syncFileId ? `
               <div class="ds-parity__sep"></div>
-              <div onclick="closeModal();DriveSync.manualSync()"
-                   style="text-align:center;font-size:var(--fs-xs);font-weight:600;
-                          padding:7px;margin-top:4px;border-radius:8px;cursor:pointer;
-                          background:var(--surface);border:1.5px solid var(--row-ok-border);
-                          color:var(--accent-text);-webkit-tap-highlight-color:transparent">
+              <div class="ds-parity__sync-link" onclick="closeModal();DriveSync.manualSync()">
                 ⬇ Pull data from Drive now
               </div>` : ''}
             </div>` : ''}
@@ -6542,7 +6847,7 @@
             </div>
 
             <div class="ds-note">
-              Sync uses a single file <code style="font-family:'DM Mono',monospace;font-size:11px">${Drive.SYNC_FILENAME}</code>,
+              Sync uses a single file <code>${Drive.SYNC_FILENAME}</code>,
               updated in place. Share that file in Drive (with edit access) to collaborate with others.
             </div>
 
@@ -6554,12 +6859,12 @@
             </div>` : ''}
 
           </div>
-          <div class="modal-foot" style="flex-wrap:wrap;gap:8px">
+          <div class="modal-foot modal-foot--wrap">
             <div class="modal-btn cancel" onclick="closeModal()">Close</div>
             ${connected
-              ? `<div class="modal-btn" style="color:var(--text)"
+              ? `<div class="modal-btn neutral"
                       onclick="closeModal();DriveSync.manualSync()">Sync now</div>
-                 <div class="modal-btn" style="background: var(--accent-light); color:var(--accent-text);border:1.5px solid var(--row-ok-border)"
+                 <div class="modal-btn link-file"
                       onclick="closeModal();DriveSync.pickSharedFolder()">Link shared file</div>
                  <div class="modal-btn danger-btn"
                       onclick="closeModal();DriveSync.disconnect()">Disconnect</div>`
