@@ -1119,6 +1119,13 @@
       text-decoration: line-through;
     }
 
+    .item-sub {
+      font-size: var(--fs-xs);
+      color: var(--text2);
+      font-family: 'DM Mono', monospace;
+      margin-top: 2px;
+    }
+
     font-size: var(--fs-xs);
     color: var(--text2);
     font-family: 'DM Mono',
@@ -2779,12 +2786,12 @@
       margin-bottom: 4px;
     }
 
-    /* ── Warning de configuração (CLIENT_ID) ─────────────────────── */
+    /* ── Info de onboarding Drive (exibida antes de conectar) ──────── */
     .ds-config-warn {
       font-size: var(--fs-xs);
-      color: var(--warn);
-      background: var(--warn-light);
-      border: 1px solid var(--row-off-border);
+      color: var(--accent-text);
+      background: var(--accent-light);
+      border: 1px solid var(--row-ok-border);
       border-radius: 8px;
       padding: 10px 12px;
       margin-top: 8px;
@@ -3432,7 +3439,7 @@
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
-    const STORAGE_KEY = 'Shop_List_v20260531';
+    const STORAGE_KEY = 'Shop_List_v20260530';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -6341,7 +6348,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260531');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260530');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -6382,7 +6389,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260531', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260530', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
@@ -6936,27 +6943,24 @@
 
             ${!connected ? `
             <div class="ds-config-warn">
-              ⚙️ Before connecting, make sure <code>CLIENT_ID</code> is configured in the
-              DriveSync module and your domain is listed as an <em>Authorized JavaScript origin</em>
-              in Google Cloud Console.
+              ☁️ Once connected, your list will be automatically saved to a file in your Google Drive.
+              You can share that file with others (with editor access) to keep everyone's list in sync.
             </div>` : ''}
 
           </div>
-
           <div class="modal-foot modal-foot--wrap">
-            <div class="modal-btn link-file"
-                 onclick="closeModal();DriveSync.pickSharedFolder()">Link shared file</div>
+            <div class="modal-btn cancel" onclick="closeModal()">Close</div>
             ${connected
               ? `<div class="modal-btn neutral"
                       onclick="closeModal();DriveSync.manualSync()">Sync now</div>
-                 <div class="modal-btn cancel" onclick="closeModal()">Close</div>
+                 <div class="modal-btn link-file"
+                      onclick="closeModal();DriveSync.pickSharedFolder()">Link shared file</div>
                  <div class="modal-btn danger-btn"
                       onclick="closeModal();DriveSync.disconnect()">Disconnect</div>`
               : `<div class="modal-btn confirm"
                       onclick="closeModal();DriveSync.connect()">Connect Google Drive</div>`
             }
           </div>
-
           <div class="ds-pwa-strip" onclick="closeModal();showPWAInstructions()">
             <div class="ds-pwa-strip__icon">📲</div>
             <div>
