@@ -277,14 +277,13 @@
     /* Timestamp de dados — mais contrastado que antes */
     #app-title span#title-sub {
       color: inherit;
-      /* var(--text2); */
       font-weight: 500;
       font-size: var(--fs-xs);
       font-family: 'DM Mono', monospace;
       white-space: nowrap;
       opacity: 0.6;
-      /* 0.88 */
       letter-spacing: 0.02em;
+      margin-right: 4px;
     }
 
     /* Badge de localidade do sync (owner · shared · ⚠️ duplicate) */
@@ -294,12 +293,12 @@
       gap: 4px;
       font-size: 10px;
       font-family: 'DM Mono', monospace;
-      font-weight: 700;
-      letter-spacing: 0.04em;
+      font-weight: 600;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
       padding: 2px 7px;
       border-radius: 20px;
-      margin-left: 4px;
+      margin-left: 0px;
       vertical-align: middle;
       cursor: pointer;
       border: 1.5px solid transparent;
@@ -1813,7 +1812,7 @@
     }
 
     .modal-btn.cancel {
-      color: var(--text2);
+      color: var(--crit);
       border-right: 1px solid var(--border);
     }
 
@@ -2596,7 +2595,7 @@
 
     .ds-sync-panel__file {
       font-size: var(--fs-xs);
-      color: var(--text3);
+      color: var(--text2);
       font-family: 'DM Mono', monospace;
       word-break: break-all;
     }
@@ -2673,6 +2672,7 @@
     .ds-parity__key {
       color: var(--text2);
       flex-shrink: 0;
+      text-overflow: ellipsis;
     }
 
     .ds-parity__val {
@@ -3004,7 +3004,7 @@
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
-    const STORAGE_KEY = 'Shop_List_v20260527';
+    const STORAGE_KEY = 'Shop_List_v20260530';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -5945,7 +5945,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260527');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260530');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -5986,7 +5986,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260527', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260530', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
