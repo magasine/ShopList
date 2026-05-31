@@ -1686,8 +1686,9 @@
       align-items: center;
       -webkit-justify-content: center;
       justify-content: center;
-      padding: 20px;
-      /* Garante que o overlay em si pode scrollar em viewports muito pequenos */
+      /* Espaçamento mínimo garantido em todos os tamanhos */
+      padding: 20px 16px;
+      /* Scroll no overlay como safety-net para viewports muito pequenos */
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       -webkit-backdrop-filter: blur(4px);
@@ -1825,7 +1826,8 @@
     .modal-foot {
       display: flex;
       border-top: 1px solid var(--border);
-      align-items: stretch;
+      /* center: botões mantêm sua altura natural, sem esticar verticalmente */
+      align-items: center;
       padding: 8px;
       gap: 6px;
       /* Footer sempre visível, não rola */
@@ -3084,52 +3086,51 @@
       font-size: 11px;
     }
 
-    /* ─── Responsividade extra dos modais em telas pequenas ──────── */
+    /* ── Telas estreitas: modal continua centralizado, apenas ajusta largura ── */
     @media (max-width: 480px) {
       #overlay {
-        /* Menos padding lateral em telas estreitas */
-        padding: 16px 10px;
-        /* Em telas muito pequenas o modal fica bottom-sheet */
-        align-items: flex-end;
+        /* Mantém padding lateral mínimo — nunca cola nas bordas */
+        padding: 20px 12px;
+        /* Centralização vertical mantida (align-items: center herdado do base) */
       }
 
       .modal {
-        border-radius: 20px 20px 14px 14px;
+        /* Ocupa a largura disponível descontando o padding do overlay */
         max-width: 100%;
-        /* Ocupa até 92% da altura do viewport, o resto fica visível atrás */
-        max-height: calc(100dvh - 32px);
-        max-height: calc(100vh - 32px);
+        max-height: calc(100dvh - 40px);
+        max-height: calc(100vh - 40px);
       }
     }
 
-    @media (max-width: 400px) {
+    /* ── Telas muito pequenas em altura: vira bottom-sheet ── */
+    /* Só aplica quando a ALTURA é restrita (≤ 700px) E a largura é estreita */
+    @media (max-width: 480px) and (max-height: 700px) {
       #overlay {
-        padding: 0;
+        /* Bottom-sheet apenas quando altura é apertada */
         align-items: flex-end;
+        padding: 0 12px;
       }
 
       .modal {
-        /* Em telas muito estreitas, ocupa toda a largura e encosta na base */
         border-radius: 20px 20px 0 0;
-        max-width: 100%;
-        /* Sai da safe-area inferior */
-        padding-bottom: env(safe-area-inset-bottom, 0px);
-        /* Até 88% da tela: preserva espaço para o usuário ver que pode fechar */
-        max-height: 88dvh;
-        max-height: 88vh;
+        /* Deixa 48px visíveis acima para o usuário perceber que pode fechar */
+        max-height: calc(100dvh - 48px);
+        max-height: calc(100vh - 48px);
       }
 
+      .modal-foot {
+        padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+      }
+    }
+
+    /* ── Ajustes de densidade para telas estreitas (independente de altura) ── */
+    @media (max-width: 400px) {
       .modal-header {
         padding: 16px 16px 10px;
       }
 
       .modal-body {
         padding: 12px 12px 8px;
-      }
-
-      .modal-foot {
-        padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
-        gap: 6px;
       }
 
       .modal-btn {
@@ -3168,15 +3169,15 @@
       }
     }
 
+    /* ── modal-foot--wrap: nunca empilha botões verticalmente ── */
+    /* align-items: center no .modal-foot já impede stretch;     */
+    /* flex-wrap permite que botões menores quebrem linha         */
+    /* mantendo cada um com sua altura natural                   */
     @media (max-width: 360px) {
-
-      /* modal-foot--wrap: botões em coluna quando há muitos (ex: Drive panel) */
-      .modal-foot.modal-foot--wrap {
-        flex-direction: column;
-      }
-
       .modal-foot.modal-foot--wrap .modal-btn {
-        text-align: center;
+        /* Em telas muito estreitas o wrap pode gerar linha única por botão;
+           garante que cada um ainda ocupe a linha inteira de forma legível */
+        flex-basis: 100%;
       }
     }
   </style>
