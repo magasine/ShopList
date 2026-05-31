@@ -1687,6 +1687,9 @@
       -webkit-justify-content: center;
       justify-content: center;
       padding: 20px;
+      /* Garante que o overlay em si pode scrollar em viewports muito pequenos */
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       -webkit-backdrop-filter: blur(4px);
       backdrop-filter: blur(4px);
     }
@@ -1702,6 +1705,13 @@
       width: 100%;
       max-width: 360px;
       border: 1px solid var(--border);
+      /* Layout interno em coluna: header fixo + body scroll + footer fixo */
+      display: flex;
+      flex-direction: column;
+      /* Limita a altura ao viewport menos o padding do overlay (2 × 20px) */
+      max-height: calc(100dvh - 40px);
+      /* Fallback para navegadores sem dvh */
+      max-height: calc(100vh - 40px);
       overflow: hidden;
       animation: slideUp 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
       box-shadow: 0 20px 60px rgba(13, 27, 42, 0.22);
@@ -1741,6 +1751,8 @@
       padding: 22px 22px 12px;
       border-bottom: 1px solid var(--border);
       background: var(--surface2);
+      /* Fica fixo no topo enquanto o body rola */
+      flex-shrink: 0;
     }
 
     .modal-title {
@@ -1758,7 +1770,21 @@
     }
 
     .modal-body {
-      padding: 16px 16px 5px 16px;
+      padding: 16px 16px 12px;
+      /* Rola quando o conteúdo ultrapassa o espaço disponível */
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      flex: 1 1 auto;
+      /* Faz a scrollbar aparecer dentro do arredondamento */
+      min-height: 0;
+    }
+
+    /* Indicador sutil de que há mais conteúdo abaixo */
+    .modal-body::after {
+      content: '';
+      display: block;
+      height: 4px;
     }
 
     .modal-label {
@@ -1799,53 +1825,88 @@
     .modal-foot {
       display: flex;
       border-top: 1px solid var(--border);
-      align-items: center;
-      padding: 10px;
+      align-items: stretch;
+      padding: 8px;
+      gap: 6px;
+      /* Footer sempre visível, não rola */
+      flex-shrink: 0;
     }
 
     .modal-btn {
       flex: 1;
-      padding: 16px;
+      /* Padding uniforme para todos os variantes */
+      padding: 14px 12px;
       text-align: center;
       font-size: var(--fs-sm);
       cursor: pointer;
       font-weight: 600;
-      transition: background var(--transition);
-      align-content: center;
+      border-radius: 10px;
+      transition: background var(--transition), opacity var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      -webkit-tap-highlight-color: transparent;
+      /* Altura mínima para touch target (WCAG 2.5.5) */
+      min-height: 44px;
     }
 
     .modal-btn:hover {
       background: var(--surface2);
     }
 
+    .modal-btn:active {
+      opacity: 0.75;
+    }
+
     .modal-btn.cancel {
       color: var(--text2);
-      border-right: 1px solid var(--border);
+      background: var(--surface2);
+    }
+
+    .modal-btn.cancel:hover {
+      background: var(--border);
     }
 
     .modal-btn.confirm {
-      color: var(--accent);
+      color: var(--accent-text);
+      background: var(--accent-light);
+      border: 1.5px solid var(--row-ok-border);
+    }
+
+    .modal-btn.confirm:hover {
+      background: var(--filter-ok-bg);
     }
 
     .modal-btn.neutral {
       color: var(--text);
+      background: var(--surface2);
+      border: 1px solid var(--border);
     }
 
-    /* Botão de ação secundária accent (ex: "Link shared file") */
+    .modal-btn.neutral:hover {
+      background: var(--border);
+    }
+
+    /* Botão de ação accent secundária — mesmo padding base, destaque via cor */
     .modal-btn.link-file {
-      background: var(--accent-light);
       color: var(--accent-text);
+      background: var(--accent-light);
       border: 1.5px solid var(--row-ok-border);
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 11px 16px;
+    }
+
+    .modal-btn.link-file:hover {
+      background: var(--filter-ok-bg);
     }
 
     .modal-btn.danger-btn {
       color: var(--crit);
+      background: var(--crit-light);
+      border: 1.5px solid var(--row-crit-border);
+    }
+
+    .modal-btn.danger-btn:hover {
+      background: var(--row-crit-hover);
     }
 
     /* CONFIG PANEL */
@@ -2973,14 +3034,13 @@
     /* modal-foot com coluna vertical (ex: startup) */
     .modal-foot.modal-foot--col {
       flex-direction: column;
-      gap: 8px;
       align-items: stretch;
     }
 
     /* Fila interna de botões dentro de modal-foot--col */
     .modal-foot__row {
       display: flex;
-      gap: 8px;
+      gap: 6px;
     }
 
     .modal-foot__row .modal-btn {
@@ -2990,7 +3050,6 @@
     /* modal-foot com wrap (ex: Drive panel — muitos botões) */
     .modal-foot.modal-foot--wrap {
       flex-wrap: wrap;
-      gap: 8px;
     }
 
     /* Barra de cor-accent usada no inline-rename do sec-label */
@@ -3026,16 +3085,38 @@
     }
 
     /* ─── Responsividade extra dos modais em telas pequenas ──────── */
-    @media (max-width: 400px) {
+    @media (max-width: 480px) {
       #overlay {
-        padding: 12px 8px;
+        /* Menos padding lateral em telas estreitas */
+        padding: 16px 10px;
+        /* Em telas muito pequenas o modal fica bottom-sheet */
         align-items: flex-end;
-        /* sheet bottom em mobile narrow */
       }
 
       .modal {
-        border-radius: 20px 20px 12px 12px;
+        border-radius: 20px 20px 14px 14px;
         max-width: 100%;
+        /* Ocupa até 92% da altura do viewport, o resto fica visível atrás */
+        max-height: calc(100dvh - 32px);
+        max-height: calc(100vh - 32px);
+      }
+    }
+
+    @media (max-width: 400px) {
+      #overlay {
+        padding: 0;
+        align-items: flex-end;
+      }
+
+      .modal {
+        /* Em telas muito estreitas, ocupa toda a largura e encosta na base */
+        border-radius: 20px 20px 0 0;
+        max-width: 100%;
+        /* Sai da safe-area inferior */
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        /* Até 88% da tela: preserva espaço para o usuário ver que pode fechar */
+        max-height: 88dvh;
+        max-height: 88vh;
       }
 
       .modal-header {
@@ -3043,17 +3124,18 @@
       }
 
       .modal-body {
-        padding: 12px 12px 4px;
+        padding: 12px 12px 8px;
       }
 
       .modal-foot {
-        padding: 8px;
+        padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
         gap: 6px;
       }
 
       .modal-btn {
         padding: 13px 10px;
         font-size: var(--fs-xs);
+        min-height: 42px;
       }
 
       .modal-input-big {
@@ -3087,14 +3169,14 @@
     }
 
     @media (max-width: 360px) {
+
+      /* modal-foot--wrap: botões em coluna quando há muitos (ex: Drive panel) */
       .modal-foot.modal-foot--wrap {
         flex-direction: column;
       }
 
       .modal-foot.modal-foot--wrap .modal-btn {
         text-align: center;
-        border-right: none;
-        border-bottom: 1px solid var(--border);
       }
     }
   </style>
