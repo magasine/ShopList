@@ -2610,7 +2610,7 @@
       color: var(--purple-text);
     }
 
-    /* ── Botões de ação (Use this folder / trash) ─────────────────── */
+    /* ── Botões de ação do card (Use this file / trash) ──────────────── */
     .ds-card__actions {
       display: flex;
       flex-wrap: wrap;
@@ -3381,8 +3381,8 @@
         Add
       </div>
 
-      <!-- Compartilhar — pill destacado -->
-      <div id="share-btn" title="Share shopping list" onclick="copyBuyList()">
+      <!-- Compartilhar — visível apenas na aba Refill -->
+      <div id="share-btn" title="Share shopping list" onclick="copyBuyList()" style="display:none">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
           <circle cx="18" cy="5" r="3" />
           <circle cx="6" cy="12" r="3" />
@@ -3454,7 +3454,7 @@
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
-    const STORAGE_KEY = 'Shop_List_v20260530';
+    const STORAGE_KEY = 'Shop_List_v20260606';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -3610,7 +3610,7 @@
             </div>
           </div>
           <div class="modal-body-hint">
-            Continue with this data, import a local backup, or link a shared Drive folder.
+            Continue with this data, import a local backup, or link a shared Drive File.
           </div>
         </div>
         <div class="modal-foot modal-foot--col">
@@ -4594,6 +4594,9 @@
       currentTab = idx;
       document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
       document.querySelectorAll('.panel').forEach((p, i) => p.classList.toggle('active', i === idx));
+      // Share é pertinente apenas na aba Refill (lista de compras ativa)
+      const shareBtn = document.getElementById('share-btn');
+      if (shareBtn) shareBtn.style.display = idx === 2 ? '' : 'none';
       syncChips();
       render();
     }
@@ -6366,7 +6369,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260530');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260606');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -6407,7 +6410,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260530', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260606', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
@@ -6812,29 +6815,34 @@
             const inUseBadge = inUse
               ? `<span class="ds-card__inuse">IN USE</span>` : '';
 
-            const filesInfo = fileCount != null
+            // Exibe o fileId truncado como referência do arquivo vinculado
+            const filesInfo = id
               ? `<div class="ds-card__files">
-                 ${fileCount} file${fileCount !== 1 ? 's' : ''}${lastFileName ? ' · last: ' + lastFileName.slice(0, 16) : ''}
+                 📄 ${Drive.SYNC_FILENAME}${id ? ' · id: ' + id.slice(0, 14) + '…' : ''}
                </div>` : '';
 
+            // "Use this file" só aparece quando o card não está em uso
             const useBtn = !inUse
-              ? `<div class="ds-card__btn" onclick="DriveSync.resolveFolder('${id}')">Use this folder</div>` : '';
+              ? `<div class="ds-card__btn"
+                    onclick="DriveSync.resolveFolder('${id}')">Use this file</div>` : '';
 
-            const trashBtn =
-              `<div class="ds-card__btn ds-card__btn--trash"
-                  onclick="DriveSync.trashFolder('${id}', ${inUse})"
-                  title="Move to Drive trash">🗑</div>`;
+            // Botão trash: suprimido quando o arquivo está em uso (sem utilidade prática)
+            // e quando não há alternativa — só exibido em cards fora de uso (duplicata)
+            const trashBtn = !inUse
+              ? `<div class="ds-card__btn ds-card__btn--trash"
+                    onclick="DriveSync.trashFolder('${id}', ${inUse})"
+                    title="Move to Drive trash">🗑</div>` : '';
 
             return `
             <div class="ds-card ${paletteClass}${inuseClass}">
               <div class="ds-card__head">
                 <span class="ds-card__icon">${icon}</span>
-                <span class="ds-card__name">${isShared ? Drive.SYNC_FILENAME : FOLDER_NAME}</span>
+                <span class="ds-card__name">${Drive.SYNC_FILENAME}</span>
                 <span class="ds-card__type">${typeLabel}</span>
                 ${inUseBadge}
               </div>
               ${filesInfo}
-              <div class="ds-card__actions">${useBtn}${trashBtn}</div>
+              ${useBtn || trashBtn ? `<div class="ds-card__actions">${useBtn}${trashBtn}</div>` : ''}
             </div>`;
           }
 
