@@ -1701,13 +1701,17 @@
       left: 0;
       background: rgba(13, 27, 42, 0.55);
       z-index: 200;
-      -webkit-align-items: center;
-      align-items: center;
+      /* flex-start + padding-top: posicionamento confiável mesmo com teclado aberto.
+         align-items:center dentro de overflow:auto não centraliza no viewport —
+         centraliza no conteúdo scrollável (começa no topo).
+         Com flex-start + padding-top calculado, o modal fica próximo ao centro
+         e, quando o teclado comprime o viewport, sobe naturalmente para o topo. */
+      -webkit-align-items: flex-start;
+      align-items: flex-start;
       -webkit-justify-content: center;
       justify-content: center;
-      /* Espaçamento mínimo garantido em todos os tamanhos */
-      padding: 20px 16px;
-      /* Scroll no overlay como safety-net para viewports muito pequenos */
+      /* padding-top: ~20% da altura = posição visual próxima ao centro superior */
+      padding: min(18vh, 80px) 16px 20px;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       -webkit-backdrop-filter: blur(4px);
@@ -1717,6 +1721,12 @@
     #overlay.open {
       display: -webkit-flex;
       display: flex;
+    }
+
+    /* Modais com campos de input: reposiciona para o topo do viewport
+       para maximizar espaço visível acima do teclado virtual */
+    #overlay.has-input {
+      padding-top: 16px;
     }
 
     .modal {
@@ -1729,10 +1739,13 @@
       /* Layout interno em coluna: header fixo + body scroll + footer fixo */
       display: flex;
       flex-direction: column;
-      /* Limita a altura ao viewport menos o padding do overlay (2 × 20px) */
-      max-height: calc(100dvh - 40px);
-      /* Fallback para navegadores sem dvh */
-      max-height: calc(100vh - 40px);
+      /* max-height: viewport menos padding top e bottom do overlay.
+         svh (small viewport height) é o viewport COM teclado aberto em mobile —
+         garante que o modal nunca ultrapasse o espaço disponível mesmo com teclado. */
+      max-height: calc(100svh - 36px);
+      /* Fallbacks progressivos */
+      max-height: calc(100dvh - 36px);
+      max-height: calc(100vh - 36px);
       overflow: hidden;
       animation: slideUp 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
       box-shadow: 0 20px 60px rgba(13, 27, 42, 0.22);
@@ -3121,39 +3134,23 @@
       font-size: 11px;
     }
 
-    /* ── Telas estreitas: modal continua centralizado, apenas ajusta largura ── */
+    /* ── Telas estreitas: reduz padding lateral, modal posicionado no topo ── */
     @media (max-width: 480px) {
       #overlay {
-        /* Mantém padding lateral mínimo — nunca cola nas bordas */
-        padding: 20px 12px;
-        /* Centralização vertical mantida (align-items: center herdado do base) */
+        /* padding-top menor em mobile: modal fica no terço superior do viewport */
+        padding: min(14vh, 56px) 10px 16px;
+      }
+
+      /* Modais com input: sobe para o topo — maximiza espaço acima do teclado */
+      #overlay.has-input {
+        padding-top: 12px;
       }
 
       .modal {
-        /* max-width já resolvido por min(360px, 95vw) na regra base */
-        max-height: calc(100dvh - 40px);
-        max-height: calc(100vh - 40px);
-      }
-    }
-
-    /* ── Telas muito pequenas em altura: vira bottom-sheet ── */
-    /* Só aplica quando a ALTURA é restrita (≤ 700px) E a largura é estreita */
-    @media (max-width: 480px) and (max-height: 700px) {
-      #overlay {
-        /* Bottom-sheet apenas quando altura é apertada */
-        align-items: flex-end;
-        padding: 0 12px;
-      }
-
-      .modal {
-        border-radius: 20px 20px 0 0;
-        /* Deixa 48px visíveis acima para o usuário perceber que pode fechar */
-        max-height: calc(100dvh - 48px);
-        max-height: calc(100vh - 48px);
-      }
-
-      .modal-foot {
-        padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+        /* svh = viewport COM teclado aberto (small viewport height) */
+        max-height: calc(100svh - 28px);
+        max-height: calc(100dvh - 28px);
+        max-height: calc(100vh - 28px);
       }
     }
 
@@ -3165,6 +3162,10 @@
 
       .modal-body {
         padding: 12px 12px 8px;
+      }
+
+      .modal-foot {
+        padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
       }
 
       .modal-btn {
@@ -3200,6 +3201,13 @@
 
       .ds-card__btn {
         text-align: center;
+      }
+    }
+
+    /* ── modal-foot--wrap: nunca empilha botões verticalmente ── */
+    @media (max-width: 360px) {
+      .modal-foot.modal-foot--wrap .modal-btn {
+        flex-basis: 100%;
       }
     }
   </style>
@@ -3454,7 +3462,7 @@
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
-    const STORAGE_KEY = 'Shop_List_v20260606';
+    const STORAGE_KEY = 'Shop_List_v20260609';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -3610,7 +3618,7 @@
             </div>
           </div>
           <div class="modal-body-hint">
-            Continue with this data, import a local backup, or link a shared Drive File.
+            Continue with this data, import a local backup, or link a shared Drive folder.
           </div>
         </div>
         <div class="modal-foot modal-foot--col">
@@ -5421,8 +5429,16 @@
     }
 
     function openModal(html) {
-      document.getElementById('modal-box').innerHTML = html;
-      document.getElementById('overlay').classList.add('open');
+      const box = document.getElementById('modal-box');
+      const overlay = document.getElementById('overlay');
+      box.innerHTML = html;
+      overlay.classList.add('open');
+
+      // has-input: sobe o modal para o topo quando há campos de digitação,
+      // liberando espaço acima do teclado virtual em dispositivos móveis
+      const hasInput = box.querySelector('input, textarea') !== null;
+      overlay.classList.toggle('has-input', hasInput);
+
       // Vincula autocomplete nos inputs de descrição sempre que um modal abre
       requestAnimationFrame(() => {
         ['add-desc', 'edit-desc'].forEach(id => {
@@ -5438,7 +5454,9 @@
     }
 
     function closeModal() {
-      document.getElementById('overlay').classList.remove('open');
+      const overlay = document.getElementById('overlay');
+      overlay.classList.remove('open');
+      overlay.classList.remove('has-input');
       pendingDoneId = null;
     }
 
@@ -6369,7 +6387,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260606');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260609');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -6410,7 +6428,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260606', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260609', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
