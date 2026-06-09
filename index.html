@@ -3086,20 +3086,27 @@
     }
 
     /* modal-foot com wrap (ex: Drive panel — muitos botões) */
+    /* ── modal-foot--wrap: grade de 2 colunas (ex: painel Drive) ──────────── */
     .modal-foot.modal-foot--wrap {
-      flex-wrap: wrap;
-      /* Alinha itens ao início da linha — sem esticar o botão órfão no final */
-      align-items: center;
-      justify-content: flex-start;
+      /* Grid garante 2 colunas iguais independente do conteúdo dos botões.
+         Flex-wrap não garante isso — botão com texto longo pode "empurrar"
+         o próximo para a linha de baixo sozinho, criando coluna única indesejada. */
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      /* Botão ímpar (último sem par) ocupa as duas colunas */
+      align-items: stretch;
     }
 
-    /* Botões dentro de --wrap: largura mínima fixa, crescem igualmente em pares */
-    .modal-foot.modal-foot--wrap .modal-btn {
-      /* Cresce para preencher, mas parte de uma base calculada:
-         2 botões por linha descontando o gap (6px) e o padding do footer (8px × 2) */
-      flex: 1 1 calc(50% - 3px);
-      /* Nunca menor que um touch-target legível */
-      min-width: 100px;
+    /* Botão ímpar: quando o total for par o seletor não casa — comportamento correto */
+    .modal-foot.modal-foot--wrap .modal-btn:last-child:nth-child(odd) {
+      grid-column: 1 / -1;
+    }
+
+    /* Viewport muito estreito (< 280px): permite coluna única como último recurso */
+    @media (max-width: 280px) {
+      .modal-foot.modal-foot--wrap {
+        grid-template-columns: 1fr;
+      }
     }
 
     /* Barra de cor-accent usada no inline-rename do sec-label */
@@ -3201,13 +3208,6 @@
 
       .ds-card__btn {
         text-align: center;
-      }
-    }
-
-    /* ── modal-foot--wrap: nunca empilha botões verticalmente ── */
-    @media (max-width: 360px) {
-      .modal-foot.modal-foot--wrap .modal-btn {
-        flex-basis: 100%;
       }
     }
   </style>
@@ -3618,7 +3618,7 @@
             </div>
           </div>
           <div class="modal-body-hint">
-            Continue with this data, import a local backup, or link a shared Drive folder.
+            Continue with this data, import a local backup, or link a shared Drive File.
           </div>
         </div>
         <div class="modal-foot modal-foot--col">
