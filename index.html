@@ -4707,6 +4707,11 @@
 
     // ==================== EVENTOS E AÇÕES ====================
     function switchTab(idx) {
+      if (idx === currentTab) {
+        // Toque na aba já ativa: fold/unfold all sections do painel atual
+        _toggleFoldAll(idx);
+        return;
+      }
       currentTab = idx;
       document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
       document.querySelectorAll('.panel').forEach((p, i) => p.classList.toggle('active', i === idx));
@@ -4715,6 +4720,28 @@
       if (shareBtn) shareBtn.style.display = idx === 2 ? '' : 'none';
       syncChips();
       render();
+    }
+
+    function _toggleFoldAll(panelIdx) {
+      const panelId = 'p' + panelIdx;
+      const prefix = panelId + '||' + sortMode + '||';
+      // Coleta todos os sec-labels do painel ativo
+      const panelEl = document.getElementById('panel-' + panelIdx);
+      if (!panelEl) return;
+      const labels = [...panelEl.querySelectorAll('.sec-label[data-sec-key]')];
+      if (!labels.length) return;
+
+      // Se algum está aberto → fecha todos; se todos estão fechados → abre todos
+      const anyOpen = labels.some(l => !l.classList.contains('collapsed'));
+      labels.forEach(label => {
+        const key = label.dataset.secKey;
+        const nowCollapsed = anyOpen; // fold all se anyOpen, unfold all se todos fechados
+        label.classList.toggle('collapsed', nowCollapsed);
+        if (nowCollapsed) _collapsedSections.add(key);
+        else _collapsedSections.delete(key);
+        panelEl.querySelectorAll(`.sec-group-item[data-sec-key="${CSS.escape(key)}"]`)
+          .forEach(el => el.classList.toggle('sec-group-hidden', nowCollapsed));
+      });
     }
 
     function toggleFilterBar() {
