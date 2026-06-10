@@ -559,6 +559,51 @@
       color: #F5C518;
     }
 
+    /* ── sec-label toggle (collapse/expand section) ── */
+    .sec-label {
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .sec-label-chevron {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      color: var(--text3);
+      transition: transform var(--transition);
+      font-size: 10px;
+    }
+
+    .sec-label.collapsed .sec-label-chevron {
+      transform: rotate(-90deg);
+    }
+
+    /* Linhas que pertencem a uma seção colapsada */
+    .sec-group-item.sec-group-hidden {
+      display: none !important;
+    }
+
+    /* ── sec-label especial para favorites / other items ── */
+    .sec-label.sec-fav-group {
+      color: #B45309;
+      background: var(--warn-light);
+      border-bottom-color: var(--row-off-border);
+    }
+
+    .sec-label.sec-fav-group .sec-label-count {
+      color: var(--warn);
+      background: var(--warn-light);
+      border-color: var(--row-off-border);
+    }
+
+    .sec-label.sec-fav-group .sec-label-chevron {
+      color: var(--warn);
+    }
+
     /* Req 3 — sec-label-count herda a cor de sec-label-text (accent) */
     .sec-label-count {
       font-size: 11px;
@@ -3474,6 +3519,7 @@
     let changeCounter = 0;
     let bannerDismissed = false;
     let sortMode = 'az';          // 'az' | 'cat' | 'fav'
+    const _collapsedSections = new Set(); // persiste estado collapsed entre renders
     let activeQuickFilter = '';   // '' | 'fav' | 'warn' | 'crit'
 
     // ==================== UTILITÁRIOS ====================
@@ -3901,6 +3947,8 @@
       else if (sortMode === 'cat') sortMode = 'fav';
       else sortMode = 'az';
 
+      _collapsedSections.clear(); // Reseta collapses ao mudar de modo
+
       const btn = document.getElementById('btn-sort');
       const icon = document.getElementById('sort-icon');
 
@@ -4180,9 +4228,7 @@
         // (suprimido se já emitimos o search-label acima e não há agrupamento real)
         if (section !== lastSection && !searchQuery.trim()) {
           const isCat = sortMode === 'cat';
-          const rawCat = isCat ? getCategoryOf(it) : null; // null para A-Z e fav
-
-          const label = createElement('div', 'sec-label');
+          const rawCat = isCat ? getCategoryOf(it) : null;
 
           let menuOnclick = '';
           if (isCat && rawCat && rawCat !== '—') {
@@ -4191,13 +4237,15 @@
             menuOnclick = `openGenericSectionMenu(this,'${section.replace(/'/g, "\\'")}')`;
           }
 
-          label.innerHTML = `
-            <span class="sec-label-text">${esc(section)}</span>
-            <span class="sec-label-count">${sectionCounts[section]}</span>
-            ${menuOnclick
-              ? `<div class="sec-menu-btn" title="Section actions" onclick="${menuOnclick}">···</div>`
-              : ''}
-          `;
+          const menuBtn = menuOnclick
+            ? `<div class="sec-menu-btn" title="Section actions" onclick="event.stopPropagation();${menuOnclick}">···</div>`
+            : '';
+
+          const label = buildSectionLabel(section, 'p0', {
+            count: sectionCounts[section],
+            menuBtn,
+          });
+
           fragment.appendChild(label);
           lastSection = section;
         } else if (section !== lastSection && searchQuery.trim()) {
@@ -4209,8 +4257,10 @@
         const rowClass = !it.inStock ? 'row-off' : s === 'ok' ? 'row-ok' : s === 'warn' ? 'row-warn' : 'row-crit';
         const favClass = it.fav ? 'fav-on' : '';
 
-        // Wrapper de swipe
-        const wrap = createElement('div', 'swipe-wrap');
+        // Wrapper de swipe — marcado com data-sec-key para toggle de seção
+        const secGroupKey = !searchQuery.trim() ? ('p0||' + sortMode + '||' + section) : '';
+        const wrap = createElement('div', `swipe-wrap sec-group-item${_collapsedSections.has(secGroupKey) ? ' sec-group-hidden' : ''}`);
+        if (secGroupKey) wrap.dataset.secKey = secGroupKey;
 
         // Fundo esquerdo — delete
         const bgLeft = createElement('div', 'swipe-bg swipe-bg-left');
@@ -4264,6 +4314,48 @@
       container.appendChild(fragment);
     }
 
+    // ── Helper compartilhado: cria um sec-label com toggle collapse ──────────
+    // panelId: 'p0' | 'p1' | 'p2' — isola o namespace de chave por painel
+    function buildSectionLabel(section, panelId, { count = 0, menuBtn = '' } = {}) {
+      const isFavMode = sortMode === 'fav';
+      const isFavSection = isFavMode && section === '★ Favorites';
+      const isOtherSection = isFavMode && section === '· Other items';
+
+      const labelClasses = ['sec-label'];
+      if (isFavSection || isOtherSection) labelClasses.push('sec-fav-group');
+
+      const label = createElement('div', labelClasses.join(' '));
+
+      const sectionDisplay = isFavSection ? 'Favorites'
+        : isOtherSection ? 'Other items'
+          : esc(section);
+
+      // Chave estável: inclui panelId para que colapsos entre abas sejam independentes
+      const key = panelId + '||' + sortMode + '||' + section;
+      const isCollapsed = _collapsedSections.has(key);
+      if (isCollapsed) label.classList.add('collapsed');
+      label.dataset.secKey = key;
+
+      label.innerHTML = `
+        <span class="sec-label-chevron">▾</span>
+        <span class="sec-label-text">${sectionDisplay}</span>
+        ${count ? `<span class="sec-label-count">${count}</span>` : ''}
+        ${menuBtn}
+      `;
+
+      label.addEventListener('click', function (e) {
+        if (e.target.classList.contains('sec-menu-btn')) return;
+        const k = this.dataset.secKey;
+        const nowCollapsed = this.classList.toggle('collapsed');
+        if (nowCollapsed) _collapsedSections.add(k);
+        else _collapsedSections.delete(k);
+        document.querySelectorAll(`.sec-group-item[data-sec-key="${CSS.escape(k)}"]`)
+          .forEach(el => el.classList.toggle('sec-group-hidden', nowCollapsed));
+      });
+
+      return label;
+    }
+
     function renderPanel1() {
       const container = document.getElementById('panel-1');
       container.innerHTML = '';
@@ -4289,18 +4381,26 @@
       // fragment.appendChild(header);
 
       let lastSection = '';
+      // Pré-computa contagem por seção para panel-1
+      const sectionCounts1 = {};
+      for (const it of list) {
+        const k = sectionKeyOf(it);
+        sectionCounts1[k] = (sectionCounts1[k] || 0) + 1;
+      }
 
       for (const it of list) {
         const section = sectionKeyOf(it);
         if (section !== lastSection) {
-          const label = createElement('div', 'sec-label', section);
+          const label = buildSectionLabel(section, 'p1', { count: sectionCounts1[section] });
           fragment.appendChild(label);
           lastSection = section;
         }
 
+        const secGroupKey = 'p1||' + sortMode + '||' + section;
         const s = getStatus(it);
         const rowClass = s === 'ok' ? 'row-ok' : s === 'warn' ? 'row-warn' : 'row-crit';
-        const row = createElement('div', `stock-row ${rowClass}`);
+        const row = createElement('div', `stock-row ${rowClass} sec-group-item${_collapsedSections.has(secGroupKey) ? ' sec-group-hidden' : ''}`);
+        row.dataset.secKey = secGroupKey;
 
         // Name
         const nameDiv = createElement('div', 'stock-name');
@@ -4438,17 +4538,25 @@
 
       const fragment = document.createDocumentFragment();
       let lastSection = '';
+      // Pré-computa contagem por seção para panel-2
+      const sectionCounts2 = {};
+      for (const it of list) {
+        const k = sectionKeyOf(it);
+        sectionCounts2[k] = (sectionCounts2[k] || 0) + 1;
+      }
 
       for (const it of list) {
         const section = sectionKeyOf(it);
         if (section !== lastSection) {
-          const label = createElement('div', 'sec-label', section);
+          const label = buildSectionLabel(section, 'p2', { count: sectionCounts2[section] });
           fragment.appendChild(label);
           lastSection = section;
         }
 
+        const secGroupKey = 'p2||' + sortMode + '||' + section;
         // ── Swipe wrapper ─────────────────────────────────────────────────
-        const wrap = createElement('div', 'swipe-wrap');
+        const wrap = createElement('div', `swipe-wrap sec-group-item${_collapsedSections.has(secGroupKey) ? ' sec-group-hidden' : ''}`);
+        wrap.dataset.secKey = secGroupKey;
 
         // Bg esquerdo: desmarcar (cinza/undo)
         const bgLeft = createElement('div', 'swipe-bg swipe-bg-left');
@@ -5603,12 +5711,23 @@
       if (!sugs || !acTarget) return;
       const val = acTarget.value;
 
-      if (acMode === 'category') {
-        // Substitui o #token sendo digitado pelo término selecionado
-        const hashPos = val.lastIndexOf('#');
-        acTarget.value = val.slice(0, hashPos) + '#' + sugs[idx].label;
+      // Mapeia modo → prefixo
+      const MODE_PREFIX = {
+        'category': '#',
+        'at-token': '@',
+        'amp-token': '&',
+        'dol-token': '$',
+      };
+
+      if (acMode in MODE_PREFIX) {
+        const prefix = MODE_PREFIX[acMode];
+        const lastPos = val.lastIndexOf(prefix);
+        acTarget.value = val.slice(0, lastPos) + prefix + sugs[idx].label;
+        if (acMode === 'search-cat') {
+          searchQuery = acTarget.value;
+          render();
+        }
       } else if (acMode === 'search-cat') {
-        // No campo de busca: substitui tudo após o # pelo termo e dispara busca
         const hashPos = val.lastIndexOf('#');
         acTarget.value = val.slice(0, hashPos) + '#' + sugs[idx].label;
         searchQuery = acTarget.value;
@@ -5625,19 +5744,52 @@
     function acOnInput(e) {
       const input = e.target;
       const val = input.value;
-      const drop = document.getElementById('ac-dropdown');
 
-      // --- MODO CATEGORIA: disparado por "#" ---
-      const hashPos = val.lastIndexOf('#');
-      if (hashPos !== -1) {
-        const afterHash = val.slice(hashPos + 1);
-        // Só dispara se não há espaço após o # (ainda digitando a categoria)
-        if (!/\s/.test(afterHash)) {
-          const cats = getExistingCategories(afterHash);
-          if (cats.length) {
-            acOpen(input, 'category', cats, '🏷️ Categories');
-            return;
+      // ── Helper: extrai tokens de um prefixo genérico dos descs existentes ──
+      function getTokensForPrefix(prefix, query = '') {
+        const tokens = new Set();
+        const regex = new RegExp(`\\${prefix}([^\\s·,;${prefix}]+)`, 'g');
+        items.forEach(it => {
+          if (!it.desc) return;
+          for (const m of it.desc.matchAll(regex)) {
+            const tok = m[1].trim().toLowerCase();
+            if (tok) tokens.add(tok);
           }
+        });
+        const q = query.toLowerCase();
+        return [...tokens]
+          .filter(t => !q || t.startsWith(q))
+          .sort()
+          .map(t => ({ label: t, icon: PREFIX_META[prefix]?.icon || '🔖', desc: PREFIX_META[prefix]?.desc || '' }));
+      }
+
+      // Metadados visuais por prefixo
+      const PREFIX_META = {
+        '#': { icon: '🏷️', desc: '', acMode: 'category', header: '🏷️ Categories' },
+        '@': { icon: '🏪', desc: 'brand/store', acMode: 'at-token', header: '🏪 Brands / Stores' },
+        '&': { icon: '🔖', desc: 'attribute', acMode: 'amp-token', header: '🔖 Attributes' },
+        '$': { icon: '💲', desc: 'budget/price', acMode: 'dol-token', header: '💲 Budget / Price' },
+      };
+
+      // Verifica se o cursor está logo após um dos prefixos ativos sem espaço
+      for (const prefix of ['#', '@', '&', '$']) {
+        const lastPos = val.lastIndexOf(prefix);
+        if (lastPos === -1) continue;
+        const afterPrefix = val.slice(lastPos + 1);
+        if (/\s/.test(afterPrefix)) continue; // já tem espaço — token encerrado
+
+        const meta = PREFIX_META[prefix];
+        let suggestions;
+
+        if (prefix === '#') {
+          suggestions = getExistingCategories(afterPrefix);
+        } else {
+          suggestions = getTokensForPrefix(prefix, afterPrefix);
+        }
+
+        if (suggestions.length) {
+          acOpen(input, meta.acMode, suggestions, meta.header);
+          return;
         }
       }
 
