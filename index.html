@@ -402,13 +402,24 @@
     }
 
     /* Divider vertical dentro do grupo de filtros */
-    /* .filter-divider {
+    .filter-divider {
       width: 1px;
-      height: 20px;
+      height: 22px;
       background: var(--border2);
       flex-shrink: 0;
       margin: 0 2px;
-    } */
+    }
+
+    /* Filtro "zero stock" — ativo com realce vermelho suave */
+    #zero-filter-btn[data-active="true"] {
+      border-color: #ef5350;
+      box-shadow: 0 0 0 2px rgba(239, 83, 80, 0.20);
+    }
+
+    [data-theme="dark"] #zero-filter-btn[data-active="true"] {
+      border-color: #ef9a9a;
+      box-shadow: 0 0 0 2px rgba(239, 154, 154, 0.18);
+    }
 
     /* ── Botões de filtro: mesma base visual que .hbtn ── */
     .filter-btn {
@@ -3308,6 +3319,9 @@
           <div class="filter-btn" data-filter="warn" title="Stock at the limit" onclick="applyQuickFilter('warn')">🟡
           </div>
           <div class="filter-btn" data-filter="ok" title="Stock replenished" onclick="applyQuickFilter('ok')">🟢</div>
+          <div class="filter-divider" aria-hidden="true"></div>
+          <div id="zero-filter-btn" class="filter-btn" data-filter="zero"
+            title="Zero stock — critical items with qty = 0" onclick="applyQuickFilter('zero')">⭕</div>
         </div>
       </div>
 
@@ -3507,7 +3521,7 @@
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
-    const STORAGE_KEY = 'Shop_List_v20260609';
+    const STORAGE_KEY = 'Shop_List_v20260611';
     const THEME_KEY = 'Shop_List_theme';
     const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
@@ -3592,7 +3606,7 @@
         if (rawUI) {
           const ui = JSON.parse(rawUI);
           if (['az', 'cat', 'fav'].includes(ui.sortMode)) sortMode = ui.sortMode;
-          if (['', 'fav', 'fav-off', 'warn', 'crit'].includes(ui.activeQuickFilter)) activeQuickFilter = ui.activeQuickFilter;
+          if (['', 'fav', 'fav-off', 'warn', 'crit', 'ok', 'zero'].includes(ui.activeQuickFilter)) activeQuickFilter = ui.activeQuickFilter;
         }
       } catch (e) {
         console.warn('Erro ao carregar preferências de UI:', e);
@@ -3859,6 +3873,8 @@
         result = result.filter(it => it.fav);
       } else if (activeQuickFilter === 'fav-off') {
         result = result.filter(it => !it.fav);
+      } else if (activeQuickFilter === 'zero') {
+        result = result.filter(it => it.inStock && (it.qty ?? 0) === 0);
       } else if (activeQuickFilter) {
         result = result.filter(it => getStatus(it) === activeQuickFilter);
       }
@@ -6566,7 +6582,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260609');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260611');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -6607,7 +6623,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260609', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260611', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
