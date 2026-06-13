@@ -6493,6 +6493,11 @@
     STORAGE_KEY = _storageKey(_currentSlug);
     UI_KEY = _uiKey(_currentSlug);
     load();
+    // _bootProfiles: snapshot da lista de perfis no momento do boot.
+    // Usado para decidir se o seletor de perfis deve abrir automaticamente.
+    // CORRIGIDO: variável estava referenciada sem ser declarada (ReferenceError
+    // interrompia o script antes de render(), deixando a UI sem dados).
+    const _bootProfiles = Profiles.list();
     if (_bootProfiles.length > 1) {
       // 2+ perfis: exibe seletor de confirmação logo após o primeiro render
       requestAnimationFrame(() => openProfileModal());
