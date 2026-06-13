@@ -6428,6 +6428,35 @@
       input.value = '';
       profileNewInputChange(input);
       document.getElementById('profile-modal').classList.remove('open');
+
+      // ── Fix: herda folderId/folderOwnedByMe do perfil ativo atual ──────────
+      // Sem este passo, o novo perfil começa com meta vazia. Na primeira sync,
+      // isShared = false e folderId = null → ensureFolder cria uma pasta NOVA no
+      // Drive em vez de usar a pasta _ShopList_Sync já existente, fazendo o arquivo
+      // Shop-List-Sync-{slug}.json aparecer em local errado (invisível no compartilhado).
+      // Herdamos apenas folderId e folderOwnedByMe — syncFileId fica null
+      // propositalmente, para que Sync.run crie o novo arquivo via createSyncFile.
+      try {
+        const activeMeta = (window.DriveSync && window.DriveSync.readMetaOf)
+          ? window.DriveSync.readMetaOf(_currentSlug)
+          : JSON.parse(localStorage.getItem(_syncMetaKey(_currentSlug)) || '{}');
+        if (activeMeta.folderId) {
+          localStorage.setItem(
+            _syncMetaKey(entry.slug),
+            JSON.stringify({
+              folderId: activeMeta.folderId,
+              folderOwnedByMe: activeMeta.folderOwnedByMe ?? true,
+              // pickedManually NÃO é herdado: o novo perfil é sempre "owner"
+              // syncFileId intencionalmente ausente → força createSyncFile
+            })
+          );
+          console.log('[Profiles] new profile', entry.slug,
+            '→ inherited folderId from', _currentSlug, ':', activeMeta.folderId);
+        }
+      } catch (e) {
+        console.warn('[Profiles] could not inherit folderId for new profile:', e);
+      }
+
       switchProfile(entry.slug);
       toast(`📋 ${entry.label} created`);
     }
@@ -7493,6 +7522,12 @@
       // Getter lazy — sempre reflete _currentSlug atual, inclusive após switchProfile()
       function _getSyncKey() { return _syncMetaKey(_currentSlug); }
 
+      /** Lê a meta de sync de qualquer slug sem alterar o estado do módulo.
+       *  Usado por profileAddNew para herdar folderId do perfil anterior ao criar um novo. */
+      function _readMetaOf(slug) {
+        try { return JSON.parse(localStorage.getItem(_syncMetaKey(slug)) || '{}'); } catch { return {}; }
+      }
+
       function _loadMeta() {
         try { return JSON.parse(localStorage.getItem(_getSyncKey()) || '{}'); } catch { return {}; }
       }
@@ -7826,6 +7861,13 @@
         resetFolderCache() {
           _folderId = null;
           console.log('[DriveSync] folder cache invalidated (profile switch)');
+        },
+
+        /** Lê a meta de sync de um slug arbitrário sem alterar o estado do módulo.
+         *  Permite que o script principal (profileAddNew) herde folderId de outro perfil
+         *  sem depender de _syncMetaKey (que é privada ao IIFE do DriveSync). */
+        readMetaOf(slug) {
+          return _readMetaOf(slug);
         },
 
         /** Elege uma pasta como ativa, descartando a outra como duplicata */
