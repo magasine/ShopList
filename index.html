@@ -3849,7 +3849,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260613-single-file-sync.r07-picker-appid';
+    const APP_BUILD = '20260613-single-file-sync.r08-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -7424,7 +7424,17 @@
             // ── Resolve o fileId do arquivo fixo ───────────────────────────────
             let syncFileId = meta.syncFileId || null;
             let cloudDate = null;
-            const isShared = meta.pickedManually === true || meta.folderOwnedByMe === false;
+            // isShared: detecta papel do dispositivo.
+            // Fallback: se ShopList_sharedFolderId está gravado, o usuário já fez
+            // pickSharedFolder em sessão anterior — trata como SHARED mesmo que a
+            // meta do perfil ativo ainda não tenha folderOwnedByMe=false (pode ter
+            // sido sobrescrita por um sync incorreto como OWNER antes do pick).
+            const _hasSharedSetup = (() => {
+              try { return !!localStorage.getItem('ShopList_sharedFolderId'); } catch { return false; }
+            })();
+            const isShared = meta.pickedManually === true
+              || meta.folderOwnedByMe === false
+              || _hasSharedSetup;
 
             console.log('[DriveSync] role:', isShared ? 'SHARED' : 'OWNER',
               '| syncFileId:', syncFileId || 'none',
@@ -7706,6 +7716,17 @@
                   ? `Select: ${expectedFilename}`
                   : 'Select the list file';
 
+            let settled = false;
+            // Timeout de segurança: se o Picker não responder em 5min
+            // (callback nunca disparou — comum em PWA standalone com iframe restrito),
+            // rejeita com erro diagnóstico em vez de travar indefinidamente.
+            const pickerTimeout = setTimeout(() => {
+              if (!settled) {
+                settled = true;
+                reject(new Error('picker-timeout'));
+              }
+            }, 5 * 60 * 1000);
+
             let builder = new google.picker.PickerBuilder()
               .setOAuthToken(accessToken)
               .setAppId(DRIVE_APP_ID)   // CRÍTICO: concede acesso drive.file ao arquivo escolhido
@@ -7714,6 +7735,9 @@
               .setMaxItems(1)
               .setCallback((data) => {
                 if (data.action === google.picker.Action.PICKED) {
+                  if (settled) return;
+                  settled = true;
+                  clearTimeout(pickerTimeout);
                   const doc = data.docs[0];
                   // parentId: tenta todos os campos conhecidos do Picker.
                   // Para arquivos compartilhados, parentId frequentemente vem undefined —
@@ -7723,6 +7747,9 @@
                     || null;
                   resolve({ id: doc.id, name: doc.name, ownedByMe: doc.isOwned || false, parentId });
                 } else if (data.action === google.picker.Action.CANCEL) {
+                  if (settled) return;
+                  settled = true;
+                  clearTimeout(pickerTimeout);
                   reject(new Error('picker-cancelled'));
                 }
               });
@@ -8035,6 +8062,12 @@
               updated in place. Share that file in Drive (with edit access) to collaborate with others.
             </div>
 
+            ${window.matchMedia('(display-mode: standalone)').matches ? `
+            <div class="ds-note" style="border-left: 3px solid var(--warning, #f59e0b); padding-left: 10px; margin-top: 8px;">
+              📱 <strong>Installed PWA detected.</strong> If the Google Picker is not responding,
+              open the app in <strong>Chrome</strong> to complete the Drive setup, then return here.
+            </div>` : ''}
+
             ${!connected ? `
             <div class="ds-config-warn">
               ☁️ Once connected, your list will be automatically saved to a file in your Google Drive.
@@ -8170,6 +8203,12 @@
               picked = await Picker.open(token, 'index');  // modo índice
             } catch (e) {
               if (e.message === 'picker-cancelled') return;
+              if (e.message === 'picker-timeout') {
+                if (typeof toast === 'function')
+                  toast('⚠️ Google Picker did not respond — try opening the app in Chrome instead of the installed PWA');
+                console.warn('[DriveSync] Picker timeout — possible PWA standalone iframe restriction');
+                return;
+              }
               throw e;
             }
 
@@ -8208,13 +8247,23 @@
 
             _folderId = null;
             _saveMeta({
+              syncFileId: null,         // descarta arquivo próprio criado antes do SHARED
               folderId: sharedFolderId,
               folderOwnedByMe: false,
               pickedManually: true,
               duplicateFolderId: null,
               lastSync: null,
-              // syncFileId ausente — será preenchido por pickForProfile
+              cloudModifiedAt: null,         // invalida cache de data — força re-download
             });
+            // Limpa dados locais do perfil default para que o SHARED baixe os dados
+            // do OWNER na próxima sync — sem isso, dados próprios do SHARED (criados
+            // quando o app rodou como OWNER antes do pickSharedFolder) venceriam o
+            // conflito por terem savedAt mais recente.
+            try {
+              localStorage.removeItem(STORAGE_KEY);
+              if (typeof window._applyItems === 'function') window._applyItems([]);
+              console.log('[DriveSync] pickSharedFolder: local data cleared — will download owner data');
+            } catch (_) { }
 
             // Grava folderId e indexFileId globais para que pullIndex e pickForProfile
             // de qualquer perfil saibam qual pasta e índice usar.
@@ -8300,6 +8349,12 @@
                 picked = await Picker.open(token, 'file', knownFolderId, pickerTitle);
               } catch (e) {
                 if (e.message === 'picker-cancelled') return;  // usuário desistiu — cancela sem gravar nada
+                if (e.message === 'picker-timeout') {
+                  if (typeof toast === 'function')
+                    toast('⚠️ Google Picker did not respond — try opening the app in Chrome instead of the installed PWA');
+                  console.warn('[DriveSync] Picker timeout in pickForProfile — possible PWA standalone iframe restriction');
+                  return;
+                }
                 throw e;
               }
 
