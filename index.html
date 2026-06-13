@@ -3849,7 +3849,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260613-single-file-sync.r01-picker-appid';
+    const APP_BUILD = '20260613-single-file-sync.r02-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -7091,6 +7091,103 @@
             : `Shop-List-Sync-${slug}.json`;
         },
 
+        // Nome do arquivo de índice de perfis — fixo, na mesma pasta _ShopList_Sync.
+        // Contém o catálogo [{slug, label, createdAt}] de todos os perfis do owner.
+        // Lido por qualquer dispositivo ao conectar, permitindo descoberta cross-device.
+        INDEX_FILENAME: 'Shop-List-Index.json',
+
+        /** Busca o arquivo de índice na pasta. Retorna { id } ou null. */
+        async findIndexFile(folderId) {
+          const q = encodeURIComponent(
+            `'${folderId}' in parents and name='${Drive.INDEX_FILENAME}' and trashed=false`
+          );
+          const r = await Drive._api(
+            `/files?q=${q}&fields=files(id,name,modifiedTime)&spaces=drive&supportsAllDrives=true`
+          );
+          const d = await r.json();
+          if (d.error) { console.warn('[DriveSync] findIndexFile error:', d.error); return null; }
+          return (d.files || [])[0] || null;
+        },
+
+        /** Sobe (cria ou atualiza) o arquivo de índice com o catálogo atual de perfis. */
+        async pushIndex(folderId) {
+          if (!folderId) return;
+          const profiles = typeof _profilesLoad === 'function' ? _profilesLoad() : [];
+          const payload = JSON.stringify({ updatedAt: new Date().toISOString(), profiles });
+          try {
+            const existing = await Drive.findIndexFile(folderId);
+            if (existing) {
+              await Drive._upload(
+                `/files/${existing.id}?uploadType=media&fields=id&supportsAllDrives=true`,
+                { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: payload }
+              );
+              console.log('[DriveSync] index updated:', Drive.INDEX_FILENAME);
+            } else {
+              const metadata = { name: Drive.INDEX_FILENAME, parents: [folderId], mimeType: 'application/json' };
+              const form = new FormData();
+              form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+              form.append('file', new Blob([payload], { type: 'application/json' }));
+              await Drive._upload(
+                '/files?uploadType=multipart&fields=id&supportsAllDrives=true',
+                { method: 'POST', body: form }
+              );
+              console.log('[DriveSync] index created:', Drive.INDEX_FILENAME);
+            }
+          } catch (e) {
+            console.warn('[DriveSync] pushIndex failed (non-fatal):', e.message);
+          }
+        },
+
+        /** Baixa o índice do Drive e mescla perfis novos no localStorage local.
+         *  Não remove perfis existentes — apenas adiciona os que ainda não estão presentes.
+         *  Chamado no startup do dispositivo que não é o owner (ex: mobile). */
+        async pullIndex(folderId) {
+          if (!folderId) return;
+          try {
+            const existing = await Drive.findIndexFile(folderId);
+            if (!existing) { console.log('[DriveSync] no index file found — skipping pull'); return; }
+            const raw = await Drive.downloadFile(existing.id);
+            const idx = JSON.parse(raw);
+            const remoteProfiles = idx.profiles || [];
+            if (!Array.isArray(remoteProfiles) || remoteProfiles.length === 0) return;
+
+            const local = typeof _profilesLoad === 'function' ? _profilesLoad() : [];
+            const localSlugs = new Set(local.map(p => p.slug));
+            const toAdd = remoteProfiles.filter(p => p.slug && p.label && !localSlugs.has(p.slug));
+
+            if (toAdd.length === 0) {
+              console.log('[DriveSync] pullIndex: no new profiles to import');
+              return;
+            }
+
+            const merged = [...local, ...toAdd];
+            if (typeof _profilesSave === 'function') _profilesSave(merged);
+            console.log('[DriveSync] pullIndex: imported', toAdd.length, 'profile(s):', toAdd.map(p => p.slug));
+
+            // Herda folderId e folderOwnedByMe para cada perfil importado,
+            // para que o próximo sync saiba onde criar/ler o arquivo de dados.
+            const ownerMeta = typeof _loadMeta === 'function' ? _loadMeta() : {};
+            toAdd.forEach(p => {
+              const metaKey = typeof _syncMetaKey === 'function' ? _syncMetaKey(p.slug) : null;
+              if (!metaKey) return;
+              const existing = JSON.parse(localStorage.getItem(metaKey) || '{}');
+              if (!existing.folderId) {
+                localStorage.setItem(metaKey, JSON.stringify({
+                  folderId: folderId,
+                  folderOwnedByMe: ownerMeta.folderOwnedByMe ?? true,
+                }));
+              }
+            });
+
+            // Atualiza o botão de perfis se disponível
+            if (typeof _syncProfileBtn === 'function') _syncProfileBtn();
+            if (typeof toast === 'function' && toAdd.length > 0)
+              toast(`📋 ${toAdd.length} list(s) discovered from Drive: ${toAdd.map(p => p.label).join(', ')}`);
+          } catch (e) {
+            console.warn('[DriveSync] pullIndex failed (non-fatal):', e.message);
+          }
+        },
+
         /** Busca o arquivo de sync pelo nome fixo na pasta. Retorna { id, modifiedTime } ou null */
         async findSyncFile(folderId) {
           const q = encodeURIComponent(
@@ -7457,6 +7554,18 @@
               console.log('[DriveSync] already in sync');
             }
 
+            // ── Sincroniza índice de perfis (cross-device discovery) ────────────
+            // Owner: sempre sobe o índice após qualquer sync bem-sucedido, para que
+            // outros dispositivos descubram perfis novos ao conectar.
+            // Dispositivo secundário (shared ou owner em novo device): baixa o índice
+            // e importa perfis ainda não conhecidos localmente.
+            // Executado de forma não-bloqueante (não afeta o resultado do sync principal).
+            if (!isShared && folderId) {
+              Drive.pushIndex(folderId).catch(() => { });
+            } else if (folderId) {
+              Drive.pullIndex(folderId).catch(() => { });
+            }
+
           } catch (e) {
             console.error('[DriveSync] sync error:', e);
             // Mensagem específica para falta de permissão de escrita (Shared)
@@ -7603,6 +7712,18 @@
             _startTimer();
 
             await Sync.run('startup');
+            // Após o startup sync, garante descoberta de perfis cross-device.
+            // pullIndex é não-bloqueante e executa após o sync principal.
+            // Para o owner, pushIndex já foi chamado dentro de Sync.run.
+            // Para um device novo (owner em outro device), puxa o índice explicitamente
+            // para importar perfis criados em outros dispositivos.
+            try {
+              const _startupMeta = _loadMeta();
+              const _startupFolder = _startupMeta.folderId || _folderId;
+              if (_startupFolder && _startupMeta.folderOwnedByMe !== false) {
+                await Drive.pullIndex(_startupFolder);
+              }
+            } catch (_) { }
           } else {
             _setStatus('', 'Google Drive (not connected)');
           }
