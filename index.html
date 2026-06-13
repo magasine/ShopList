@@ -7375,8 +7375,9 @@
             );
 
             if (!localRaw) {
-              // Sem dados locais reais (primeiro uso ou dados modelo)
+              // Sem dados locais reais (primeiro uso, perfil novo ou dados modelo)
               if (syncFileId && cloudContent) {
+                // Caso 1: arquivo já existe no Drive → baixa e aplica
                 Sync._applyCloud(cloudContent);   // reutiliza o conteúdo já baixado
                 _saveMeta({
                   lastSync: new Date().toISOString(),
@@ -7385,6 +7386,22 @@
                 });
                 _setStatus('connected', '☁️ Data downloaded from Drive ✓');
                 console.log('[DriveSync] downloaded (no local data):', syncFileId, '| cloud savedAt:', cloudDate?.toISOString());
+              } else if (!syncFileId && !isShared && folderId) {
+                // Caso 2: perfil novo sem dados locais e sem arquivo no Drive
+                // → cria o arquivo com payload vazio para registrar o perfil na pasta
+                // compartilhada. Sem este passo, o arquivo jamais seria criado porque
+                // _localPayload() retorna null para listas vazias e o branch
+                // createSyncFile (abaixo) só é alcançado quando localRaw tem valor.
+                const emptyPayload = JSON.stringify({ savedAt: new Date().toISOString(), data: [] });
+                const created = await Drive.createSyncFile(folderId, emptyPayload);
+                _saveMeta({
+                  syncFileId: created.id,
+                  lastSync: new Date().toISOString(),
+                  lastFile: Drive.SYNC_FILENAME,
+                  cloudModifiedAt: created.modifiedTime,
+                });
+                _setStatus('connected', '☁️ New list registered on Drive ✓');
+                console.log('[DriveSync] empty sync file created for new profile:', Drive.SYNC_FILENAME, created.id);
               } else {
                 _setStatus('connected', '☁️ Drive is empty, nothing to sync');
               }
