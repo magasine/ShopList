@@ -3849,7 +3849,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260613-single-file-sync.r06-picker-appid';
+    const APP_BUILD = '20260613-single-file-sync.r07-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -8280,32 +8280,52 @@
             if (typeof toast === 'function')
               toast(`📂 Select "${expectedName}" in the shared folder…`);
 
+            // Loop de seleção: reapresenta o Picker enquanto o arquivo escolhido
+            // não corresponder ao nome esperado para este perfil.
+            // Garante consistência entre a lista selecionada no modal e o arquivo
+            // vinculado no Drive — impede que "aniversario" aponte para o arquivo
+            // de "churrasco" por erro de clique no Picker.
             let picked;
-            try {
-              // Passa expectedName ao Picker para exibir no título — guia o usuário
-              // a selecionar o arquivo correto sem ambiguidade.
-              picked = await Picker.open(token, 'file', knownFolderId, expectedName);
-            } catch (e) {
-              if (e.message === 'picker-cancelled') return;
-              throw e;
-            }
+            const MAX_ATTEMPTS = 3;
+            for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+              const isRetry = attempt > 1;
+              const pickerTitle = isRetry
+                ? `⚠️ Wrong file — select: ${expectedName}`
+                : expectedName;
 
-            console.log('[DriveSync] pickForProfile (' + slug + ') returned:', JSON.stringify(picked));
+              if (isRetry && typeof toast === 'function')
+                toast(`⚠️ Wrong file selected — please select "${expectedName}"`);
 
-            if (!picked || !picked.id) {
-              if (typeof toast === 'function') toast('⚠️ No file selected');
-              return;
-            }
+              try {
+                picked = await Picker.open(token, 'file', knownFolderId, pickerTitle);
+              } catch (e) {
+                if (e.message === 'picker-cancelled') return;  // usuário desistiu — cancela sem gravar nada
+                throw e;
+              }
 
-            // Validação de nome: avisa mas NÃO bloqueia — o Picker já exibe o nome
-            // esperado no título, então um mismatch é provável erro de clique.
-            // Bloquear forçaria o usuário a repetir o fluxo inteiro sem feedback claro.
-            if (picked.name && picked.name !== expectedName) {
-              console.warn('[DriveSync] pickForProfile: name mismatch — expected:',
-                expectedName, 'got:', picked.name, '— proceeding anyway');
-              if (typeof toast === 'function')
-                toast(`⚠️ Expected "${expectedName}" but got "${picked.name}" — check if the correct file was selected`);
-              // Continua: grava o ID e deixa o Sync.run detectar inconsistência de conteúdo
+              if (!picked || !picked.id) {
+                if (typeof toast === 'function') toast('⚠️ No file selected');
+                return;
+              }
+
+              console.log('[DriveSync] pickForProfile (' + slug + ') attempt', attempt, ':', JSON.stringify(picked));
+
+              // Valida nome — bloqueante com reapresentação do Picker
+              if (!picked.name || picked.name === expectedName) break;  // correto → sai do loop
+
+              // Nome errado
+              console.warn('[DriveSync] pickForProfile: wrong file selected —',
+                'expected:', expectedName, 'got:', picked.name,
+                '— attempt', attempt, 'of', MAX_ATTEMPTS);
+
+              if (attempt === MAX_ATTEMPTS) {
+                // Esgotou tentativas — cancela sem gravar nada para não criar vínculo errado
+                if (typeof toast === 'function')
+                  toast(`❌ Incorrect file selected ${MAX_ATTEMPTS} times — link cancelled. Try again from the list.`);
+                console.error('[DriveSync] pickForProfile: max attempts reached — aborting');
+                return;
+              }
+              // Caso contrário: loop reapresenta o Picker com título de erro
             }
 
             // Grava syncFileId na meta do perfil alvo (não necessariamente o ativo)
