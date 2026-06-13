@@ -3849,7 +3849,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260613-single-file-sync.r05-picker-appid';
+    const APP_BUILD = '20260613-single-file-sync.r06-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -6719,6 +6719,17 @@
     window.STORAGE_KEY = STORAGE_KEY;    // usado em _localPayload e _applyCloud
     window.updateSyncBadge = updateSyncBadge; // chamado após cada operação de sync
 
+    // Expõe funções de perfil e UI para o módulo DriveSync (script 2 / IIFE).
+    // Embora `function` declarations sejam tecnicamente globais entre <script> tags,
+    // o acesso via `window.X` é explícito, confiável e imune a diferenças de
+    // implementação entre browsers — especialmente em modo 'use strict'.
+    window._profilesLoad = _profilesLoad;    // lê catálogo de perfis do localStorage
+    window._profilesSave = _profilesSave;    // grava catálogo de perfis no localStorage
+    window._syncMetaKey = _syncMetaKey;     // slug → chave de meta de sync
+    window._currentSlug = () => _currentSlug; // getter do slug ativo (closure-safe)
+    window.openProfileModal = openProfileModal; // re-renderiza/abre modal de listas
+    window._syncProfileBtn = _syncProfileBtn;  // atualiza badge do botão de perfis
+
     // Callback que o módulo DriveSync usa para substituir o array `items` em memória
     // e forçar render imediato — necessário porque `let items` não é propriedade
     // de window e não pode ser reatribuído de fora do closure do script 1.
@@ -7131,7 +7142,7 @@
         /** Sobe (cria ou atualiza) o arquivo de índice com o catálogo atual de perfis. */
         async pushIndex(folderId) {
           if (!folderId) return;
-          const profiles = typeof _profilesLoad === 'function' ? _profilesLoad() : [];
+          const profiles = window._profilesLoad ? window._profilesLoad() : [];
           const payload = JSON.stringify({ updatedAt: new Date().toISOString(), profiles });
           try {
             const existing = await Drive.findIndexFile(folderId);
@@ -7181,7 +7192,8 @@
             const remoteProfiles = idx.profiles || [];
             if (!Array.isArray(remoteProfiles) || remoteProfiles.length === 0) return;
 
-            const local = typeof _profilesLoad === 'function' ? _profilesLoad() : [];
+            // Usa window.X para acesso explícito e confiável às funções do script 1
+            const local = window._profilesLoad ? window._profilesLoad() : [];
             const localSlugs = new Set(local.map(p => p.slug));
             const toAdd = remoteProfiles.filter(p => p.slug && p.label && !localSlugs.has(p.slug));
 
@@ -7191,41 +7203,29 @@
             }
 
             const merged = [...local, ...toAdd];
-            if (typeof _profilesSave === 'function') _profilesSave(merged);
+            if (window._profilesSave) window._profilesSave(merged);
             console.log('[DriveSync] pullIndex: imported', toAdd.length, 'profile(s):', toAdd.map(p => p.slug));
 
-            // Herda folderId para cada perfil importado.
-            // Para SHARED: usa o folderId passado (da pasta compartilhada) e
-            // marca folderOwnedByMe=false para que Sync.run trate como SHARED.
-            // Para OWNER em outro device: usa o folderId da pasta própria e
-            // marca folderOwnedByMe=true.
-            const ownerMeta = typeof _loadMeta === 'function' ? _loadMeta() : {};
-            const isSharedDevice = ownerMeta.folderOwnedByMe === false || ownerMeta.pickedManually === true;
+            // Herda folderId para cada perfil importado via window._syncMetaKey
+            const isSharedDevice = (() => { try { const m = _loadMeta(); return m.folderOwnedByMe === false || m.pickedManually === true; } catch { return false; } })();
             toAdd.forEach(p => {
-              const metaKey = typeof _syncMetaKey === 'function' ? _syncMetaKey(p.slug) : null;
+              const metaKey = window._syncMetaKey ? window._syncMetaKey(p.slug) : null;
               if (!metaKey) return;
               const existing = JSON.parse(localStorage.getItem(metaKey) || '{}');
               if (!existing.folderId) {
                 localStorage.setItem(metaKey, JSON.stringify({
                   folderId: folderId,
                   folderOwnedByMe: !isSharedDevice,
-                  // pickedManually herdado do contexto — SHARED precisa de true para
-                  // que Sync.run não tente criar arquivo próprio neste perfil
                   ...(isSharedDevice ? { pickedManually: true } : {}),
                 }));
               }
             });
 
-            // Atualiza o botão de perfis e re-renderiza o modal se estiver aberto
-            if (typeof _syncProfileBtn === 'function') _syncProfileBtn();
-            // Re-renderiza o modal de perfis para exibir os novos itens importados.
-            // openProfileModal é idempotente — se já estiver aberto, apenas atualiza
-            // o conteúdo interno sem fechar e reabrir.
-            if (typeof openProfileModal === 'function') {
-              const profileModal = document.getElementById('profile-modal');
-              if (profileModal && profileModal.classList.contains('open')) {
-                openProfileModal();  // re-renderiza in-place
-              }
+            // Atualiza badge e re-renderiza modal via window.X (acesso explícito cross-script)
+            if (window._syncProfileBtn) window._syncProfileBtn();
+            const profileModal = document.getElementById('profile-modal');
+            if (profileModal && profileModal.classList.contains('open') && window.openProfileModal) {
+              window.openProfileModal();  // re-renderiza in-place com a lista atualizada
             }
             if (typeof toast === 'function' && toAdd.length > 0)
               toast(`📋 ${toAdd.length} list(s) discovered: ${toAdd.map(p => p.label).join(', ')}`);
@@ -7715,7 +7715,13 @@
               .setCallback((data) => {
                 if (data.action === google.picker.Action.PICKED) {
                   const doc = data.docs[0];
-                  resolve({ id: doc.id, name: doc.name, ownedByMe: doc.isOwned || false, parentId: doc.parentId });
+                  // parentId: tenta todos os campos conhecidos do Picker.
+                  // Para arquivos compartilhados, parentId frequentemente vem undefined —
+                  // pickSharedFolder resolverá via Drive API files.get se necessário.
+                  const parentId = doc.parentId
+                    || (typeof google.picker.Document !== 'undefined' && doc[google.picker.Document.PARENT_ID])
+                    || null;
+                  resolve({ id: doc.id, name: doc.name, ownedByMe: doc.isOwned || false, parentId });
                 } else if (data.action === google.picker.Action.CANCEL) {
                   reject(new Error('picker-cancelled'));
                 }
@@ -8184,7 +8190,22 @@
             // Grava folderId compartilhado na meta do perfil ativo.
             // Este folderId introduz a pasta ao escopo drive.file, habilitando
             // o Picker filtrado em pickForProfile para arquivos dentro dela.
-            const sharedFolderId = picked.parentId || null;
+            // Resolve o folderId da pasta compartilhada.
+            // O Picker frequentemente não retorna parentId para arquivos compartilhados
+            // diretamente — nesse caso buscamos via Drive API files.get, que é
+            // autorizada porque o arquivo foi introduzido ao escopo drive.file pelo Picker.
+            let sharedFolderId = picked.parentId || null;
+            if (!sharedFolderId) {
+              try {
+                const r = await Drive._api(`/files/${picked.id}?fields=parents&supportsAllDrives=true`);
+                const d = await r.json();
+                sharedFolderId = (d.parents && d.parents[0]) || null;
+                console.log('[DriveSync] resolved folderId via files.get:', sharedFolderId);
+              } catch (e) {
+                console.warn('[DriveSync] could not resolve folderId via API:', e.message);
+              }
+            }
+
             _folderId = null;
             _saveMeta({
               folderId: sharedFolderId,
@@ -8222,8 +8243,8 @@
             // perfis importados pelo pullIndex e escolha qual acessar primeiro.
             // _profilePick detectará a ausência de syncFileId e acionará
             // pickForProfile automaticamente ao selecionar cada lista.
-            if (typeof openProfileModal === 'function') {
-              setTimeout(() => openProfileModal(), 400);
+            if (window.openProfileModal) {
+              setTimeout(() => window.openProfileModal(), 400);
             }
 
           } catch (e) {
