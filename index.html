@@ -3746,7 +3746,7 @@
 
         <!-- Perfis / listas -->
         <div class="fbtn" id="btn-profile" title="Switch list / manage profiles" onclick="openProfileModal()">
-          📋
+          🛒
           <span class="profile-dot"></span>
         </div>
 
@@ -3939,6 +3939,10 @@
       UI_KEY = _uiKey(slug);
       window.STORAGE_KEY = STORAGE_KEY; // ← mantém DriveSync (_localPayload/_applyCloud) alinhado
       _setActiveSlug(slug);
+      // Invalida cache de folderId do DriveSync — força releitura da meta do novo perfil
+      if (window.DriveSync && typeof window.DriveSync.resetFolderCache === 'function') {
+        window.DriveSync.resetFolderCache();
+      }
       // Reinicia estado em memória
       items = [];
       sortMode = 'az';
@@ -7815,6 +7819,13 @@
 
         manualSync() {
           Sync.run('manual');
+        },
+
+        /** Invalida o cache de folderId em memória — deve ser chamado ao trocar de perfil.
+         *  Sem este reset, ensureFolder retorna o folderId do perfil anterior (Bug #1 multi-profile). */
+        resetFolderCache() {
+          _folderId = null;
+          console.log('[DriveSync] folder cache invalidated (profile switch)');
         },
 
         /** Elege uma pasta como ativa, descartando a outra como duplicata */
