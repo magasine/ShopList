@@ -3565,8 +3565,8 @@
 
     /* Badge de slug no sync-locality */
     .loc-slug {
-      font-weight: 400;
-      opacity: 0.72;
+      /* font-weight: 400; */
+      /* opacity: 0.72; */
       letter-spacing: 0.06em;
     }
   </style>
@@ -3746,7 +3746,7 @@
 
         <!-- Perfis / listas -->
         <div class="fbtn" id="btn-profile" title="Switch list / manage profiles" onclick="openProfileModal()">
-          🛒
+          📋
           <span class="profile-dot"></span>
         </div>
 
@@ -3937,6 +3937,7 @@
       _currentSlug = slug;
       STORAGE_KEY = _storageKey(slug);
       UI_KEY = _uiKey(slug);
+      window.STORAGE_KEY = STORAGE_KEY; // ← mantém DriveSync (_localPayload/_applyCloud) alinhado
       _setActiveSlug(slug);
       // Reinicia estado em memória
       items = [];
@@ -6459,8 +6460,6 @@
     STORAGE_KEY = _storageKey(_currentSlug);
     UI_KEY = _uiKey(_currentSlug);
     load();
-
-    const _bootProfiles = Profiles.list();
     if (_bootProfiles.length > 1) {
       // 2+ perfis: exibe seletor de confirmação logo após o primeiro render
       requestAnimationFrame(() => openProfileModal());
