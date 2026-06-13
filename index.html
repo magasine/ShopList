@@ -3954,6 +3954,13 @@
       updateSyncBadge();
       syncFavBtn();
       _syncProfileBtn();
+      // Aciona sync explícito ao trocar de perfil — necessário para que um perfil
+      // novo (sem dados locais, sem syncFileId) crie seu arquivo no Drive imediatamente.
+      // O after-save não supre este papel porque _localPayload() retorna null quando
+      // os dados locais são o modelo inicial (MODEL_ID_PREFIX), bloqueando o upload.
+      if (window.DriveSync && window.DriveSync._ready) {
+        setTimeout(() => window.DriveSync.manualSync(), 300);
+      }
     }
 
     // ── CRUD de perfis ───────────────────────────────────────────────────────
