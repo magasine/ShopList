@@ -3849,7 +3849,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260613-single-file-sync.r03-picker-appid';
+    const APP_BUILD = '20260613-single-file-sync.r04-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -7158,13 +7158,24 @@
 
         /** Baixa o índice do Drive e mescla perfis novos no localStorage local.
          *  Não remove perfis existentes — apenas adiciona os que ainda não estão presentes.
-         *  Chamado no startup do dispositivo que não é o owner (ex: mobile). */
-        async pullIndex(folderId) {
-          if (!folderId) return;
+         *  Chamado no startup do dispositivo que não é o owner (ex: mobile).
+         *
+         *  fileId opcional: quando fornecido (caso SHARED após Picker), baixa direto
+         *  pelo ID sem query de pasta — necessário porque drive.file não permite
+         *  listar conteúdo de pasta via query para arquivos de terceiros.
+         */
+        async pullIndex(folderId, fileId = null) {
+          if (!folderId && !fileId) return;
           try {
-            const existing = await Drive.findIndexFile(folderId);
-            if (!existing) { console.log('[DriveSync] no index file found — skipping pull'); return; }
-            const raw = await Drive.downloadFile(existing.id);
+            // OWNER: busca o arquivo por query na pasta (tem permissão total)
+            // SHARED: usa o fileId direto do Picker (drive.file não permite query de pasta)
+            let indexFileId = fileId;
+            if (!indexFileId) {
+              const existing = await Drive.findIndexFile(folderId);
+              if (!existing) { console.log('[DriveSync] no index file found — skipping pull'); return; }
+              indexFileId = existing.id;
+            }
+            const raw = await Drive.downloadFile(indexFileId);
             const idx = JSON.parse(raw);
             const remoteProfiles = idx.profiles || [];
             if (!Array.isArray(remoteProfiles) || remoteProfiles.length === 0) return;
@@ -7770,8 +7781,14 @@
             try {
               const _startupMeta = _loadMeta();
               const _startupFolder = _startupMeta.folderId || _folderId;
-              if (_startupFolder && _startupMeta.folderOwnedByMe !== false) {
-                await Drive.pullIndex(_startupFolder);
+              const _startupIndexId = (() => {
+                try { return localStorage.getItem('ShopList_sharedIndexFileId') || null; } catch { return null; }
+              })();
+              if (_startupFolder) {
+                // Owner em outro device: usa query de pasta (tem permissão)
+                // SHARED: usa indexFileId cacheado do Picker anterior se disponível
+                const _isSharedStartup = _startupMeta.folderOwnedByMe === false || _startupMeta.pickedManually === true;
+                await Drive.pullIndex(_startupFolder, _isSharedStartup ? _startupIndexId : null);
               }
             } catch (_) { }
           } else {
@@ -8168,10 +8185,11 @@
               // syncFileId ausente — será preenchido por pickForProfile
             });
 
-            // Grava também na chave global para que pickForProfile de qualquer
-            // perfil saiba qual pasta usar, mesmo antes do perfil ter meta própria.
+            // Grava folderId e indexFileId globais para que pullIndex e pickForProfile
+            // de qualquer perfil saibam qual pasta e índice usar.
             try {
               localStorage.setItem('ShopList_sharedFolderId', sharedFolderId || '');
+              localStorage.setItem('ShopList_sharedIndexFileId', picked.id || '');
             } catch (_) { }
 
             console.log('[DriveSync] shared folderId registered:', sharedFolderId);
@@ -8180,17 +8198,23 @@
             _startTimer();
             if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
 
-            // Baixa o índice e importa perfis desconhecidos localmente
+            // Baixa o índice e importa perfis desconhecidos localmente.
+            // Passa picked.id diretamente — evita query de pasta que drive.file
+            // não autoriza para arquivos de terceiros (retornaria 0 resultados).
             if (sharedFolderId) {
-              await Drive.pullIndex(sharedFolderId);
+              await Drive.pullIndex(sharedFolderId, picked.id);
             }
 
             if (typeof toast === 'function')
-              toast('✅ Shared folder linked — select a list to continue');
+              toast('✅ Shared folder linked — select a list below');
 
-            // Abre o Picker de arquivo para o perfil ativo imediatamente,
-            // para que o SHARED vincule o Shop-List-Sync.json do default agora.
-            setTimeout(() => window.DriveSync.pickForProfile(_currentSlug), 600);
+            // Abre o modal de seleção de listas para que o SHARED veja todos os
+            // perfis importados pelo pullIndex e escolha qual acessar primeiro.
+            // _profilePick detectará a ausência de syncFileId e acionará
+            // pickForProfile automaticamente ao selecionar cada lista.
+            if (typeof openProfileModal === 'function') {
+              setTimeout(() => openProfileModal(), 400);
+            }
 
           } catch (e) {
             console.error('[DriveSync] pickSharedFolder error:', e);
