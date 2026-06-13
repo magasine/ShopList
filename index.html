@@ -3849,7 +3849,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260613-single-file-sync.r04-picker-appid';
+    const APP_BUILD = '20260613-single-file-sync.r05-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -6409,25 +6409,26 @@
     function _profilePick(slug) {
       const modal = document.getElementById('profile-modal');
       modal.classList.remove('open');
-      if (slug === _currentSlug) return;
 
       // SHARED: verifica se o perfil selecionado já tem syncFileId vinculado.
-      // Se não tiver, abre o Picker para vincular o arquivo antes de trocar.
-      // Isso cobre o caso de perfis adicionais descobertos via pullIndex que
-      // ainda não passaram pelo pickForProfile.
+      // Feito ANTES do guard slug===_currentSlug para que o perfil ativo também
+      // possa ser vinculado (caso o SHARED esteja no default sem syncFileId).
       try {
         const profileMeta = JSON.parse(localStorage.getItem(_syncMetaKey(slug)) || '{}');
         const isSharedCtx = profileMeta.pickedManually === true || profileMeta.folderOwnedByMe === false;
         const needsPick = isSharedCtx && !profileMeta.syncFileId;
         if (needsPick && window.DriveSync && window.DriveSync._ready) {
-          // Troca para o perfil primeiro (carrega UI vazia), depois vincula
-          switchProfile(slug);
-          toast(`📋 ${Profiles.labelOf(slug)}`);
+          if (slug !== _currentSlug) {
+            switchProfile(slug);
+            toast(`📋 ${Profiles.labelOf(slug)}`);
+          }
           setTimeout(() => window.DriveSync.pickForProfile(slug), 400);
           return;
         }
       } catch (_) { }
 
+      // Perfil já vinculado ou owner — troca normalmente
+      if (slug === _currentSlug) return;
       switchProfile(slug);
       toast(`📋 ${Profiles.labelOf(slug)}`);
     }
@@ -7215,10 +7216,19 @@
               }
             });
 
-            // Atualiza o botão de perfis se disponível
+            // Atualiza o botão de perfis e re-renderiza o modal se estiver aberto
             if (typeof _syncProfileBtn === 'function') _syncProfileBtn();
+            // Re-renderiza o modal de perfis para exibir os novos itens importados.
+            // openProfileModal é idempotente — se já estiver aberto, apenas atualiza
+            // o conteúdo interno sem fechar e reabrir.
+            if (typeof openProfileModal === 'function') {
+              const profileModal = document.getElementById('profile-modal');
+              if (profileModal && profileModal.classList.contains('open')) {
+                openProfileModal();  // re-renderiza in-place
+              }
+            }
             if (typeof toast === 'function' && toAdd.length > 0)
-              toast(`📋 ${toAdd.length} list(s) discovered from Drive: ${toAdd.map(p => p.label).join(', ')}`);
+              toast(`📋 ${toAdd.length} list(s) discovered: ${toAdd.map(p => p.label).join(', ')}`);
           } catch (e) {
             console.warn('[DriveSync] pullIndex failed (non-fatal):', e.message);
           }
