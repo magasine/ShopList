@@ -3849,7 +3849,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260613-single-file-sync.r02-picker-appid';
+    const APP_BUILD = '2026.05.30-single-file-sync.r11-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -6410,6 +6410,24 @@
       const modal = document.getElementById('profile-modal');
       modal.classList.remove('open');
       if (slug === _currentSlug) return;
+
+      // SHARED: verifica se o perfil selecionado já tem syncFileId vinculado.
+      // Se não tiver, abre o Picker para vincular o arquivo antes de trocar.
+      // Isso cobre o caso de perfis adicionais descobertos via pullIndex que
+      // ainda não passaram pelo pickForProfile.
+      try {
+        const profileMeta = JSON.parse(localStorage.getItem(_syncMetaKey(slug)) || '{}');
+        const isSharedCtx = profileMeta.pickedManually === true || profileMeta.folderOwnedByMe === false;
+        const needsPick = isSharedCtx && !profileMeta.syncFileId;
+        if (needsPick && window.DriveSync && window.DriveSync._ready) {
+          // Troca para o perfil primeiro (carrega UI vazia), depois vincula
+          switchProfile(slug);
+          toast(`📋 ${Profiles.labelOf(slug)}`);
+          setTimeout(() => window.DriveSync.pickForProfile(slug), 400);
+          return;
+        }
+      } catch (_) { }
+
       switchProfile(slug);
       toast(`📋 ${Profiles.labelOf(slug)}`);
     }
@@ -7164,9 +7182,13 @@
             if (typeof _profilesSave === 'function') _profilesSave(merged);
             console.log('[DriveSync] pullIndex: imported', toAdd.length, 'profile(s):', toAdd.map(p => p.slug));
 
-            // Herda folderId e folderOwnedByMe para cada perfil importado,
-            // para que o próximo sync saiba onde criar/ler o arquivo de dados.
+            // Herda folderId para cada perfil importado.
+            // Para SHARED: usa o folderId passado (da pasta compartilhada) e
+            // marca folderOwnedByMe=false para que Sync.run trate como SHARED.
+            // Para OWNER em outro device: usa o folderId da pasta própria e
+            // marca folderOwnedByMe=true.
             const ownerMeta = typeof _loadMeta === 'function' ? _loadMeta() : {};
+            const isSharedDevice = ownerMeta.folderOwnedByMe === false || ownerMeta.pickedManually === true;
             toAdd.forEach(p => {
               const metaKey = typeof _syncMetaKey === 'function' ? _syncMetaKey(p.slug) : null;
               if (!metaKey) return;
@@ -7174,7 +7196,10 @@
               if (!existing.folderId) {
                 localStorage.setItem(metaKey, JSON.stringify({
                   folderId: folderId,
-                  folderOwnedByMe: ownerMeta.folderOwnedByMe ?? true,
+                  folderOwnedByMe: !isSharedDevice,
+                  // pickedManually herdado do contexto — SHARED precisa de true para
+                  // que Sync.run não tente criar arquivo próprio neste perfil
+                  ...(isSharedDevice ? { pickedManually: true } : {}),
                 }));
               }
             });
@@ -7389,9 +7414,15 @@
             // vinculado via Picker (syncFileId). Ele NUNCA deve buscar/criar um
             // arquivo na própria pasta — isso o isolaria do arquivo do OWNER.
             if (isShared && !syncFileId) {
-              console.warn('[DriveSync] SHARED user without syncFileId — must re-link the owner\'s file');
-              _setStatus('error', '⚠️ Re-link the shared file (Link shared file button)');
-              if (typeof toast === 'function') toast('⚠️ Please re-link the shared file from the owner');
+              // Se temos folderId, podemos ao menos fazer pullIndex para descobrir
+              // perfis disponíveis antes de pedir ao usuário que vincule o arquivo.
+              if (meta.folderId) {
+                console.log('[DriveSync] SHARED without syncFileId — running pullIndex before blocking');
+                await Drive.pullIndex(meta.folderId).catch(() => { });
+              }
+              console.warn('[DriveSync] SHARED user without syncFileId — must pick the file via pickForProfile');
+              _setStatus('error', '⚠️ Select a list file to continue (tap the list name)');
+              if (typeof toast === 'function') toast('⚠️ Tap the list name to select its file from the shared folder');
               return;
             }
 
@@ -7607,12 +7638,16 @@
          * Resolve com { id, name } da pasta escolhida, ou rejeita se o usuário cancelar.
          */
         /**
-         * Abre o Picker em dois modos:
-         *   mode='file'   (default) — seleciona o arquivo Shop-List-Sync.json
-         *                             usado pelo usuário Shared para vincular o arquivo do dono
-         *   mode='folder' — seleciona a pasta (usado pelo Owner na configuração inicial)
+         * Abre o Picker em três modos:
+         *   mode='file'   (default) — seleciona qualquer arquivo JSON (Shop-List-Sync*.json)
+         *   mode='index'            — seleciona especificamente o Shop-List-Index.json
+         *                             usado pelo SHARED para descobrir todos os perfis
+         *   mode='folder'           — seleciona a pasta (Owner, configuração inicial)
+         *
+         * folderId opcional: quando fornecido, o Picker abre já dentro da pasta conhecida,
+         * poupando o usuário de navegar até ela.
          */
-        open(accessToken, mode = 'file') {
+        open(accessToken, mode = 'file', folderId = null) {
           return new Promise((resolve, reject) => {
             let view;
             if (mode === 'folder') {
@@ -7620,26 +7655,38 @@
                 .setSelectFolderEnabled(true)
                 .setIncludeFolders(true);
             } else {
-              // Seleciona arquivo JSON — filtra por mimeType para mostrar só JSON
+              // Modos 'file' e 'index': ambos selecionam JSON
               view = new google.picker.DocsView()
                 .setMimeTypes('application/json')
                 .setOwnedByMe(false)  // prioriza arquivos de outros (pasta do dono)
                 .setLabel('Shared with me');
+              // Se já conhecemos a pasta, abre direto nela
+              if (folderId) view = view.setParent(folderId);
             }
 
-            // Segunda view: My Drive (fallback para o Owner)
+            // Segunda view: My Drive (fallback)
             const myView = mode === 'folder'
               ? null
-              : new google.picker.DocsView()
-                .setMimeTypes('application/json')
-                .setOwnedByMe(true)
-                .setLabel('My Drive');
+              : (() => {
+                let v = new google.picker.DocsView()
+                  .setMimeTypes('application/json')
+                  .setOwnedByMe(true)
+                  .setLabel('My Drive');
+                if (folderId) v = v.setParent(folderId);
+                return v;
+              })();
+
+            const title = mode === 'folder'
+              ? 'Select sync folder'
+              : mode === 'index'
+                ? 'Select the Shop-List-Index.json file'
+                : 'Select the list file';
 
             let builder = new google.picker.PickerBuilder()
               .setOAuthToken(accessToken)
               .setAppId(DRIVE_APP_ID)   // CRÍTICO: concede acesso drive.file ao arquivo escolhido
               .addView(view)
-              .setTitle(mode === 'folder' ? 'Select sync folder' : 'Select the Shop-List-Sync.json file')
+              .setTitle(title)
               .setMaxItems(1)
               .setCallback((data) => {
                 if (data.action === google.picker.Action.PICKED) {
@@ -8063,74 +8110,178 @@
          * do dono. O fileId selecionado é gravado como syncFileId — o Sync.run
          * opera diretamente sobre ele, sem query de descoberta e sem drive.readonly.
          */
+        /**
+         * Opção C — Fluxo SHARED em duas etapas:
+         *
+         * Etapa 1 (esta função): SHARED faz pick do Shop-List-Index.json.
+         *   - extrai folderId via parentId (introduz a pasta ao escopo drive.file)
+         *   - grava sharedFolderId na meta global (chave especial, não por perfil)
+         *   - pullIndex importa todos os perfis do catálogo → modal exibe as listas
+         *   - para o perfil ativo (default), aciona pickForProfile automaticamente
+         *
+         * Etapa 2 (pickForProfile): ao selecionar um perfil adicional no modal,
+         *   o app abre o Picker pré-filtrado na pasta já conhecida para que o
+         *   SHARED escolha o Shop-List-Sync-{slug}.json correspondente.
+         */
         async pickSharedFolder() {
           try {
             const token = await Auth.ensureToken();
-            if (typeof toast === 'function') toast('📂 Select the Shop-List-Sync.json file…');
+            if (typeof toast === 'function') toast('📂 Select the Shop-List-Index.json file from the shared folder…');
             await Picker.load();
 
             let picked;
             try {
-              picked = await Picker.open(token, 'file');  // modo arquivo
+              picked = await Picker.open(token, 'index');  // modo índice
             } catch (e) {
               if (e.message === 'picker-cancelled') return;
               throw e;
             }
 
-            console.log('[DriveSync] picker returned:', JSON.stringify(picked));
+            console.log('[DriveSync] index picker returned:', JSON.stringify(picked));
 
-            // Valida que algo foi selecionado e tem id
             if (!picked || !picked.id) {
               if (typeof toast === 'function') toast('⚠️ No file selected');
               return;
             }
 
-            // Aviso (não-bloqueante) se o nome diferir do esperado — o usuário
-            // escolheu conscientemente via Picker, então respeitamos a escolha,
-            // mas alertamos caso tenha pego o arquivo errado.
-            if (picked.name && picked.name !== Drive.SYNC_FILENAME) {
-              console.warn('[DriveSync] picked file name differs from expected:',
-                picked.name, '!=', Drive.SYNC_FILENAME);
+            if (picked.name && picked.name !== Drive.INDEX_FILENAME) {
+              console.warn('[DriveSync] expected index file, got:', picked.name);
               if (typeof toast === 'function')
-                toast(`⚠️ Linked "${picked.name}" (expected ${Drive.SYNC_FILENAME})`);
+                toast(`⚠️ Expected "${Drive.INDEX_FILENAME}", got "${picked.name}" — please select the index file`);
+              return;
             }
 
-            // GRAVA syncFileId — este é o vínculo essencial. Sem isto o SHARED
-            // fica sem arquivo. Limpa dados locais antigos para forçar download
-            // do conteúdo do OWNER no próximo sync (local=none → baixa do Drive).
+            // Grava folderId compartilhado na meta do perfil ativo.
+            // Este folderId introduz a pasta ao escopo drive.file, habilitando
+            // o Picker filtrado em pickForProfile para arquivos dentro dela.
+            const sharedFolderId = picked.parentId || null;
             _folderId = null;
             _saveMeta({
-              syncFileId: picked.id,
-              folderId: picked.parentId || null,
+              folderId: sharedFolderId,
               folderOwnedByMe: false,
-              duplicateFolderId: null,
-              lastFile: Drive.SYNC_FILENAME,
-              lastSync: null,
-              cloudModifiedAt: null,   // será preenchido ao baixar o conteúdo real
               pickedManually: true,
+              duplicateFolderId: null,
+              lastSync: null,
+              // syncFileId ausente — será preenchido por pickForProfile
             });
 
-            // Limpa dados locais para que o SHARED baixe os dados do OWNER
-            // (evita que dados próprios antigos vençam o conflito por engano).
+            // Grava também na chave global para que pickForProfile de qualquer
+            // perfil saiba qual pasta usar, mesmo antes do perfil ter meta própria.
             try {
-              localStorage.removeItem(STORAGE_KEY);
-              if (typeof window._applyItems === 'function') window._applyItems([]);
-              console.log('[DriveSync] local data cleared — will download owner data');
+              localStorage.setItem('ShopList_sharedFolderId', sharedFolderId || '');
             } catch (_) { }
 
-            console.log('[DriveSync] syncFileId saved:', picked.id);
+            console.log('[DriveSync] shared folderId registered:', sharedFolderId);
 
             _setStatus('connected', '☁️ Drive connected');
             _startTimer();
-            if (typeof toast === 'function')
-              toast('✅ File linked: ' + picked.name + ' — syncing…');
             if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
 
-            await Sync.run('manual');
-            setTimeout(() => window.DriveSync.openPanel(), 1800);
+            // Baixa o índice e importa perfis desconhecidos localmente
+            if (sharedFolderId) {
+              await Drive.pullIndex(sharedFolderId);
+            }
+
+            if (typeof toast === 'function')
+              toast('✅ Shared folder linked — select a list to continue');
+
+            // Abre o Picker de arquivo para o perfil ativo imediatamente,
+            // para que o SHARED vincule o Shop-List-Sync.json do default agora.
+            setTimeout(() => window.DriveSync.pickForProfile(_currentSlug), 600);
 
           } catch (e) {
             console.error('[DriveSync] pickSharedFolder error:', e);
+            if (typeof toast === 'function') toast('❌ Could not link shared folder: ' + e.message);
+          }
+        },
+
+        /**
+         * Etapa 2 — SHARED vincula o arquivo de dados de um perfil específico.
+         * Abre o Picker pré-filtrado na pasta compartilhada já conhecida.
+         * Chamado: (a) automaticamente após pickSharedFolder para o perfil ativo,
+         *          (b) pelo modal "Select list" ao clicar em um perfil sem syncFileId.
+         */
+        async pickForProfile(slug) {
+          try {
+            const token = await Auth.ensureToken();
+            await Picker.load();
+
+            // Recupera o folderId compartilhado — primeiro da meta do perfil,
+            // depois da chave global gravada em pickSharedFolder.
+            const profileMeta = _readMetaOf(slug);
+            const globalFolderId = (() => {
+              try { return localStorage.getItem('ShopList_sharedFolderId') || null; } catch { return null; }
+            })();
+            const knownFolderId = profileMeta.folderId || globalFolderId;
+
+            const label = typeof Profiles !== 'undefined' ? Profiles.labelOf(slug) : slug;
+            if (typeof toast === 'function')
+              toast(`📂 Select the file for "${label}" in the shared folder…`);
+
+            let picked;
+            try {
+              // Abre o Picker pré-filtrado na pasta se o folderId for conhecido
+              picked = await Picker.open(token, 'file', knownFolderId);
+            } catch (e) {
+              if (e.message === 'picker-cancelled') return;
+              throw e;
+            }
+
+            console.log('[DriveSync] pickForProfile (' + slug + ') returned:', JSON.stringify(picked));
+
+            if (!picked || !picked.id) {
+              if (typeof toast === 'function') toast('⚠️ No file selected');
+              return;
+            }
+
+            // Valida nome esperado
+            const expectedName = slug === 'default'
+              ? 'Shop-List-Sync.json'
+              : `Shop-List-Sync-${slug}.json`;
+            if (picked.name && picked.name !== expectedName) {
+              console.warn('[DriveSync] pickForProfile: unexpected file name:', picked.name, 'expected:', expectedName);
+              if (typeof toast === 'function')
+                toast(`⚠️ Expected "${expectedName}", got "${picked.name}" — please select the correct file`);
+              return;
+            }
+
+            // Grava syncFileId na meta do perfil alvo (não necessariamente o ativo)
+            const metaKey = _syncMetaKey(slug);
+            const existing = (() => { try { return JSON.parse(localStorage.getItem(metaKey) || '{}'); } catch { return {}; } })();
+            localStorage.setItem(metaKey, JSON.stringify({
+              ...existing,
+              syncFileId: picked.id,
+              folderId: picked.parentId || knownFolderId || null,
+              folderOwnedByMe: false,
+              pickedManually: true,
+              lastSync: null,
+              cloudModifiedAt: null,
+            }));
+
+            // Limpa dados locais do perfil para forçar download do conteúdo do owner
+            try {
+              const dataKey = `Shop_List_${slug}`;
+              localStorage.removeItem(dataKey);
+              // Se o perfil alvo é o ativo, limpa também a UI em memória
+              if (slug === _currentSlug && typeof window._applyItems === 'function') {
+                window._applyItems([]);
+              }
+              console.log('[DriveSync] local data cleared for profile', slug, '— will download owner data');
+            } catch (_) { }
+
+            console.log('[DriveSync] pickForProfile: syncFileId saved for', slug, ':', picked.id);
+            if (typeof toast === 'function')
+              toast(`✅ "${label}" linked — syncing…`);
+            if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
+
+            // Se o perfil vinculado é o ativo, sincroniza imediatamente
+            if (slug === _currentSlug) {
+              await Sync.run('manual');
+              setTimeout(() => window.DriveSync.openPanel(), 1800);
+            }
+
+          } catch (e) {
+            console.error('[DriveSync] pickForProfile error:', e);
             if (typeof toast === 'function') toast('❌ Could not link file: ' + e.message);
           }
         },
