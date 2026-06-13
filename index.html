@@ -2068,6 +2068,30 @@
       font-family: 'DM Mono', monospace;
     }
 
+    /* ── Botão de perfil no footer ─────────────────────────────────────────── */
+    #btn-profile {
+      position: relative;
+      font-size: 16px;
+      /* emoji */
+    }
+
+    /* Dot indicador: aparece quando há 2+ perfis, sinaliza que há seleção disponível */
+    #btn-profile .profile-dot {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 1.5px solid var(--surface2);
+      display: none;
+    }
+
+    #btn-profile.has-profiles .profile-dot {
+      display: block;
+    }
+
     /* ── GOOGLE DRIVE SYNC ─────────────────────────────────────── */
     /* Botão no footer */
     #btn-drive {
@@ -3266,10 +3290,259 @@
         text-align: center;
       }
     }
+
+    /* ── Modal de seleção de perfil ─────────────────────────────────────── */
+    #profile-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 3000;
+      background: rgba(0, 0, 0, 0.55);
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+
+    #profile-modal.open {
+      display: flex;
+    }
+
+    #profile-box {
+      background: var(--surface);
+      border-radius: 18px;
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.22);
+      width: 100%;
+      max-width: 360px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #profile-box-header {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    #profile-box-header-text {
+      flex: 1;
+      min-width: 0;
+    }
+
+    #profile-box-header h2 {
+      margin: 0 0 2px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    #profile-box-header p {
+      margin: 0;
+      font-size: 12px;
+      color: var(--text3);
+    }
+
+    #profile-close-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      border: 1px solid var(--border2);
+      background: var(--surface2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      cursor: pointer;
+      flex-shrink: 0;
+      color: var(--text3);
+      transition: background var(--transition), color var(--transition), transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+      line-height: 1;
+    }
+
+    #profile-close-btn:hover {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    #profile-close-btn:active {
+      transform: scale(0.88);
+    }
+
+    #profile-list {
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 52vh;
+      overflow-y: auto;
+    }
+
+    .profile-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 14px;
+      border-radius: 12px;
+      border: 1.5px solid var(--border);
+      background: var(--surface2);
+      cursor: pointer;
+      transition: all var(--transition);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .profile-item:hover {
+      background: var(--border);
+      transform: scale(0.99);
+    }
+
+    .profile-item.active {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      box-shadow: 0 0 0 2px rgba(0, 121, 107, 0.12);
+    }
+
+    [data-theme="dark"] .profile-item.active {
+      box-shadow: 0 0 0 2px rgba(38, 198, 186, 0.14);
+    }
+
+    .profile-item__icon {
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .profile-item__info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .profile-item__label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .profile-item__slug {
+      font-size: 10px;
+      color: var(--text3);
+      font-family: 'DM Mono', monospace;
+    }
+
+    .profile-item__check {
+      color: var(--accent);
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+
+    /* Botões de ação inline no card (rename / delete) */
+    .profile-item__actions {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: opacity var(--transition);
+    }
+
+    .profile-item:hover .profile-item__actions,
+    .profile-item:focus-within .profile-item__actions {
+      opacity: 1;
+    }
+
+    /* No touch, sempre visível (sem hover) */
+    @media (hover: none) {
+      .profile-item__actions {
+        opacity: 1;
+      }
+    }
+
+    .profile-item__action {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      border: 1px solid var(--border2);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background var(--transition), border-color var(--transition), transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .profile-item__action:active {
+      transform: scale(0.88);
+    }
+
+    .profile-item__action:hover {
+      background: var(--border);
+    }
+
+    .profile-item__action--delete:hover {
+      background: var(--warn-light);
+      border-color: var(--row-off-border);
+    }
+
+    #profile-box-footer {
+      padding: 12px 20px 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    #profile-add-btn {
+      flex: 1;
+      padding: 9px 14px;
+      border-radius: 10px;
+      border: 1.5px dashed var(--border2);
+      background: transparent;
+      color: var(--text2);
+      font-size: 13px;
+      cursor: pointer;
+      text-align: center;
+      transition: all var(--transition);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #profile-add-btn:hover {
+      background: var(--border);
+    }
+
+    /* Badge de slug no sync-locality */
+    .loc-slug {
+      font-weight: 400;
+      opacity: 0.72;
+      letter-spacing: 0.06em;
+    }
   </style>
 </head>
 
 <body>
+  <!-- ── Seletor de perfil (aparece no boot quando há 2+ perfis, ou ao trocar manualmente) ── -->
+  <div id="profile-modal" role="dialog" aria-modal="true" aria-label="Select list profile">
+    <div id="profile-box">
+      <div id="profile-box-header">
+        <div id="profile-box-header-text">
+          <h2>📋 Select list</h2>
+          <p>Choose which list to open</p>
+        </div>
+        <div id="profile-close-btn" onclick="closeProfileModal()" title="Close" aria-label="Close">✕</div>
+      </div>
+      <div id="profile-list"><!-- preenchido por openProfileModal() --></div>
+      <div id="profile-box-footer">
+        <div id="profile-add-btn" onclick="profileAddNew()">＋ New list</div>
+      </div>
+    </div>
+  </div>
+
   <div id="app">
     <div id="header">
       <div id="header-top">
@@ -3316,11 +3589,16 @@
             </span>
           </div>
           <div class="filter-divider" aria-hidden="true"></div>
-          <div class="filter-btn" data-filter="crit" title="Stock low" onclick="applyQuickFilter('crit')">🔴</div>
+
+          <div class="filter-btn" data-filter="ok" title="Stock replenished" onclick="applyQuickFilter('ok')">🟢</div>
+
           <div class="filter-btn" data-filter="warn" title="Stock at the limit" onclick="applyQuickFilter('warn')">🟡
           </div>
-          <div class="filter-btn" data-filter="ok" title="Stock replenished" onclick="applyQuickFilter('ok')">🟢</div>
+
+          <div class="filter-btn" data-filter="crit" title="Stock low" onclick="applyQuickFilter('crit')">🔴</div>
+
           <div class="filter-divider" aria-hidden="true"></div>
+
           <div id="zero-filter-btn" class="filter-btn" data-filter="zero"
             title="Zero stock — critical items with qty = 0" onclick="applyQuickFilter('zero')">⭕</div>
         </div>
@@ -3417,6 +3695,12 @@
             <polyline points="17 8 12 3 7 8" />
             <line x1="12" y1="3" x2="12" y2="15" />
           </svg>
+        </div>
+
+        <!-- Perfis / listas -->
+        <div class="fbtn" id="btn-profile" title="Switch list / manage profiles" onclick="openProfileModal()">
+          🛒
+          <span class="profile-dot"></span>
         </div>
 
         <!-- Google Drive Sync -->
@@ -3522,9 +3806,62 @@
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
-    const STORAGE_KEY = 'Shop_List_v20260611';
+    // ── Perfis ──────────────────────────────────────────────────────────────
+    const PROFILES_KEY = 'ShopList_profiles';      // catálogo de perfis
+    const ACTIVE_PROFILE_KEY = 'ShopList_activeProfile'; // slug do perfil ativo
+
+    // Carrega perfis do localStorage — retorna array (nunca null)
+    function _profilesLoad() {
+      try { return JSON.parse(localStorage.getItem(PROFILES_KEY) || '[]'); } catch { return []; }
+    }
+    function _profilesSave(list) {
+      localStorage.setItem(PROFILES_KEY, JSON.stringify(list));
+    }
+    function _activeSlug() {
+      return localStorage.getItem(ACTIVE_PROFILE_KEY) || 'default';
+    }
+    function _setActiveSlug(slug) {
+      localStorage.setItem(ACTIVE_PROFILE_KEY, slug);
+    }
+
+    // Slug → chaves dinâmicas de dados e sync
+    function _storageKey(slug) { return `Shop_List_${slug}`; }
+    function _uiKey(slug) { return `Shop_List_ui_${slug}`; }
+    function _syncMetaKey(slug) { return `ShopList_driveSync_${slug}`; }
+
+    // Migração silenciosa: se ainda não há perfis, empacota o dado atual como 'default'
+    function _migrateIfNeeded() {
+      const profiles = _profilesLoad();
+      if (profiles.length > 0) return; // já migrado
+
+      // Copia dados legados para as novas chaves com slug 'default'
+      const LEGACY_DATA_KEY = 'Shop_List_v20260913';
+      const LEGACY_UI_KEY = 'Shop_List_ui';
+      const LEGACY_SYNC_KEY = 'ShopList_driveSync';
+      const slug = 'default';
+
+      const dataRaw = localStorage.getItem(LEGACY_DATA_KEY);
+      if (dataRaw) localStorage.setItem(_storageKey(slug), dataRaw);
+
+      const uiRaw = localStorage.getItem(LEGACY_UI_KEY);
+      if (uiRaw) localStorage.setItem(_uiKey(slug), uiRaw);
+
+      const syncRaw = localStorage.getItem(LEGACY_SYNC_KEY);
+      if (syncRaw) localStorage.setItem(_syncMetaKey(slug), syncRaw);
+
+      _profilesSave([{ slug, label: 'Default', createdAt: new Date().toISOString() }]);
+      _setActiveSlug(slug);
+      console.log('[Profiles] migrated legacy data → profile "default"');
+    }
+
+    // Slug activo no momento — reatribuído por switchProfile()
+    let _currentSlug = 'default';
+
+    // Chaves dinâmicas (usadas em load/save/DriveSync)
+    let STORAGE_KEY = _storageKey('default');
+    let UI_KEY = _uiKey('default');
+
     const THEME_KEY = 'Shop_List_theme';
-    const UI_KEY = 'Shop_List_ui';
     const BACKUP_THRESHOLD = 10; // alterações antes de sugerir backup
     let items = [];
     let currentTab = 0;
@@ -3536,6 +3873,75 @@
     let sortMode = 'az';          // 'az' | 'cat' | 'fav'
     const _collapsedSections = new Set(); // persiste estado collapsed entre renders
     let activeQuickFilter = '';   // '' | 'fav' | 'warn' | 'crit'
+
+    // ── Troca de perfil em runtime ───────────────────────────────────────────
+    // Atualiza visual do botão de perfil no footer
+    function _syncProfileBtn() {
+      const btn = document.getElementById('btn-profile');
+      if (!btn) return;
+      const hasMultiple = Profiles.list().length > 1;
+      btn.classList.toggle('has-profiles', hasMultiple);
+      btn.title = hasMultiple
+        ? `Active list: ${Profiles.labelOf(_currentSlug)} — tap to switch`
+        : 'Manage lists';
+    }
+
+    function switchProfile(slug) {
+      _currentSlug = slug;
+      STORAGE_KEY = _storageKey(slug);
+      UI_KEY = _uiKey(slug);
+      _setActiveSlug(slug);
+      // Reinicia estado em memória
+      items = [];
+      sortMode = 'az';
+      activeQuickFilter = '';
+      searchQuery = '';
+      _collapsedSections.clear();
+      load();
+      render();
+      updateSyncBadge();
+      syncFavBtn();
+      _syncProfileBtn();
+    }
+
+    // ── CRUD de perfis ───────────────────────────────────────────────────────
+    const Profiles = {
+      list() { return _profilesLoad(); },
+
+      add(label) {
+        const slug = label.trim().toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || ('p' + Date.now());
+        const profiles = _profilesLoad();
+        if (profiles.find(p => p.slug === slug)) return null; // já existe
+        const entry = { slug, label: label.trim(), createdAt: new Date().toISOString() };
+        profiles.push(entry);
+        _profilesSave(profiles);
+        return entry;
+      },
+
+      rename(slug, newLabel) {
+        const profiles = _profilesLoad();
+        const p = profiles.find(p => p.slug === slug);
+        if (p) { p.label = newLabel.trim(); _profilesSave(profiles); }
+      },
+
+      remove(slug) {
+        if (slug === _currentSlug) return false; // não remove o ativo
+        const profiles = _profilesLoad().filter(p => p.slug !== slug);
+        _profilesSave(profiles);
+        // limpa dados órfãos
+        [_storageKey(slug), _uiKey(slug), _syncMetaKey(slug)].forEach(k => {
+          try { localStorage.removeItem(k); } catch (_) { }
+        });
+        return true;
+      },
+
+      labelOf(slug) {
+        const p = _profilesLoad().find(p => p.slug === slug);
+        return p ? p.label : slug;
+      }
+    };
 
     // ==================== UTILITÁRIOS ====================
     function uid() {
@@ -4684,7 +5090,8 @@
       const el = document.getElementById('sync-locality');
       if (!el) return;
       try {
-        const meta = JSON.parse(localStorage.getItem('ShopList_driveSync') || '{}');
+        const metaKey = _syncMetaKey(_currentSlug);
+        const meta = JSON.parse(localStorage.getItem(metaKey) || '{}');
         const connected = (() => {
           try {
             const t = JSON.parse(localStorage.getItem('ShopList_driveToken') || 'null');
@@ -4697,21 +5104,27 @@
           el.style.display = 'none';
           return;
         }
+        // Slug suffix — exibe o label do perfil se houver mais de um perfil
+        const profiles = Profiles.list();
+        const slugSuffix = profiles.length > 1
+          ? ` <span class="loc-slug">· ${esc(Profiles.labelOf(_currentSlug))}</span>`
+          : '';
+
         // pickedManually=true sempre significa arquivo do dono → shared
         const isShared = meta.pickedManually === true || meta.folderOwnedByMe === false;
         const hasDup = !!meta.duplicateFolderId;
         if (hasDup) {
-          el.textContent = '⚠ duplicate';
+          el.innerHTML = `⚠ duplicate${slugSuffix}`;
           el.className = 'loc-duplicate';
           el.title = 'Two sync folders detected — click to resolve';
         } else if (isShared) {
-          el.textContent = '🔓 shared';
+          el.innerHTML = `🔓 shared${slugSuffix}`;
           el.className = 'loc-shared';
-          el.title = 'Syncing to a file shared with you — click for details';
+          el.title = `Syncing to a file shared with you (${Profiles.labelOf(_currentSlug)}) — click for details`;
         } else {
-          el.textContent = '🔒 owner';
+          el.innerHTML = `🔒 owner${slugSuffix}`;
           el.className = 'loc-owner';
-          el.title = 'Syncing to your own folder — click for details';
+          el.title = `Syncing to your own folder (${Profiles.labelOf(_currentSlug)}) — click for details`;
         }
         el.style.display = 'inline-flex';
       } catch { el.style.display = 'none'; }
@@ -5885,12 +6298,109 @@
       }
     });
 
+    // ==================== SELETOR DE PERFIL ====================
+    function closeProfileModal() {
+      document.getElementById('profile-modal').classList.remove('open');
+    }
+
+    // Fecha ao clicar/tocar no backdrop (fora do #profile-box)
+    document.getElementById('profile-modal').addEventListener('click', function (e) {
+      if (e.target === this) closeProfileModal();
+    });
+    function openProfileModal({ onSelect } = {}) {
+      const modal = document.getElementById('profile-modal');
+      const listEl = document.getElementById('profile-list');
+      const profiles = Profiles.list();
+      const current = _currentSlug;
+
+      listEl.innerHTML = profiles.map(p => {
+        const isActive = p.slug === current;
+        // Botões de ação: rename sempre disponível; delete só para perfis não-ativos
+        const deleteBtn = !isActive
+          ? `<div class="profile-item__action profile-item__action--delete"
+                  title="Delete list"
+                  onclick="event.stopPropagation(); profileDelete('${p.slug}')">🗑</div>`
+          : '';
+        const renameBtn = `<div class="profile-item__action"
+                  title="Rename list"
+                  onclick="event.stopPropagation(); profileRename('${p.slug}')">✏️</div>`;
+
+        return `
+          <div class="profile-item ${isActive ? 'active' : ''}"
+               onclick="_profilePick('${p.slug}')">
+            <span class="profile-item__icon">${isActive ? '📂' : '📁'}</span>
+            <div class="profile-item__info">
+              <div class="profile-item__label">${esc(p.label)}</div>
+              <div class="profile-item__slug">${esc(p.slug)}</div>
+            </div>
+            <div class="profile-item__actions">
+              ${renameBtn}
+              ${deleteBtn}
+            </div>
+            ${isActive ? '<span class="profile-item__check">✓</span>' : ''}
+          </div>`;
+      }).join('');
+
+      modal._onSelect = onSelect || null;
+      modal.classList.add('open');
+    }
+
+    function _profilePick(slug) {
+      const modal = document.getElementById('profile-modal');
+      modal.classList.remove('open');
+      if (slug === _currentSlug) return;
+      switchProfile(slug);
+      toast(`📋 ${Profiles.labelOf(slug)}`);
+    }
+
+    function profileAddNew() {
+      const label = prompt('Name for the new list:', '');
+      if (!label || !label.trim()) return;
+      const entry = Profiles.add(label);
+      if (!entry) { toast('⚠️ A list with this name already exists.'); return; }
+      document.getElementById('profile-modal').classList.remove('open');
+      switchProfile(entry.slug);
+      toast(`📋 ${entry.label} created`);
+    }
+
+    function profileRename(slug) {
+      const current = Profiles.labelOf(slug);
+      const newLabel = prompt(`Rename "${current}" to:`, current);
+      if (!newLabel || !newLabel.trim() || newLabel.trim() === current) return;
+      Profiles.rename(slug, newLabel.trim());
+      toast(`✅ Renamed to "${newLabel.trim()}"`);
+      openProfileModal();
+    }
+
+    function profileDelete(slug) {
+      const label = Profiles.labelOf(slug);
+      if (!confirm(`Delete "${label}"?\n\nAll data in this list will be permanently erased.`)) return;
+      Profiles.remove(slug);
+      _syncProfileBtn();
+      toast(`🗑 "${label}" deleted`);
+      openProfileModal();
+    }
+
     // ==================== INICIALIZAÇÃO ====================
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') closeModal();
+      if (e.key === 'Escape') {
+        closeModal();
+        closeProfileModal();
+      }
     });
 
+    // ── Boot: migração + seleção de perfil ──────────────────────────────────
+    _migrateIfNeeded();
+    _currentSlug = _activeSlug();
+    STORAGE_KEY = _storageKey(_currentSlug);
+    UI_KEY = _uiKey(_currentSlug);
     load();
+
+    const _bootProfiles = Profiles.list();
+    if (_bootProfiles.length > 1) {
+      // 2+ perfis: exibe seletor de confirmação logo após o primeiro render
+      requestAnimationFrame(() => openProfileModal());
+    }
 
     // Restaura visual do filtro ativo persistido
     if (activeQuickFilter) {
@@ -5925,6 +6435,7 @@
     })();
 
     render();
+    _syncProfileBtn(); // dot indicador no botão de perfil
 
     // Sincroniza ícone do tema no rodapé com o tema carregado
     (function syncThemeIcon() {
@@ -6583,7 +7094,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260611');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260913');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -6624,7 +7135,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260611', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260913', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
@@ -6906,15 +7417,18 @@
         },
       };
 
-      // ─── META / PERSISTÊNCIA DE ESTADO ─────────────────────────────────────────
+      // SYNC_KEY é dinâmico: aponta para o meta do perfil ativo via _syncMetaKey()
+      // Getter lazy — sempre reflete _currentSlug atual, inclusive após switchProfile()
+      function _getSyncKey() { return _syncMetaKey(_currentSlug); }
+
       function _loadMeta() {
-        try { return JSON.parse(localStorage.getItem(SYNC_KEY) || '{}'); } catch { return {}; }
+        try { return JSON.parse(localStorage.getItem(_getSyncKey()) || '{}'); } catch { return {}; }
       }
 
       function _saveMeta(patch) {
         try {
           const cur = _loadMeta();
-          localStorage.setItem(SYNC_KEY, JSON.stringify({ ...cur, ...patch }));
+          localStorage.setItem(_getSyncKey(), JSON.stringify({ ...cur, ...patch }));
         } catch (_) { }
       }
 
