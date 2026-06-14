@@ -3626,7 +3626,7 @@
     <div id="profile-box">
       <div id="profile-box-header">
         <div id="profile-box-header-text">
-          <h2>📋 Select list</h2>
+          <h2>🛒 Select list</h2>
           <p>Choose which list to open</p>
         </div>
         <div id="profile-close-btn" onclick="closeProfileModal()" title="Close" aria-label="Close">✕</div>
@@ -8167,7 +8167,7 @@
             // Exibe o fileId truncado como referência do arquivo vinculado
             const filesInfo = id
               ? `<div class="ds-card__files">
-                 📄 ${Drive.SYNC_FILENAME}${id ? ' · id: ' + id.slice(0, 14) + '…' : ''}
+                 🔗 ${Drive.SYNC_FILENAME}${id ? ' · id: ' + id.slice(0, 14) + '…' : ''}
                </div>` : '';
 
             // "Use this file" só aparece quando o card não está em uso
@@ -8325,8 +8325,7 @@
             </div>
 
             <div class="ds-note">
-              Sync uses a single file <code>${Drive.SYNC_FILENAME}</code>,
-              updated in place. Share that file in Drive (with edit access) to collaborate with others.
+              Share the file on Drive (with edit access) to collaborate with others.
             </div>
 
             ${window.matchMedia('(display-mode: standalone)').matches ? `
