@@ -3490,6 +3490,54 @@
       border-color: var(--row-off-border);
     }
 
+    /* Badge de localidade/propriedade no card de perfil */
+    .profile-item__locality {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      padding: 2px 6px;
+      border-radius: 20px;
+      flex-shrink: 0;
+      margin-top: 3px;
+      border: 1px solid transparent;
+    }
+
+    .profile-item__locality--owner {
+      color: var(--accent-text, #00796B);
+      background: var(--accent-light, rgba(0, 121, 107, 0.08));
+      border-color: rgba(0, 121, 107, 0.18);
+    }
+
+    .profile-item__locality--shared {
+      color: #7c3aed;
+      background: rgba(124, 58, 237, 0.08);
+      border-color: rgba(124, 58, 237, 0.18);
+    }
+
+    [data-theme="dark"] .profile-item__locality--shared {
+      color: #a78bfa;
+      background: rgba(167, 139, 250, 0.10);
+      border-color: rgba(167, 139, 250, 0.20);
+    }
+
+    .profile-item__locality--unlinked {
+      color: var(--text3);
+      background: var(--surface);
+      border-color: var(--border);
+    }
+
+    /* Na linha de meta-info (abaixo do label) */
+    .profile-item__meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 1px;
+    }
+
     #profile-box-footer {
       padding: 12px 14px 14px;
       border-top: 1px solid var(--border);
@@ -3849,7 +3897,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260613-single-file-sync.r10-picker-appid';
+    const APP_BUILD = '20260613-single-file-sync.r12-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -5201,8 +5249,22 @@
           ? ` <span class="loc-slug">· ${esc(Profiles.labelOf(_currentSlug))}</span>`
           : '';
 
-        // pickedManually=true sempre significa arquivo do dono → shared
-        const isShared = meta.pickedManually === true || meta.folderOwnedByMe === false;
+        // Detecta papel do dispositivo com as mesmas regras do Sync.run:
+        // pickedManually=true ou folderOwnedByMe=false → SHARED.
+        // Guarda adicional: se algum perfil tem folderOwnedByMe=true,
+        // o dispositivo é definitivamente OWNER — ignora flags SHARED espúrias
+        // que possam ter sido gravadas por contaminação de meta.
+        const _anyOwnerProfile = (() => {
+          try {
+            return Profiles.list().some(p => {
+              const m = JSON.parse(localStorage.getItem(_syncMetaKey(p.slug)) || '{}');
+              return m.folderOwnedByMe === true;
+            });
+          } catch { return false; }
+        })();
+        const isShared = !_anyOwnerProfile &&
+          (meta.pickedManually === true || meta.folderOwnedByMe === false ||
+            !!localStorage.getItem('ShopList_sharedFolderId'));
         const hasDup = !!meta.duplicateFolderId;
         if (hasDup) {
           el.innerHTML = `⚠ duplicate${slugSuffix}`;
@@ -6406,8 +6468,39 @@
       const profiles = Profiles.list();
       const current = _currentSlug;
 
+      // Detecta se o dispositivo é OWNER definitivo (qualquer perfil com folderOwnedByMe=true)
+      const _deviceIsOwner = profiles.some(p => {
+        try {
+          const m = JSON.parse(localStorage.getItem(_syncMetaKey(p.slug)) || '{}');
+          return m.folderOwnedByMe === true;
+        } catch { return false; }
+      });
+
       listEl.innerHTML = profiles.map(p => {
         const isActive = p.slug === current;
+
+        // ── Badge de localidade por perfil ──────────────────────────────────
+        const pMeta = (() => {
+          try { return JSON.parse(localStorage.getItem(_syncMetaKey(p.slug)) || '{}'); } catch { return {}; }
+        })();
+        const hasSync = !!(pMeta.syncFileId || pMeta.folderId);
+        const pShared = !_deviceIsOwner &&
+          (pMeta.pickedManually === true || pMeta.folderOwnedByMe === false);
+        const pOwner = _deviceIsOwner || pMeta.folderOwnedByMe === true;
+        const needLink = hasSync === false || (!pMeta.syncFileId && pShared);
+
+        let localityBadge = '';
+        if (!hasSync) {
+          localityBadge = `<span class="profile-item__locality profile-item__locality--unlinked"
+                                title="Not linked to Drive yet">⚪ not linked</span>`;
+        } else if (pShared) {
+          localityBadge = `<span class="profile-item__locality profile-item__locality--shared"
+                                title="Syncing to a file shared by the owner">🔓 shared</span>`;
+        } else if (pOwner) {
+          localityBadge = `<span class="profile-item__locality profile-item__locality--owner"
+                                title="Syncing to your own Drive folder">🔒 owner</span>`;
+        }
+
         // Botões de ação: rename sempre disponível; delete só para perfis não-ativos
         const deleteBtn = !isActive
           ? `<div class="profile-item__action profile-item__action--delete"
@@ -6424,7 +6517,10 @@
             <span class="profile-item__icon">${isActive ? '📂' : '📁'}</span>
             <div class="profile-item__info">
               <div class="profile-item__label">${esc(p.label)}</div>
-              <div class="profile-item__slug">${esc(p.slug)}</div>
+              <div class="profile-item__meta">
+                <span class="profile-item__slug">${esc(p.slug)}</span>
+                ${localityBadge}
+              </div>
             </div>
             <div class="profile-item__actions">
               ${renameBtn}
@@ -7238,8 +7334,24 @@
             if (window._profilesSave) window._profilesSave(merged);
             console.log('[DriveSync] pullIndex: imported', toAdd.length, 'profile(s):', toAdd.map(p => p.slug));
 
-            // Herda folderId para cada perfil importado via window._syncMetaKey
-            const isSharedDevice = (() => { try { const m = _loadMeta(); return m.folderOwnedByMe === false || m.pickedManually === true; } catch { return false; } })();
+            // Herda folderId para cada perfil importado via window._syncMetaKey.
+            // isSharedDevice: usa a mesma lógica robusta do Sync.run —
+            // se qualquer perfil tem folderOwnedByMe=true, é OWNER.
+            const isSharedDevice = (() => {
+              try {
+                const profiles = window._profilesLoad ? window._profilesLoad() : [];
+                const anyOwner = profiles.some(p => {
+                  const mk = window._syncMetaKey ? window._syncMetaKey(p.slug) : null;
+                  if (!mk) return false;
+                  const m = JSON.parse(localStorage.getItem(mk) || '{}');
+                  return m.folderOwnedByMe === true;
+                });
+                if (anyOwner) return false;  // OWNER definitivo
+                const m = _loadMeta();
+                return m.folderOwnedByMe === false || m.pickedManually === true
+                  || !!localStorage.getItem('ShopList_sharedFolderId');
+              } catch { return false; }
+            })();
             toAdd.forEach(p => {
               const metaKey = window._syncMetaKey ? window._syncMetaKey(p.slug) : null;
               if (!metaKey) return;
@@ -7469,10 +7581,30 @@
               || _hasSharedSetup;
 
             if (_hasSharedSetup && !meta.pickedManually && meta.folderOwnedByMe !== false) {
-              console.log('[DriveSync] isShared=true via ShopList_sharedFolderId fallback',
-                '(meta não reflete SHARED — pode ter sido corrompida)');
-              // Corrige a meta do perfil ativo para refletir o papel correto
-              _saveMeta({ folderOwnedByMe: false, pickedManually: true });
+              // Guarda adicional antes de auto-corrigir: verifica se algum perfil
+              // tem folderOwnedByMe=true — sinal definitivo de dispositivo OWNER.
+              // Se sim, ShopList_sharedFolderId foi gravado por engano e o fallback
+              // não deve atuar — remove a chave espúria para evitar futuros falsos positivos.
+              const _anyOwnerMeta = (() => {
+                try {
+                  const profiles = window._profilesLoad ? window._profilesLoad() : [];
+                  return profiles.some(p => {
+                    const m = JSON.parse(localStorage.getItem(_syncMetaKey(p.slug)) || '{}');
+                    return m.folderOwnedByMe === true;
+                  });
+                } catch { return false; }
+              })();
+              if (_anyOwnerMeta) {
+                console.log('[DriveSync] ShopList_sharedFolderId presente mas dispositivo é OWNER',
+                  '— removendo chave espúria');
+                try { localStorage.removeItem('ShopList_sharedFolderId'); } catch (_) { }
+                // Recalcula isShared sem o fallback — já foi calculado como true acima,
+                // mas a execução continua como OWNER (folderId e ensureFolder serão usados)
+              } else {
+                console.log('[DriveSync] isShared=true via ShopList_sharedFolderId fallback',
+                  '(meta não reflete SHARED — pode ter sido corrompida)');
+                _saveMeta({ folderOwnedByMe: false, pickedManually: true });
+              }
             }
 
             console.log('[DriveSync] role:', isShared ? 'SHARED' : 'OWNER',
