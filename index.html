@@ -3897,7 +3897,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260613-single-file-sync.r12-picker-appid';
+    const APP_BUILD = '20260613-single-file-sync.r15-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4030,7 +4030,14 @@
       rename(slug, newLabel) {
         const profiles = _profilesLoad();
         const p = profiles.find(p => p.slug === slug);
-        if (p) { p.label = newLabel.trim(); _profilesSave(profiles); }
+        if (p) {
+          p.label = newLabel.trim();
+          _profilesSave(profiles);
+          // Invalida cache do índice — força pushIndex na próxima sync
+          try { localStorage.removeItem('ShopList_indexPushedAt'); } catch (_) { }
+          // Aciona pushIndex imediatamente se Drive conectado
+          _triggerIndexPush();
+        }
       },
 
       remove(slug) {
@@ -4041,6 +4048,10 @@
         [_storageKey(slug), _uiKey(slug), _syncMetaKey(slug)].forEach(k => {
           try { localStorage.removeItem(k); } catch (_) { }
         });
+        // Invalida cache do índice — força pushIndex na próxima sync
+        try { localStorage.removeItem('ShopList_indexPushedAt'); } catch (_) { }
+        // Aciona pushIndex imediatamente se Drive conectado
+        _triggerIndexPush();
         return true;
       },
 
@@ -6613,6 +6624,9 @@
 
       switchProfile(entry.slug);
       toast(`📋 ${entry.label} created`);
+      // Invalida cache do índice — garante que pushIndex na próxima sync
+      // inclua o novo perfil, mesmo que o Sync.run desta sessão falhe.
+      try { localStorage.removeItem('ShopList_indexPushedAt'); } catch (_) { }
     }
 
     function profileRename(slug) {
@@ -6640,6 +6654,23 @@
         closeProfileModal();
       }
     });
+
+    // Helper: aciona pushIndex de forma não-bloqueante quando Drive está pronto.
+    // Chamado por profileAddNew, rename e remove para manter o índice atualizado
+    // imediatamente após mutações no catálogo de perfis.
+    function _triggerIndexPush() {
+      try {
+        if (!window.DriveSync || !window.DriveSync._ready) return;
+        const meta = JSON.parse(localStorage.getItem(
+          'ShopList_driveSync_' + (typeof _currentSlug !== 'undefined' ? _currentSlug : 'default')
+        ) || '{}');
+        const folderId = meta.folderId || null;
+        const isOwner = meta.folderOwnedByMe !== false && !meta.pickedManually;
+        if (folderId && isOwner) {
+          window.DriveSync.pushIndex(folderId).catch(() => { });
+        }
+      } catch (_) { }
+    }
 
     // ── Boot: migração + seleção de perfil ──────────────────────────────────
     _migrateIfNeeded();
@@ -7271,7 +7302,8 @@
         async pushIndex(folderId) {
           if (!folderId) return;
           const profiles = window._profilesLoad ? window._profilesLoad() : [];
-          const payload = JSON.stringify({ updatedAt: new Date().toISOString(), profiles });
+          const updatedAt = new Date().toISOString();
+          const payload = JSON.stringify({ updatedAt, profiles });
           try {
             const existing = await Drive.findIndexFile(folderId);
             if (existing) {
@@ -7279,7 +7311,7 @@
                 `/files/${existing.id}?uploadType=media&fields=id&supportsAllDrives=true`,
                 { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: payload }
               );
-              console.log('[DriveSync] index updated:', Drive.INDEX_FILENAME);
+              console.log('[DriveSync] index updated:', Drive.INDEX_FILENAME, '| profiles:', profiles.length);
             } else {
               const metadata = { name: Drive.INDEX_FILENAME, parents: [folderId], mimeType: 'application/json' };
               const form = new FormData();
@@ -7291,6 +7323,9 @@
               );
               console.log('[DriveSync] index created:', Drive.INDEX_FILENAME);
             }
+            // Grava updatedAt local — pullIndex pode comparar para evitar
+            // re-processamento quando o índice não mudou desde o último pull.
+            try { localStorage.setItem('ShopList_indexPushedAt', updatedAt); } catch (_) { }
           } catch (e) {
             console.warn('[DriveSync] pushIndex failed (non-fatal):', e.message);
           }
@@ -7320,19 +7355,49 @@
             const remoteProfiles = idx.profiles || [];
             if (!Array.isArray(remoteProfiles) || remoteProfiles.length === 0) return;
 
+            // Verifica updatedAt — se o índice não mudou desde o último pull
+            // bem-sucedido neste dispositivo, evita re-processamento.
+            const remoteUpdatedAt = idx.updatedAt || null;
+            const localPulledAt = (() => {
+              try { return localStorage.getItem('ShopList_indexPulledAt') || null; } catch { return null; }
+            })();
+            if (remoteUpdatedAt && localPulledAt && remoteUpdatedAt <= localPulledAt) {
+              console.log('[DriveSync] pullIndex: index unchanged since last pull (' + remoteUpdatedAt + ') — skipping');
+              return;
+            }
+
             // Usa window.X para acesso explícito e confiável às funções do script 1
             const local = window._profilesLoad ? window._profilesLoad() : [];
             const localSlugs = new Set(local.map(p => p.slug));
             const toAdd = remoteProfiles.filter(p => p.slug && p.label && !localSlugs.has(p.slug));
 
-            if (toAdd.length === 0) {
-              console.log('[DriveSync] pullIndex: no new profiles to import');
+            // Propaga renomes: atualiza labels de perfis já existentes localmente
+            // cujo label no índice remoto difere do local.
+            let renamed = 0;
+            const updated = local.map(lp => {
+              const remote = remoteProfiles.find(rp => rp.slug === lp.slug);
+              if (remote && remote.label && remote.label !== lp.label) {
+                renamed++;
+                console.log('[DriveSync] pullIndex: rename propagated:', lp.slug,
+                  lp.label, '→', remote.label);
+                return { ...lp, label: remote.label };
+              }
+              return lp;
+            });
+
+            if (toAdd.length === 0 && renamed === 0) {
+              console.log('[DriveSync] pullIndex: no new profiles or renames to import');
+              // Grava localPulledAt mesmo sem mudanças — evita re-verificação desnecessária
+              try { localStorage.setItem('ShopList_indexPulledAt', remoteUpdatedAt || new Date().toISOString()); } catch (_) { }
               return;
             }
 
-            const merged = [...local, ...toAdd];
+            const merged = [...updated, ...toAdd];
             if (window._profilesSave) window._profilesSave(merged);
-            console.log('[DriveSync] pullIndex: imported', toAdd.length, 'profile(s):', toAdd.map(p => p.slug));
+            console.log('[DriveSync] pullIndex: imported', toAdd.length,
+              'new profile(s), propagated', renamed, 'rename(s)');
+            // Grava timestamp do pull bem-sucedido
+            try { localStorage.setItem('ShopList_indexPulledAt', remoteUpdatedAt || new Date().toISOString()); } catch (_) { }
 
             // Herda folderId para cada perfil importado via window._syncMetaKey.
             // isSharedDevice: usa a mesma lógica robusta do Sync.run —
@@ -8324,6 +8389,11 @@
          *  sem depender de _syncMetaKey (que é privada ao IIFE do DriveSync). */
         readMetaOf(slug) {
           return _readMetaOf(slug);
+        },
+
+        /** Exposição pública de pushIndex para uso por _triggerIndexPush no script 1 */
+        pushIndex(folderId) {
+          return Drive.pushIndex(folderId);
         },
 
         /** Elege uma pasta como ativa, descartando a outra como duplicata */
