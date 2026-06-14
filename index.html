@@ -3849,7 +3849,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260613-single-file-sync.r08-picker-appid';
+    const APP_BUILD = '20260613-single-file-sync.r09-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -7436,6 +7436,13 @@
               || meta.folderOwnedByMe === false
               || _hasSharedSetup;
 
+            if (_hasSharedSetup && !meta.pickedManually && meta.folderOwnedByMe !== false) {
+              console.log('[DriveSync] isShared=true via ShopList_sharedFolderId fallback',
+                '(meta não reflete SHARED — pode ter sido corrompida)');
+              // Corrige a meta do perfil ativo para refletir o papel correto
+              _saveMeta({ folderOwnedByMe: false, pickedManually: true });
+            }
+
             console.log('[DriveSync] role:', isShared ? 'SHARED' : 'OWNER',
               '| syncFileId:', syncFileId || 'none',
               '| pickedManually:', !!meta.pickedManually,
@@ -8246,24 +8253,54 @@
             }
 
             _folderId = null;
-            _saveMeta({
-              syncFileId: null,         // descarta arquivo próprio criado antes do SHARED
+
+            // Grava meta de configuração SHARED SEMPRE no perfil 'default'.
+            // O boot do app sempre inicia no 'default' — é onde a contaminação
+            // ocorre (syncFileId de arquivo próprio criado antes do pickSharedFolder).
+            // Não usa _saveMeta() (que opera no perfil ativo) para não afetar
+            // metas de perfis adicionais já corretamente vinculados.
+            const _defaultMetaKey = _syncMetaKey('default');
+            const _defaultMetaCur = (() => {
+              try { return JSON.parse(localStorage.getItem(_defaultMetaKey) || '{}'); } catch { return {}; }
+            })();
+            const _defaultMetaWasOwner = _defaultMetaCur.folderOwnedByMe !== false
+              && !_defaultMetaCur.pickedManually;
+            localStorage.setItem(_defaultMetaKey, JSON.stringify({
+              ..._defaultMetaCur,
+              syncFileId: null,         // descarta arquivo próprio do SHARED (se havia)
               folderId: sharedFolderId,
               folderOwnedByMe: false,
               pickedManually: true,
               duplicateFolderId: null,
               lastSync: null,
-              cloudModifiedAt: null,         // invalida cache de data — força re-download
-            });
-            // Limpa dados locais do perfil default para que o SHARED baixe os dados
-            // do OWNER na próxima sync — sem isso, dados próprios do SHARED (criados
-            // quando o app rodou como OWNER antes do pickSharedFolder) venceriam o
-            // conflito por terem savedAt mais recente.
-            try {
-              localStorage.removeItem(STORAGE_KEY);
-              if (typeof window._applyItems === 'function') window._applyItems([]);
-              console.log('[DriveSync] pickSharedFolder: local data cleared — will download owner data');
-            } catch (_) { }
+              cloudModifiedAt: null,         // força re-download na próxima sync
+            }));
+            console.log('[DriveSync] pickSharedFolder: default meta reset as SHARED',
+              '| wasOwner:', _defaultMetaWasOwner);
+
+            // Se o perfil ativo é diferente do 'default', atualiza também sua meta
+            // para registrar folderOwnedByMe:false — mas SEM zerar syncFileId,
+            // para não desvincular listas adicionais já corretamente configuradas.
+            if (_currentSlug !== 'default') {
+              _saveMeta({
+                folderId: sharedFolderId,
+                folderOwnedByMe: false,
+                pickedManually: true,
+              });
+            }
+
+            // Limpa dados locais APENAS do perfil 'default' — é onde dados próprios
+            // do SHARED foram criados antes do pick. Perfis adicionais não são tocados.
+            if (_defaultMetaWasOwner) {
+              try {
+                localStorage.removeItem(_storageKey('default'));
+                // Se o perfil ativo é o default, limpa também a UI em memória
+                if (_currentSlug === 'default' && typeof window._applyItems === 'function') {
+                  window._applyItems([]);
+                }
+                console.log('[DriveSync] pickSharedFolder: default data cleared — will download owner data');
+              } catch (_) { }
+            }
 
             // Grava folderId e indexFileId globais para que pullIndex e pickForProfile
             // de qualquer perfil saibam qual pasta e índice usar.
