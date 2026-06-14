@@ -3897,7 +3897,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260613-single-file-sync.r15-picker-appid';
+    const APP_BUILD = '20260613-single-file-sync.r16-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -7859,15 +7859,27 @@
             }
 
             // ── Sincroniza índice de perfis (cross-device discovery) ────────────
-            // Owner: sempre sobe o índice após qualquer sync bem-sucedido, para que
-            // outros dispositivos descubram perfis novos ao conectar.
-            // Dispositivo secundário (shared ou owner em novo device): baixa o índice
-            // e importa perfis ainda não conhecidos localmente.
+            // Owner: sobe o índice após qualquer sync bem-sucedido — mas apenas se
+            // o catálogo local mudou desde o último push (ShopList_indexPushedAt ausente).
+            // Evita push desnecessário a cada sync quando nada mudou no catálogo.
+            // SHARED: faz pullIndex usando sharedFolderId do localStorage — o folderId
+            // local do Sync.run é null para SHARED, mas o da pasta compartilhada persiste.
             // Executado de forma não-bloqueante (não afeta o resultado do sync principal).
             if (!isShared && folderId) {
-              Drive.pushIndex(folderId).catch(() => { });
-            } else if (folderId) {
-              Drive.pullIndex(folderId).catch(() => { });
+              const _pushedAt = (() => { try { return localStorage.getItem('ShopList_indexPushedAt'); } catch { return null; } })();
+              if (!_pushedAt) {
+                // Catálogo mudou desde o último push confirmado → sobe índice atualizado
+                Drive.pushIndex(folderId).catch(() => { });
+              }
+              // Se _pushedAt existe, o índice já está atualizado no Drive — sem push necessário.
+              // Mutações (add/rename/remove) sempre removem _pushedAt para forçar re-push.
+            } else if (isShared) {
+              // SHARED: usa sharedFolderId persistido — independente do perfil ativo
+              const _sharedFid = (() => { try { return localStorage.getItem('ShopList_sharedFolderId') || null; } catch { return null; } })();
+              const _sharedIid = (() => { try { return localStorage.getItem('ShopList_sharedIndexFileId') || null; } catch { return null; } })();
+              if (_sharedFid) {
+                Drive.pullIndex(_sharedFid, _sharedIid).catch(() => { });
+              }
             }
 
           } catch (e) {
