@@ -3849,7 +3849,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260613-single-file-sync.r09-picker-appid';
+    const APP_BUILD = '20260613-single-file-sync.r10-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4111,12 +4111,44 @@
       // ATENÇÃO: esta função é estritamente read-only — nunca deve escrever no storage.
       // O savedAt exibido aqui é lido via readSavedAt() e não deve ser modificado aqui.
       const _startupTs = readSavedAt();
-      if (!_startupTs && items !== defaultItems()) return; // base legada sem timestamp
-      if (!_startupTs) return; // primeiro uso, sem dados prévios
+      if (!_startupTs) return; // primeiro uso ou dados sem timestamp — não exibe
+
+      // Suprime o modal para dados modelo — identificados pelo MODEL_ID_PREFIX.
+      // Isso cobre perfis adicionais sem dados reais ainda (ex: SHARED aguardando sync).
+      // Exibir contadores de dados modelo seria enganoso.
+      if (typeof isModelData === 'function' && isModelData(items)) return;
 
       const { label, age } = formatSavedAt(_startupTs);
-      const count = items.length;
-      const inStock = items.filter(i => i.inStock).length;
+
+      // Relê contadores diretamente do localStorage — mais confiável que items[],
+      // que pode não refletir o estado real se load() ainda não completou
+      // ou se os dados foram substituídos por defaultItems() por falta de payload.
+      let count = 0, inStock = 0;
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const data = Array.isArray(parsed) ? parsed
+            : (parsed && Array.isArray(parsed.data)) ? parsed.data : [];
+          // Nunca exibe contadores de dados modelo
+          const hasModelData = data.length > 0 &&
+            data.every(i => typeof i.id === 'string' && i.id.startsWith(MODEL_ID_PREFIX));
+          if (hasModelData) return;
+          count = data.length;
+          inStock = data.filter(i => i.inStock).length;
+        }
+      } catch (_) {
+        // Fallback para items[] em memória
+        count = items.length;
+        inStock = items.filter(i => i.inStock).length;
+      }
+
+      // Contexto adicional para SHARED: indica de onde os dados vieram
+      const _sharedSetup = (() => {
+        try { return !!localStorage.getItem('ShopList_sharedFolderId'); } catch { return false; }
+      })();
+      const _activeProfile = typeof _currentSlug !== 'undefined' ? _currentSlug : 'default';
+      const _profileLabel = typeof Profiles !== 'undefined' ? Profiles.labelOf(_activeProfile) : _activeProfile;
 
       const diffD = Math.floor((new Date() - new Date(_startupTs)) / 86400000);
       const ageColor = diffD < 7 ? 'var(--accent)' : diffD < 30 ? 'var(--warn)' : 'var(--crit)';
@@ -4125,7 +4157,7 @@
       openModal(`
         <div class="modal-header">
           <div class="modal-title">Local database</div>
-          <div class="modal-sub">Startup check</div>
+          <div class="modal-sub">📋 ${_profileLabel}${_sharedSetup ? ' · shared' : ''}</div>
         </div>
         <div class="modal-body">
           <div class="modal-stat-card">
@@ -7618,7 +7650,13 @@
               console.log('[DriveSync] downloaded sync file:', syncFileId, '| cloud savedAt:', cloudDate?.toISOString());
 
             } else {
-              _saveMeta({ lastSync: new Date().toISOString() });
+              // Atualiza cloudModifiedAt mesmo em paridade — garante que o cache
+              // reflita o savedAt real do Drive, corrigindo valores obsoletos de
+              // syncs anteriores interrompidos que deixavam o painel mostrando divergência.
+              _saveMeta({
+                lastSync: new Date().toISOString(),
+                cloudModifiedAt: cloudDate ? cloudDate.toISOString() : (meta.cloudModifiedAt || null),
+              });
               _setStatus('connected', '☁️ Already in sync');
               console.log('[DriveSync] already in sync');
             }
@@ -7994,8 +8032,21 @@
                 const titleEl = document.getElementById('ds-parity-title');
                 if (!panel || !cloudEl) return;   // modal pode ter sido fechado
 
+                // Relê localSavedAt do localStorage agora — pode ter sido atualizado
+                // por _applyCloud durante um sync paralelo após o painel abrir.
+                let freshLocalSavedAt = localSavedAt;
+                try {
+                  const freshRaw = localStorage.getItem(window.STORAGE_KEY || STORAGE_KEY);
+                  if (freshRaw) {
+                    const fp = JSON.parse(freshRaw);
+                    const isMdl = Array.isArray(fp.data) && fp.data.length > 0 &&
+                      fp.data.every(i => typeof i.id === 'string' && i.id.startsWith('model-'));
+                    if (!isMdl && fp.savedAt) freshLocalSavedAt = fp.savedAt;
+                  }
+                } catch (_) { }
+
                 const realMs = realCloud ? new Date(realCloud).getTime() : null;
-                const locMs = localSavedAt ? new Date(localSavedAt).getTime() : null;
+                const locMs = freshLocalSavedAt ? new Date(freshLocalSavedAt).getTime() : null;
                 const match = realMs !== null && locMs !== null && Math.abs(locMs - realMs) <= 30000;
 
                 // Atualiza TODOS os elementos de forma coerente (cor + badge + título)
