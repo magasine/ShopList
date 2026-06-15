@@ -3971,7 +3971,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260613-single-file-sync.r16-picker-appid';
+    const APP_BUILD = '20260615-single-file-sync.r16-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4004,7 +4004,7 @@
       if (profiles.length > 0) return; // já migrado
 
       // Copia dados legados para as novas chaves com slug 'default'
-      const LEGACY_DATA_KEY = 'Shop_List_v20260613';
+      const LEGACY_DATA_KEY = 'Shop_List_v20260615';
       const LEGACY_UI_KEY = 'Shop_List_ui';
       const LEGACY_SYNC_KEY = 'ShopList_driveSync';
       const slug = 'default';
@@ -6247,9 +6247,10 @@
       // Meta (filtro + count + sort) — fora das fences
       // lines.push('```');
       lines.push(`${metaLine}`);
+      lines.push('---');
 
       // Fence de abertura do bloco de itens
-      lines.push('```');
+      // lines.push('```');
 
       // ── Corpo: espelha a renderização do painel ───────────────────────────
       if (sortMode === 'cat') {
@@ -6257,7 +6258,7 @@
         list.forEach(it => {
           const section = sectionKeyOf(it);
           if (section !== lastSection) {
-            // lines.push('');
+            lines.push('');
             lines.push(`${section}`);
             lastSection = section;
           }
@@ -6268,12 +6269,12 @@
         const favs = list.filter(it => it.fav);
         const others = list.filter(it => !it.fav);
         if (favs.length) {
-          // lines.push('');
+          lines.push('');
           lines.push('⭐ Favorites');
           favs.forEach(it => lines.push(itemLine(it, false)));
         }
         if (others.length) {
-          // lines.push('');
+          lines.push('');
           lines.push('Other items');
           others.forEach(it => lines.push(itemLine(it, false)));
         }
@@ -6284,7 +6285,7 @@
       }
 
       // Fecha o bloco de itens
-      lines.push('```');
+      // lines.push('```');
 
       const text = lines.join('\n');
 
@@ -7747,7 +7748,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260613');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260615');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -7788,7 +7789,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260613', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260615', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
