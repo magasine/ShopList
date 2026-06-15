@@ -1785,6 +1785,11 @@
       padding-top: 16px;
     }
 
+    /* Modal do painel Drive: conteúdo longo — ancora próximo ao topo */
+    #overlay.has-drive-panel {
+      padding-top: 12px;
+    }
+
     .modal {
       background: var(--surface);
       border-radius: 20px;
@@ -2958,6 +2963,35 @@
     /* Opacidade de ícone em linha (ex: ⟳ no parity date) */
     .opacity-half {
       opacity: 0.5;
+    }
+
+    /* ── Micro-indicador de role no topo do ds-parity (substitui o ds-card--owned) ── */
+    .ds-parity__role {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 20px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-left: auto;
+      /* empurra para a direita, ao lado do badge de paridade */
+    }
+
+    .ds-parity__role--owner {
+      background: var(--purple-light);
+      border: 1px solid var(--border2);
+      color: var(--purple-text);
+    }
+
+    .ds-parity__role--shared {
+      background: var(--accent-light);
+      border: 1px solid var(--row-ok-border);
+      color: var(--accent-text);
     }
 
 
@@ -6240,6 +6274,7 @@
       const overlay = document.getElementById('overlay');
       overlay.classList.remove('open');
       overlay.classList.remove('has-input');
+      overlay.classList.remove('has-drive-panel');
       pendingDoneId = null;
     }
 
@@ -8303,19 +8338,35 @@
               </div>
               ${_folderCard({ id: meta.folderId, isShared: !ownedByMe, inUse: true, fileCount: null, lastFileName: meta.lastFile })}
               ${_folderCard({ id: meta.duplicateFolderId, isShared: !ownedByMe, inUse: false, fileCount: null, lastFileName: null })}`;
-            } else {
-              // Alvo único em uso — usa syncFileId se disponível (Shared), folderId caso contrário (Owner)
+            } else if (!ownedByMe) {
+              // SHARED — alvo único: mantém o card pois o fileId de terceiro tem valor informativo
               folderSection = _folderCard({
                 id: meta.syncFileId || meta.folderId,
-                isShared: isSharedUser,
+                isShared: true,
                 inUse: true,
                 fileCount: null,
                 lastFileName: meta.lastFile,
               });
             }
+            // OWNER sem duplicata: card suprimido — role indicado pelo micro-badge no ds-parity
           }
 
           if (typeof openModal !== 'function') return;
+
+          // Ativa classe has-drive-panel no overlay — ancora o modal próximo ao topo
+          // (painel Drive é longo; min(18vh,80px) padrão deixaria conteúdo fora da tela)
+          requestAnimationFrame(() => {
+            const ov = document.getElementById('overlay');
+            if (ov) ov.classList.add('has-drive-panel');
+          });
+
+          // Micro-badge de role — exibido no ds-parity__head quando o card foi suprimido (OWNER sem duplicata)
+          // Para SHARED e hasDuplicate o card já comunica o role; o badge seria redundante.
+          const roleBadge = (connected && folderKnown && ownedByMe && !hasDuplicate)
+            ? `<span class="ds-parity__role ds-parity__role--owner" title="This device owns the Drive folder">🔒 owner</span>`
+            : (connected && folderKnown && !ownedByMe && !hasDuplicate)
+              ? `<span class="ds-parity__role ds-parity__role--shared" title="Syncing to a file shared by the owner">🔓 shared</span>`
+              : '';
 
           // Revalida o cloud savedAt buscando o conteúdo REAL do Drive em background.
           // O painel abre instantâneo com o valor em cache (meta.cloudModifiedAt) e,
@@ -8389,6 +8440,7 @@
                 <span class="ds-parity__title" id="ds-parity-title">${inParity
                 ? 'Local and Drive data match'
                 : 'Local and Drive data differ — next sync will reconcile'}</span>
+                ${roleBadge}
               </div>
               <div class="ds-parity__row">
                 <span class="ds-parity__key">📱 local savedAt</span>
