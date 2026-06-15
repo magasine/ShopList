@@ -3971,7 +3971,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260615-single-file-sync.r16-picker-appid';
+    const APP_BUILD = '20260613-single-file-sync.r16-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4004,7 +4004,7 @@
       if (profiles.length > 0) return; // já migrado
 
       // Copia dados legados para as novas chaves com slug 'default'
-      const LEGACY_DATA_KEY = 'Shop_List_v20260615';
+      const LEGACY_DATA_KEY = 'Shop_List_v20260613';
       const LEGACY_UI_KEY = 'Shop_List_ui';
       const LEGACY_SYNC_KEY = 'ShopList_driveSync';
       const slug = 'default';
@@ -6158,80 +6158,140 @@
       // Aplica a mesma ordenação visível na aba Reposição
       const list = sorted(base);
 
-      // ── Helper: descrição limpa (sem a #tag, mantém anotações extras) ──
-      function cleanDesc(it) {
-        if (!it.desc) return '';
-        // Remove a #hashtag de categoria mas preserva o resto (ex: "· 500g")
-        return it.desc.replace(/#[^\s·,]+\s*/g, '').replace(/^[\s·,]+|[\s·,]+$/g, '').trim();
+      // ── Helper: formata o item-sub colapsado ─────────────────────────────
+      // Formato: "qty-módulo (#cat ...)" ou "qty-unit (#cat ...)"
+      // • qty e unidade/módulo ficam FORA dos parênteses
+      // • Parênteses embrulham apenas #categoria (+ "..." se há extras)
+      // • Módulo/kit = primeiro token livre do desc (ex: "500g", "1,5-Lts", "200g")
+      //   Quando presente, substitui it.unit na exibição (já está embutido no módulo)
+      // • @tags (receitas) e &tags (pessoas) são suprimidas → colapso com "..."
+      function formatSub(it) {
+        const qty = it.min - it.qty;
+        const unit = (it.unit || '').trim();
+        const desc = (it.desc || '').trim();
+
+        // Primeira #categoria do desc
+        const catMatch = desc.match(/#([^\s·,]+)/);
+        const cat = catMatch ? `#${catMatch[1]}` : null;
+
+        // Tokens livres: desc sem #tags, @tags e &tags
+        const stripped = desc
+          .replace(/#[^\s·,]+/g, '')   // remove #tags
+          .replace(/[@&][^\s·,]+/g, '') // remove @tags e &tags
+          .replace(/\s*·\s*/g, ' ')     // normaliza separador ·
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        // Há @/@& tags além das livres?
+        const hasTagExtras = /[@&][^\s·,]+/.test(desc);
+
+        // Módulo/kit: primeiro token livre (ex: "500g", "1,5-Lts", "230-g")
+        // Se não há token livre, usa it.unit como unidade padrão
+        const moduleToken = stripped ? stripped.split(' ')[0] : null;
+        const hasMoreFreeTokens = stripped.split(' ').length > 1;
+
+        // Quantitativo: "qty-módulo" se há módulo, "qty-unit" caso contrário
+        const qtyPart = moduleToken ? `${qty}-${moduleToken}` : (unit ? `${qty}-${unit}` : `${qty}`);
+
+        // Há extras além do módulo e da #cat? → colapsa com "..."
+        const hasExtra = hasMoreFreeTokens || hasTagExtras;
+
+        // Parte entre parênteses: só #cat (+ "..." se há extras), ou vazio
+        let parenPart = '';
+        if (cat && hasExtra) parenPart = `(${cat} ...)`;
+        else if (cat) parenPart = `(${cat})`;
+        else if (hasTagExtras) parenPart = '(...)';
+        // sem #cat e sem extras: sem parênteses
+
+        return parenPart ? `${qtyPart} ${parenPart}` : qtyPart;
       }
 
-      // ── Helper: linha de item ──
+      // ── Helper: linha de item ─────────────────────────────────────────────
       function itemLine(it, showFavStar = true) {
         const star = (showFavStar && it.fav) ? '⭐ ' : '';
-        const qty = `+${it.min - it.qty}`;
-        const desc = cleanDesc(it);
-        const detail = desc ? ` _(${desc})_` : '';
-        return `- ${star}*${it.name}*: ${qty}${detail}`;
+        const sub = formatSub(it);
+        return `- ${star}${it.name}: ${sub}`;
       }
 
-      // ── Cabeçalho dinâmico reflete o modo ativo ──
-      const modeLabel = {
-        az: 'A–Z',
-        cat: 'by category',
-        fav: 'favorites first',
-      }[sortMode];
-
-      const filterLabel = activeQuickFilter === 'fav' ? ' · favorites only' : '';
+      // ── Cabeçalho: nome da lista + datestamp ─────────────────────────────
+      const listName = (typeof Profiles !== 'undefined' && typeof _currentSlug !== 'undefined')
+        ? Profiles.labelOf(_currentSlug) : '';
       const now = new Date();
       const pad = n => String(n).padStart(2, '0');
       const datestamp = `${pad(now.getDate())}/${pad(now.getMonth() + 1)} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-      let lines = [];
-      lines.push(`🛒 *SHOP LIST* · ${modeLabel}${filterLabel}`);
-      lines.push(`_${datestamp} · ${list.length} ite${list.length !== 1 ? 'ns' : 'm'}_`);
+      // ── Linha de metadados: filtro + count + sort ─────────────────────────
+      const filterMap = {
+        'fav': 'Favorites',
+        'fav-off': 'Non-favorites',
+        'warn': 'Stock at limit',
+        'crit': 'Stock low',
+        'ok': 'Stock ok',
+        'zero': 'Zero stock',
+      };
+      const filterLabel = filterMap[activeQuickFilter] || null;
+      const sortLabel = { az: 'A–Z', cat: 'by category', fav: 'favorites first' }[sortMode] || sortMode;
+      const metaParts = [filterLabel, `${list.length} item${list.length !== 1 ? 's' : ''}`, sortLabel].filter(Boolean);
+      const metaLine = metaParts.join(' - ');
 
-      // ── Corpo: espelha exatamente a renderização do painel ──
+      // ── Monta o output ────────────────────────────────────────────────────
+      let lines = [];
+
+      // Título do app — fora das fences
+      lines.push('*SHOP LIST SEMAPHORE*');
+
+      // Nome da lista + timestamp — dentro de fence (wrap)
+      // lines.push('```');
+      lines.push(`${[listName, datestamp].filter(Boolean).join(' - ')}`);
+
+      // Meta (filtro + count + sort) — fora das fences
+      // lines.push('```');
+      lines.push(`${metaLine}`);
+
+      // Fence de abertura do bloco de itens
+      lines.push('```');
+
+      // ── Corpo: espelha a renderização do painel ───────────────────────────
       if (sortMode === 'cat') {
-        // Agrupa por categoria com cabeçalho *#categoria* em negrito
         let lastSection = null;
         list.forEach(it => {
-          const section = sectionKeyOf(it); // ex: "#laticínios" ou "—"
+          const section = sectionKeyOf(it);
           if (section !== lastSection) {
-            lines.push('');
-            lines.push(`*${section}*`);
+            // lines.push('');
+            lines.push(`${section}`);
             lastSection = section;
           }
           lines.push(itemLine(it));
         });
 
       } else if (sortMode === 'fav') {
-        // Dois blocos: ⭐ Favoritos e · Demais itens
         const favs = list.filter(it => it.fav);
         const others = list.filter(it => !it.fav);
-
         if (favs.length) {
-          lines.push('');
-          lines.push('*⭐ Favorites*');
+          // lines.push('');
+          lines.push('⭐ Favorites');
           favs.forEach(it => lines.push(itemLine(it, false)));
         }
         if (others.length) {
-          lines.push('');
-          lines.push('*· Other items*');
+          // lines.push('');
+          lines.push('Other items');
           others.forEach(it => lines.push(itemLine(it, false)));
         }
 
       } else {
         // A–Z: lista simples; favoritos recebem ⭐ inline
-        lines.push('');
         list.forEach(it => lines.push(itemLine(it)));
       }
 
+      // Fecha o bloco de itens
+      lines.push('```');
+
       const text = lines.join('\n');
 
-      // ── Disparo: Web Share API (mobile) ou clipboard (desktop) ──
+      // ── Disparo: Web Share API (mobile) ou clipboard (desktop) ───────────
       if (navigator.share) {
         closeModal();
-        navigator.share({ title: 'Shop List', text: text.trim() })
+        navigator.share({ title: 'Shop List Semaphore', text: text.trim() })
           .then(() => toast('List shared!'))
           .catch(err => {
             if (err.name !== 'AbortError')
@@ -7687,7 +7747,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260615');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260613');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -7728,7 +7788,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260615', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260613', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
