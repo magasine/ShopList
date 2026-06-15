@@ -4070,7 +4070,19 @@
       sortMode = 'az';
       activeQuickFilter = '';
       searchQuery = '';
+      checkFilter = ''; // FIX: evita que filtro de chip da aba Refill persista entre listas
       _collapsedSections.clear();
+
+      // Reinicia DOM do search-bar — FIX: evita dessincronismo entre searchQuery='' e
+      // #search-bar.open ainda ativo, que causava o painel não refletir os dados corretos
+      // ao trocar de lista com a barra de busca aberta (com ou sem texto digitado).
+      const _sb = document.getElementById('search-bar');
+      const _si = document.getElementById('search-input');
+      const _sbt = document.getElementById('btn-search');
+      if (_sb) _sb.classList.remove('open');
+      if (_si) _si.value = '';
+      if (_sbt) _sbt.classList.remove('active');
+
       load();
       render();
       updateSyncBadge();
