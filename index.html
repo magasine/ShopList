@@ -6203,7 +6203,7 @@
         const hasMoreFreeTokens = stripped.split(' ').length > 1;
 
         // Quantitativo: "qty-módulo" se há módulo, "qty-unit" caso contrário
-        const qtyPart = moduleToken ? `${qty}-${moduleToken}` : (unit ? `${qty}-${unit}` : `${qty}`);
+        const qtyPart = moduleToken ? `${qty}x ${moduleToken}` : (unit ? `${qty}-${unit}` : `${qty}`);
 
         // Há extras além do módulo e da #cat? → colapsa com "..."
         const hasExtra = hasMoreFreeTokens || hasTagExtras;
