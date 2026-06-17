@@ -342,6 +342,27 @@
       color: var(--warn);
     }
 
+    /* ✏ editing — sessão externa ativa; tom alaranjado diferencia de loc-duplicate (âmbar) */
+    #sync-locality.loc-editing {
+      background: var(--row-off);
+      border-color: var(--row-off-border);
+      color: var(--warn);
+      /* Pulso suave para atrair atenção sem ser agressivo */
+      animation: loc-editing-pulse 2.4s ease-in-out infinite;
+    }
+
+    @keyframes loc-editing-pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.55;
+      }
+    }
+
     /* ─── Grupo de controles na linha 1 (sort · traffic · search · close) ─── */
     .header-controls {
       display: flex;
@@ -2960,6 +2981,25 @@
       opacity: 0.7;
     }
 
+    /* ── Session lock row no ds-parity ── */
+    .ds-parity__row--lock .ds-parity__key {
+      color: var(--warn);
+    }
+
+    .ds-parity__val--lock {
+      color: var(--warn);
+      font-weight: 600;
+    }
+
+    .ds-parity__lock-note {
+      font-size: 11px;
+      color: var(--text2);
+      padding: 6px 12px 8px;
+      line-height: 1.5;
+      border-left: 2px solid var(--row-off-border);
+      margin: 2px 0 4px;
+    }
+
     /* Opacidade de ícone em linha (ex: ⟳ no parity date) */
     .opacity-half {
       opacity: 0.5;
@@ -3971,7 +4011,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260615-single-file-sync.r16-picker-appid';
+    const APP_BUILD = '20260617-single-file-sync.r16-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4004,7 +4044,7 @@
       if (profiles.length > 0) return; // já migrado
 
       // Copia dados legados para as novas chaves com slug 'default'
-      const LEGACY_DATA_KEY = 'Shop_List_v20260615';
+      const LEGACY_DATA_KEY = 'Shop_List_v20260617';
       const LEGACY_UI_KEY = 'Shop_List_ui';
       const LEGACY_SYNC_KEY = 'ShopList_driveSync';
       const slug = 'default';
@@ -5377,10 +5417,27 @@
           (meta.pickedManually === true || meta.folderOwnedByMe === false ||
             !!localStorage.getItem('ShopList_sharedFolderId'));
         const hasDup = !!meta.duplicateFolderId;
+
+        // ── Session Lock: verifica lock externo ativo para badge ✏ editing ──
+        const _activeLock = meta.activeLock || null;
+        const hasExternalLock = !!(_activeLock &&
+          _activeLock.sessionId &&
+          _activeLock.expiresAt &&
+          new Date(_activeLock.expiresAt) > new Date());
+
         if (hasDup) {
           el.innerHTML = `⚠ duplicate${slugSuffix}`;
           el.className = 'loc-duplicate';
           el.title = 'Two sync folders detected — click to resolve';
+        } else if (hasExternalLock) {
+          // Formata horário de expiração para o title (desktop hover / acessibilidade)
+          const _expTime = new Date(_activeLock.expiresAt).toLocaleTimeString(
+            'pt-BR', { hour: '2-digit', minute: '2-digit' }
+          );
+          const _who = isShared ? 'Owner' : 'Another session';
+          el.innerHTML = `✏ editing${slugSuffix}`;
+          el.className = 'loc-editing';
+          el.title = `${_who} is editing · lock expires at ${_expTime} — tap for details`;
         } else if (isShared) {
           el.innerHTML = `🔓 shared${slugSuffix}`;
           el.className = 'loc-shared';
@@ -7147,6 +7204,14 @@
       let _syncing = false;
       let _btnEl = null;
 
+      // ─── SESSION LOCK ───────────────────────────────────────────────────────────
+      // Identificador único desta sessão de browser — gerado uma vez, persiste
+      // enquanto a aba estiver aberta. Permite distinguir lock próprio de lock externo.
+      const _mySessionId = 'sess-' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36);
+      // TTL do lock: 2× o intervalo de sync periódico → expira naturalmente se a aba
+      // travar ou fechar sem disparar pagehide/visibilitychange.
+      const LOCK_TTL_MS = 2 * SYNC_INTERVAL_MS; // 10 minutos
+
       // ─── HELPERS DE UI ─────────────────────────────────────────────────────────
       function _setStatus(state, msg) {
         _btnEl = _btnEl || document.getElementById('btn-drive');
@@ -7486,6 +7551,80 @@
         // Lido por qualquer dispositivo ao conectar, permitindo descoberta cross-device.
         INDEX_FILENAME: 'Shop-List-Index.json',
 
+        // ── Session Lock via appProperties ─────────────────────────────────────
+        // O lock é gravado como appProperties no próprio Shop-List-Sync.json,
+        // eliminando arquivos extras visíveis no Picker.
+        // appProperties são metadados privados do app — invisíveis ao usuário,
+        // não aparecem em listagens do Drive e não consomem cota de armazenamento.
+        // Campos: sessionId (string | null), lockedAt (ISO), expiresAt (ISO).
+        // Requer que o syncFileId já exista — writeLock é chamado apenas no branch
+        // de upload, onde syncFileId é garantido.
+
+        /** Lê appProperties do arquivo de sync. Retorna o objeto lock ou null se
+         *  ausente, expirado, ou sessionId nulo (lock liberado explicitamente).
+         *  fileId: ID do Shop-List-Sync.json deste perfil. */
+        async readLock(fileId) {
+          if (!fileId) return null;
+          try {
+            const r = await Drive._api(
+              `/files/${fileId}?fields=appProperties&supportsAllDrives=true`
+            );
+            const d = await r.json();
+            if (d.error || !d.appProperties) return null;
+            const p = d.appProperties;
+            if (!p.sessionId) return null;                              // lock liberado
+            if (p.expiresAt && new Date(p.expiresAt) <= new Date()) return null; // expirado
+            return { sessionId: p.sessionId, lockedAt: p.lockedAt, expiresAt: p.expiresAt };
+          } catch { return null; }
+        },
+
+        /** Grava o lock desta sessão como appProperties no arquivo de sync.
+         *  Uma única chamada PATCH metadata-only — sem alterar o conteúdo do arquivo. */
+        async writeLock(fileId) {
+          if (!fileId) return;
+          const now = new Date();
+          try {
+            await Drive._upload(
+              `/files/${fileId}?supportsAllDrives=true`,
+              {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  appProperties: {
+                    sessionId: _mySessionId,
+                    lockedAt: now.toISOString(),
+                    expiresAt: new Date(now.getTime() + LOCK_TTL_MS).toISOString(),
+                  },
+                }),
+              }
+            );
+            console.log('[DriveSync] lock acquired on', fileId, '| expires in', LOCK_TTL_MS / 60000, 'min');
+          } catch (e) {
+            console.warn('[DriveSync] writeLock failed (non-fatal):', e.message);
+          }
+        },
+
+        /** Libera o lock zerando sessionId nas appProperties.
+         *  Falhas são silenciosas — o TTL garante expiração automática. */
+        async releaseLock(fileId) {
+          if (!fileId) return;
+          try {
+            await Drive._upload(
+              `/files/${fileId}?supportsAllDrives=true`,
+              {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  appProperties: { sessionId: null, lockedAt: null, expiresAt: null },
+                }),
+              }
+            );
+            console.log('[DriveSync] lock released on', fileId);
+          } catch (e) {
+            console.warn('[DriveSync] releaseLock failed (non-fatal):', e.message);
+          }
+        },
+
         /** Busca o arquivo de índice na pasta. Retorna { id } ou null. */
         async findIndexFile(folderId) {
           const q = encodeURIComponent(
@@ -7760,7 +7899,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260615');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260617');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -7801,7 +7940,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260615', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260617', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
@@ -7942,6 +8081,30 @@
               } catch (e) { console.warn('[DriveSync] existence check failed', e); }
             }
 
+            // ── Session Lock: lê appProperties do arquivo de sync ──────────────
+            // Lock externo ativo → grava em meta.activeLock para que updateSyncBadge
+            // exiba o badge ✏ editing. Não interrompe o sync — a decisão é do usuário.
+            // Lock próprio (mesmo _mySessionId) → ignora silenciosamente.
+            // Requer syncFileId — só executa se o arquivo já existe no Drive.
+            // Executado de forma não-bloqueante: falhas não afetam o fluxo de sync.
+            if (syncFileId) {
+              try {
+                const lock = await Drive.readLock(syncFileId);
+                if (lock && lock.sessionId !== _mySessionId) {
+                  // Lock externo ativo — persiste na meta para o badge
+                  _saveMeta({ activeLock: lock });
+                  console.log('[DriveSync] session lock detected from', lock.sessionId,
+                    '| expires', lock.expiresAt);
+                } else {
+                  // Lock próprio, expirado ou ausente — limpa da meta
+                  _saveMeta({ activeLock: null });
+                }
+              } catch (e) {
+                console.warn('[DriveSync] lock check failed (non-fatal):', e.message);
+              }
+              if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
+            }
+
             // ── Resolve cloudDate pelo savedAt DENTRO do arquivo (não pelo modifiedTime) ──
             // Baixa o conteúdo e lê o savedAt interno. Ambos local e cloud savedAt são
             // gerados pelo mesmo tipo de relógio (de quem salvou), eliminando a
@@ -8031,6 +8194,13 @@
               // Grava cloudModifiedAt = savedAt LOCAL: como acabamos de subir o conteúdo
               // local, o savedAt dentro do arquivo no Drive agora É o savedAt local.
               // Assim a próxima comparação (cloud savedAt vs local savedAt) será igual.
+
+              // Adquire/renova lock desta sessão antes do upload — anuncia para
+              // outros dispositivos que esta sessão está em edição ativa.
+              // writeLock grava appProperties no próprio syncFileId: sem arquivo extra,
+              // invisível ao Picker, sem custo de cota de armazenamento.
+              await Drive.writeLock(syncFileId);
+
               await Drive.patchSyncFile(syncFileId, localRaw);
               _saveMeta({
                 lastSync: new Date().toISOString(),
@@ -8297,6 +8467,23 @@
           window.addEventListener('online', () => {
             if (Auth.isValid()) Sync.run('back-online');
           });
+
+          // Libera o lock desta sessão ao ocultar/fechar a aba.
+          // visibilitychange cobre: minimizar, trocar aba, fechar no mobile.
+          // pagehide cobre: navegação, fechamento de aba no desktop.
+          // Ambos são necessários — em algumas plataformas apenas um dispara.
+          // releaseLock usa syncFileId (appProperties) — sem arquivo de lock extra.
+          const _releaseOnHide = () => {
+            if (!Auth.isValid()) return;
+            try {
+              const _m = _loadMeta();
+              if (_m.syncFileId) Drive.releaseLock(_m.syncFileId).catch(() => { });
+            } catch (_) { }
+          };
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') _releaseOnHide();
+          });
+          window.addEventListener('pagehide', _releaseOnHide);
         },
 
         /** Chamado após cada save() — enfileira sync após 2s de debounce */
@@ -8529,6 +8716,25 @@
                 <span class="ds-parity__key">🔗 file id</span>
                 <span class="ds-parity__val ds-parity__file-id">${(meta.syncFileId || '—').slice(0, 18)}${meta.syncFileId && meta.syncFileId.length > 18 ? '…' : ''}</span>
               </div>
+              ${(() => {
+                // ── Session Lock row — exibida apenas quando há lock externo ativo ──
+                const _lock = meta.activeLock || null;
+                if (!_lock || !_lock.sessionId || !_lock.expiresAt) return '';
+                if (new Date(_lock.expiresAt) <= new Date()) return '';
+                const _expFmt = new Date(_lock.expiresAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                const _who = (meta.pickedManually === true || meta.folderOwnedByMe === false) ? 'Owner' : 'Another session';
+                return `
+              <div class="ds-parity__sep"></div>
+              <div class="ds-parity__row ds-parity__row--lock">
+                <span class="ds-parity__key">✏ session lock</span>
+                <span class="ds-parity__val ds-parity__val--lock">
+                  ${_who} is editing · expires at ${_expFmt}
+                </span>
+              </div>
+              <div class="ds-parity__lock-note">
+                You may continue editing. The next sync will ask you to confirm which version to keep.
+              </div>`;
+              })()}
               ${!localSavedAt && meta.syncFileId ? `
               <div class="ds-parity__sep"></div>
               <div class="ds-parity__sync-link" onclick="closeModal();DriveSync.manualSync()">
@@ -8601,6 +8807,11 @@
         disconnect() {
           clearInterval(_syncTimer);
           _syncTimer = null;
+          // Libera o lock desta sessão (appProperties no syncFileId) antes de revogar o token
+          try {
+            const _m = _loadMeta();
+            if (_m.syncFileId) Drive.releaseLock(_m.syncFileId).catch(() => { });
+          } catch (_) { }
           Auth.revoke();
         },
 
