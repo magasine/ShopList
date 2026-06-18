@@ -342,11 +342,13 @@
       color: var(--warn);
     }
 
-    /* ✏ editing — sessão externa ativa; tom alaranjado diferencia de loc-duplicate (âmbar) */
+    /* ✏ editing — sobrepõe loc-shared/loc-owner com tom alaranjado de alerta.
+       !important necessário pois .loc-editing é adicionado junto de .loc-shared
+       ou .loc-owner e ambas as classes têm especificidade igual. */
     #sync-locality.loc-editing {
-      background: var(--row-off);
-      border-color: var(--row-off-border);
-      color: var(--warn);
+      background: var(--row-off) !important;
+      border-color: var(--row-off-border) !important;
+      color: var(--warn) !important;
       /* Pulso suave para atrair atenção sem ser agressivo */
       animation: loc-editing-pulse 2.4s ease-in-out infinite;
     }
@@ -3692,6 +3694,13 @@
       letter-spacing: 0.06em;
     }
 
+    /* Terceiro segmento: ✏ editing — aparece junto de shared/owner sem substituí-los */
+    .loc-editing-tag {
+      letter-spacing: 0.06em;
+      font-style: italic;
+      opacity: 0.88;
+    }
+
     /* ── Botão de refresh no header do modal de perfis ── */
     #profile-sync-btn {
       width: 28px;
@@ -5380,14 +5389,7 @@
           el.style.display = 'none';
           return;
         }
-        // Slug suffix — exibe o label do perfil quando não é o perfil 'default'.
-        // Condição por slug (não por profiles.length) para funcionar no SHARED,
-        // que pode ter apenas um perfil registrado localmente mesmo usando uma
-        // lista nomeada — o catálogo completo só existe no dispositivo do OWNER.
-        const slugSuffix = _currentSlug !== 'default'
-          ? ` <span class="loc-slug">· ${esc(Profiles.labelOf(_currentSlug))}</span>`
-          : '';
-
+        // ── Segmento 1: localidade (sempre presente) ──────────────────────────
         // Detecta papel do dispositivo com as mesmas regras do Sync.run:
         // pickedManually=true ou folderOwnedByMe=false → SHARED.
         // Guarda adicional: se algum perfil tem folderOwnedByMe=true,
@@ -5406,6 +5408,14 @@
             !!localStorage.getItem('ShopList_sharedFolderId'));
         const hasDup = !!meta.duplicateFolderId;
 
+        // ── Segmento 2: nome da lista/slug (sempre presente quando não é 'default') ──
+        // Condição por slug (não por profiles.length) para funcionar no SHARED,
+        // que pode ter apenas um perfil registrado localmente mesmo usando uma
+        // lista nomeada — o catálogo completo só existe no dispositivo do OWNER.
+        const slugSuffix = _currentSlug !== 'default'
+          ? ` <span class="loc-slug">· ${esc(Profiles.labelOf(_currentSlug))}</span>`
+          : '';
+
         // ── Session Lock: verifica lock externo ativo para badge ✏ editing ──
         const _activeLock = meta.activeLock || null;
         const hasExternalLock = !!(_activeLock &&
@@ -5413,25 +5423,37 @@
           _activeLock.expiresAt &&
           new Date(_activeLock.expiresAt) > new Date());
 
+        // ── Segmento 3 (condicional): ✏ editing — additive, não substitui os anteriores ──
+        // Usa o slug da sessão remota (activeLock.slug) quando disponível para indicar
+        // QUAL lista está sendo editada; fallback para slugSuffix local por compatibilidade.
+        const editingSuffix = hasExternalLock
+          ? (() => {
+            const _lockLabel = _activeLock.slug && _activeLock.slug !== 'default'
+              ? esc(Profiles.labelOf(_activeLock.slug))
+              : (_currentSlug !== 'default' ? esc(Profiles.labelOf(_currentSlug)) : null);
+            // Se o lock aponta para um slug diferente do local, ajusta o slugSuffix do editing
+            const _editingSlugSuffix = _activeLock.slug && _activeLock.slug !== _currentSlug && _lockLabel
+              ? ` <span class="loc-slug">· ${_lockLabel}</span>`
+              : slugSuffix;
+            const _expTime = new Date(_activeLock.expiresAt).toLocaleTimeString(
+              'pt-BR', { hour: '2-digit', minute: '2-digit' }
+            );
+            return { html: `<span class="loc-editing-tag">· ✏ editing</span>`, slugOverride: _editingSlugSuffix, expTime: _expTime };
+          })()
+          : null;
+
         if (hasDup) {
           el.innerHTML = `⚠ duplicate${slugSuffix}`;
           el.className = 'loc-duplicate';
           el.title = 'Two sync folders detected — click to resolve';
         } else if (hasExternalLock) {
-          // Formata horário de expiração para o title (desktop hover / acessibilidade)
-          const _expTime = new Date(_activeLock.expiresAt).toLocaleTimeString(
-            'pt-BR', { hour: '2-digit', minute: '2-digit' }
-          );
           const _who = isShared ? 'Owner' : 'Another session';
-          // slugSuffix do estado editing usa o slug da sessão remota (activeLock.slug),
-          // não o slug local — garante que o observador veja QUAL lista está sendo
-          // editada remotamente, mesmo que ele próprio esteja na lista 'default'.
-          const _lockSlug = _activeLock.slug && _activeLock.slug !== 'default'
-            ? ` <span class="loc-slug">· ${esc(Profiles.labelOf(_activeLock.slug))}</span>`
-            : slugSuffix; // fallback para slug local se o lock não tiver campo slug (compatibilidade)
-          el.innerHTML = `✏ editing${_lockSlug}`;
-          el.className = 'loc-editing';
-          el.title = `${_who} is editing · lock expires at ${_expTime} — tap for details`;
+          const _base = isShared ? '🔓 shared' : '🔒 owner';
+          const _cls = isShared ? 'loc-shared' : 'loc-owner';
+          // Monta: [localidade] [slug] [✏ editing] — os três segmentos visíveis
+          el.innerHTML = `${_base}${editingSuffix.slugOverride}${editingSuffix.html}`;
+          el.className = `${_cls} loc-editing`;
+          el.title = `${_who} is editing · lock expires at ${editingSuffix.expTime} — tap for details`;
         } else if (isShared) {
           el.innerHTML = `🔓 shared${slugSuffix}`;
           el.className = 'loc-shared';
