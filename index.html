@@ -298,6 +298,16 @@
       margin-right: 4px;
     }
 
+    /* Wrapper dos dois badges — mantém o par na mesma linha como item atômico
+       no flex-wrap do #app-title; o #title-sub ainda pode quebrar independentemente */
+    #sync-badges {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: nowrap;
+      flex-shrink: 0;
+    }
+
     /* Badge de localidade do sync (owner · shared · ⚠️ duplicate) */
     #sync-locality {
       display: inline-flex;
@@ -3785,9 +3795,9 @@
           <a href="https://linktr.ee/magasine" target="_blank" rel="noopener" id="title-link"
             title="Credits: @magasine"><span class="title-main">Shop List</span><span class="title-suffix">
               Semaphore</span></a>
-          <span id="title-sub"></span><span id="sync-locality" style="display:none" onclick="DriveSync.openPanel()"
-            title="Drive sync location — click for details"></span><span id="sync-editing-badge" style="display:none"
-            onclick="DriveSync.openPanel()" title=""></span>
+          <span id="title-sub"></span><span id="sync-badges"><span id="sync-locality" style="display:none"
+              onclick="DriveSync.openPanel()" title="Drive sync location — click for details"></span><span
+              id="sync-editing-badge" style="display:none" onclick="DriveSync.openPanel()" title=""></span></span>
         </div>
 
         <!-- Controles fixos da linha 1: sort · 🚦 · search · close -->
