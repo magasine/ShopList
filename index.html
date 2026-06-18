@@ -5437,7 +5437,13 @@
             'pt-BR', { hour: '2-digit', minute: '2-digit' }
           );
           const _who = isShared ? 'Owner' : 'Another session';
-          el.innerHTML = `✏ editing${slugSuffix}`;
+          // slugSuffix do estado editing usa o slug da sessão remota (activeLock.slug),
+          // não o slug local — garante que o observador veja QUAL lista está sendo
+          // editada remotamente, mesmo que ele próprio esteja na lista 'default'.
+          const _lockSlug = _activeLock.slug && _activeLock.slug !== 'default'
+            ? ` <span class="loc-slug">· ${esc(Profiles.labelOf(_activeLock.slug))}</span>`
+            : slugSuffix; // fallback para slug local se o lock não tiver campo slug (compatibilidade)
+          el.innerHTML = `✏ editing${_lockSlug}`;
           el.className = 'loc-editing';
           el.title = `${_who} is editing · lock expires at ${_expTime} — tap for details`;
         } else if (isShared) {
@@ -7588,6 +7594,7 @@
             const now = new Date();
             parsed.sessionLock = {
               sessionId: _mySessionId,
+              slug: typeof _currentSlug !== 'undefined' ? _currentSlug : 'default',
               lockedAt: now.toISOString(),
               expiresAt: new Date(now.getTime() + LOCK_TTL_MS).toISOString(),
             };
