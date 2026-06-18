@@ -342,17 +342,6 @@
       color: var(--warn);
     }
 
-    /* ✏ editing — sobrepõe loc-shared/loc-owner com tom alaranjado de alerta.
-       !important necessário pois .loc-editing é adicionado junto de .loc-shared
-       ou .loc-owner e ambas as classes têm especificidade igual. */
-    #sync-locality.loc-editing {
-      background: var(--row-off) !important;
-      border-color: var(--row-off-border) !important;
-      color: var(--warn) !important;
-      /* Pulso suave para atrair atenção sem ser agressivo */
-      animation: loc-editing-pulse 2.4s ease-in-out infinite;
-    }
-
     @keyframes loc-editing-pulse {
 
       0%,
@@ -363,6 +352,35 @@
       50% {
         opacity: 0.55;
       }
+    }
+
+    /* ── Segundo badge: aparece apenas quando há lock externo ativo ── */
+    #sync-editing-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-family: 'DM Mono', monospace;
+      font-weight: 600;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 20px;
+      margin-left: 4px;
+      vertical-align: middle;
+      cursor: pointer;
+      border: 1.5px solid var(--row-off-border);
+      background: var(--row-off);
+      color: var(--warn);
+      white-space: nowrap;
+      font-style: italic;
+      animation: loc-editing-pulse 2.4s ease-in-out infinite;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.1s;
+    }
+
+    #sync-editing-badge:active {
+      transform: scale(0.90);
     }
 
     /* ─── Grupo de controles na linha 1 (sort · traffic · search · close) ─── */
@@ -3694,13 +3712,6 @@
       letter-spacing: 0.06em;
     }
 
-    /* Terceiro segmento: ✏ editing — aparece junto de shared/owner sem substituí-los */
-    .loc-editing-tag {
-      letter-spacing: 0.06em;
-      font-style: italic;
-      opacity: 0.88;
-    }
-
     /* ── Botão de refresh no header do modal de perfis ── */
     #profile-sync-btn {
       width: 28px;
@@ -3775,7 +3786,8 @@
             title="Credits: @magasine"><span class="title-main">Shop List</span><span class="title-suffix">
               Semaphore</span></a>
           <span id="title-sub"></span><span id="sync-locality" style="display:none" onclick="DriveSync.openPanel()"
-            title="Drive sync location — click for details"></span>
+            title="Drive sync location — click for details"></span><span id="sync-editing-badge" style="display:none"
+            onclick="DriveSync.openPanel()" title=""></span>
         </div>
 
         <!-- Controles fixos da linha 1: sort · 🚦 · search · close -->
@@ -5373,6 +5385,7 @@
 
     function updateSyncBadge() {
       const el = document.getElementById('sync-locality');
+      const el2 = document.getElementById('sync-editing-badge');
       if (!el) return;
       try {
         const metaKey = _syncMetaKey(_currentSlug);
@@ -5383,18 +5396,16 @@
             return t && t.access_token && Date.now() < t.expires_at;
           } catch { return false; }
         })();
-        // Sem arquivo/pasta vinculada → oculto
+        // Sem token ou alvo de sync → ambos ocultos
         const hasSyncTarget = meta.syncFileId || meta.folderId;
         if (!connected || !hasSyncTarget) {
           el.style.display = 'none';
+          if (el2) el2.style.display = 'none';
           return;
         }
-        // ── Segmento 1: localidade (sempre presente) ──────────────────────────
-        // Detecta papel do dispositivo com as mesmas regras do Sync.run:
-        // pickedManually=true ou folderOwnedByMe=false → SHARED.
-        // Guarda adicional: se algum perfil tem folderOwnedByMe=true,
-        // o dispositivo é definitivamente OWNER — ignora flags SHARED espúrias
-        // que possam ter sido gravadas por contaminação de meta.
+
+        // ── Badge 1: localidade — detecta papel do dispositivo ─────────────────
+        // Guarda: se qualquer perfil tem folderOwnedByMe=true, é definitivamente OWNER.
         const _anyOwnerProfile = (() => {
           try {
             return Profiles.list().some(p => {
@@ -5408,66 +5419,56 @@
             !!localStorage.getItem('ShopList_sharedFolderId'));
         const hasDup = !!meta.duplicateFolderId;
 
-        // ── Segmento 2: nome da lista (sempre presente, exceto quando ainda é o
-        // label padrão de migração "Default" no perfil 'default' — único caso sem
-        // informação útil ao usuário).
-        // IMPORTANTE: a condição usa o LABEL, não o slug. O slug 'default' é a chave
-        // interna de armazenamento e permanece 'default' mesmo após renomear a lista
-        // para "Mercado", "Casa" etc. — filtrar por slug ocultaria o rename.
+        // ── Badge 1: slug — exibe label da lista sempre, exceto valor padrão intocado ──
+        // Condição por LABEL (não slug): slug 'default' é chave interna imutável;
+        // após renomear para "Mercado" o label já não é 'Default' e deve aparecer.
         const _currentLabel = Profiles.labelOf(_currentSlug);
         const slugSuffix = (_currentSlug === 'default' && _currentLabel === 'Default')
           ? ''
           : ` <span class="loc-slug">· ${esc(_currentLabel)}</span>`;
 
-        // ── Session Lock: verifica lock externo ativo para badge ✏ editing ──
+        // ── Badge 1: monta e exibe ─────────────────────────────────────────────
+        if (hasDup) {
+          el.innerHTML = `⚠ duplicate${slugSuffix}`;
+          el.className = 'loc-duplicate';
+          el.title = 'Two sync folders detected — click to resolve';
+        } else if (isShared) {
+          el.innerHTML = `🔓 shared${slugSuffix}`;
+          el.className = 'loc-shared';
+          el.title = `Syncing to a file shared with you (${_currentLabel}) — click for details`;
+        } else {
+          el.innerHTML = `🔒 owner${slugSuffix}`;
+          el.className = 'loc-owner';
+          el.title = `Syncing to your own folder (${_currentLabel}) — click for details`;
+        }
+        el.style.display = 'inline-flex';
+
+        // ── Badge 2: ✏ editing — aparece apenas quando há lock externo ativo ───
+        // Independente do badge 1: não altera suas classes nem seu conteúdo.
         const _activeLock = meta.activeLock || null;
         const hasExternalLock = !!(_activeLock &&
           _activeLock.sessionId &&
           _activeLock.expiresAt &&
           new Date(_activeLock.expiresAt) > new Date());
 
-        // ── Segmento 3 (condicional): ✏ editing — additive, não substitui os anteriores ──
-        // Usa o slug da sessão remota (activeLock.slug) quando disponível para indicar
-        // QUAL lista está sendo editada; fallback para slugSuffix local por compatibilidade.
-        const editingSuffix = hasExternalLock
-          ? (() => {
-            const _lockLabel = _activeLock.slug && _activeLock.slug !== 'default'
-              ? esc(Profiles.labelOf(_activeLock.slug))
-              : (_currentSlug !== 'default' ? esc(Profiles.labelOf(_currentSlug)) : null);
-            // Se o lock aponta para um slug diferente do local, ajusta o slugSuffix do editing
-            const _editingSlugSuffix = _activeLock.slug && _activeLock.slug !== _currentSlug && _lockLabel
-              ? ` <span class="loc-slug">· ${_lockLabel}</span>`
-              : slugSuffix;
+        if (el2) {
+          if (hasExternalLock) {
             const _expTime = new Date(_activeLock.expiresAt).toLocaleTimeString(
               'pt-BR', { hour: '2-digit', minute: '2-digit' }
             );
-            return { html: `<span class="loc-editing-tag">· ✏ editing</span>`, slugOverride: _editingSlugSuffix, expTime: _expTime };
-          })()
-          : null;
-
-        if (hasDup) {
-          el.innerHTML = `⚠ duplicate${slugSuffix}`;
-          el.className = 'loc-duplicate';
-          el.title = 'Two sync folders detected — click to resolve';
-        } else if (hasExternalLock) {
-          const _who = isShared ? 'Owner' : 'Another session';
-          const _base = isShared ? '🔓 shared' : '🔒 owner';
-          const _cls = isShared ? 'loc-shared' : 'loc-owner';
-          // Monta: [localidade] [slug] [✏ editing] — os três segmentos visíveis
-          el.innerHTML = `${_base}${editingSuffix.slugOverride}${editingSuffix.html}`;
-          el.className = `${_cls} loc-editing`;
-          el.title = `${_who} is editing · lock expires at ${editingSuffix.expTime} — tap for details`;
-        } else if (isShared) {
-          el.innerHTML = `🔓 shared${slugSuffix}`;
-          el.className = 'loc-shared';
-          el.title = `Syncing to a file shared with you (${Profiles.labelOf(_currentSlug)}) — click for details`;
-        } else {
-          el.innerHTML = `🔒 owner${slugSuffix}`;
-          el.className = 'loc-owner';
-          el.title = `Syncing to your own folder (${Profiles.labelOf(_currentSlug)}) — click for details`;
+            const _who = isShared ? 'Owner' : 'Another session';
+            el2.textContent = '✏ editing';
+            el2.style.display = 'inline-flex';
+            el2.title = `${_who} is editing · lock expires at ${_expTime} — tap for details`;
+          } else {
+            el2.style.display = 'none';
+            el2.title = '';
+          }
         }
-        el.style.display = 'inline-flex';
-      } catch { el.style.display = 'none'; }
+      } catch {
+        el.style.display = 'none';
+        if (el2) el2.style.display = 'none';
+      }
     }
 
     function updateFooter() {
