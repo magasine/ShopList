@@ -5394,9 +5394,11 @@
           el.style.display = 'none';
           return;
         }
-        // Slug suffix — exibe o label do perfil se houver mais de um perfil
-        const profiles = Profiles.list();
-        const slugSuffix = profiles.length > 1
+        // Slug suffix — exibe o label do perfil quando não é o perfil 'default'.
+        // Condição por slug (não por profiles.length) para funcionar no SHARED,
+        // que pode ter apenas um perfil registrado localmente mesmo usando uma
+        // lista nomeada — o catálogo completo só existe no dispositivo do OWNER.
+        const slugSuffix = _currentSlug !== 'default'
           ? ` <span class="loc-slug">· ${esc(Profiles.labelOf(_currentSlug))}</span>`
           : '';
 
@@ -7551,75 +7553,74 @@
         // Lido por qualquer dispositivo ao conectar, permitindo descoberta cross-device.
         INDEX_FILENAME: 'Shop-List-Index.json',
 
-        // ── Session Lock via appProperties ─────────────────────────────────────
-        // O lock é gravado como appProperties no próprio Shop-List-Sync.json,
-        // eliminando arquivos extras visíveis no Picker.
-        // appProperties são metadados privados do app — invisíveis ao usuário,
-        // não aparecem em listagens do Drive e não consomem cota de armazenamento.
-        // Campos: sessionId (string | null), lockedAt (ISO), expiresAt (ISO).
-        // Requer que o syncFileId já exista — writeLock é chamado apenas no branch
-        // de upload, onde syncFileId é garantido.
+        // ── Session Lock via campo sessionLock no JSON do arquivo de sync ──────
+        // Gravado como campo raiz do Shop-List-Sync.json: { savedAt, sessionLock, data }.
+        // Visível para qualquer usuário com acesso ao arquivo (OWNER e SHARED) —
+        // resolve a limitação cross-user das appProperties do Drive (isoladas por userId).
+        // Sem arquivos extras, sem poluição do Picker, sem chamadas adicionais à API:
+        // a leitura reutiliza o cloudContent já baixado; a escrita embute o lock
+        // no payload do patchSyncFile existente.
+        // _applyCloud descarta sessionLock ao salvar no localStorage — não contamina o dado local.
 
-        /** Lê appProperties do arquivo de sync. Retorna o objeto lock ou null se
-         *  ausente, expirado, ou sessionId nulo (lock liberado explicitamente).
-         *  fileId: ID do Shop-List-Sync.json deste perfil. */
-        async readLock(fileId) {
-          if (!fileId) return null;
+        /** Extrai o lock do cloudContent já baixado. Sem chamada extra à API.
+         *  jsonText: string JSON do arquivo de sync (já disponível em Sync.run).
+         *  Retorna { sessionId, lockedAt, expiresAt } ou null se ausente/expirado. */
+        readLock(jsonText) {
+          if (!jsonText) return null;
           try {
-            const r = await Drive._api(
-              `/files/${fileId}?fields=appProperties&supportsAllDrives=true`
-            );
-            const d = await r.json();
-            if (d.error || !d.appProperties) return null;
-            const p = d.appProperties;
-            if (!p.sessionId) return null;                              // lock liberado
-            if (p.expiresAt && new Date(p.expiresAt) <= new Date()) return null; // expirado
-            return { sessionId: p.sessionId, lockedAt: p.lockedAt, expiresAt: p.expiresAt };
+            const parsed = JSON.parse(jsonText);
+            const lock = parsed && parsed.sessionLock;
+            if (!lock || !lock.sessionId) return null;             // lock ausente ou liberado
+            if (lock.expiresAt && new Date(lock.expiresAt) <= new Date()) return null; // expirado
+            return { sessionId: lock.sessionId, lockedAt: lock.lockedAt, expiresAt: lock.expiresAt };
           } catch { return null; }
         },
 
-        /** Grava o lock desta sessão como appProperties no arquivo de sync.
-         *  Uma única chamada PATCH metadata-only — sem alterar o conteúdo do arquivo. */
-        async writeLock(fileId) {
-          if (!fileId) return;
-          const now = new Date();
+        /** Retorna o payload local com sessionLock embutido — pronto para patchSyncFile.
+         *  Chamado no branch de upload (localMs > cloudMs): injeta o lock antes de subir,
+         *  anunciando para SHARED e outros dispositivos que esta sessão está editando.
+         *  Retorna null se _localPayload() retornar null (dados modelo ou lista vazia). */
+        localPayloadWithLock() {
+          const raw = Sync._localPayload();
+          if (!raw) return null;
           try {
-            await Drive._upload(
-              `/files/${fileId}?supportsAllDrives=true`,
-              {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  appProperties: {
-                    sessionId: _mySessionId,
-                    lockedAt: now.toISOString(),
-                    expiresAt: new Date(now.getTime() + LOCK_TTL_MS).toISOString(),
-                  },
-                }),
-              }
-            );
-            console.log('[DriveSync] lock acquired on', fileId, '| expires in', LOCK_TTL_MS / 60000, 'min');
-          } catch (e) {
-            console.warn('[DriveSync] writeLock failed (non-fatal):', e.message);
-          }
+            const parsed = JSON.parse(raw);
+            const now = new Date();
+            parsed.sessionLock = {
+              sessionId: _mySessionId,
+              lockedAt: now.toISOString(),
+              expiresAt: new Date(now.getTime() + LOCK_TTL_MS).toISOString(),
+            };
+            console.log('[DriveSync] lock embedded in payload | expires in', LOCK_TTL_MS / 60000, 'min');
+            return JSON.stringify(parsed);
+          } catch { return raw; } // fallback sem lock — não bloqueia o upload
         },
 
-        /** Libera o lock zerando sessionId nas appProperties.
-         *  Falhas são silenciosas — o TTL garante expiração automática. */
-        async releaseLock(fileId) {
-          if (!fileId) return;
+        /** Retorna o payload local com sessionLock zerado (sessionId: null).
+         *  Chamado em releaseLock — sobe o arquivo sem lock ativo para liberar outros. */
+        localPayloadReleaseLock() {
+          const raw = Sync._localPayload();
+          if (!raw) return null;
           try {
+            const parsed = JSON.parse(raw);
+            parsed.sessionLock = { sessionId: null, lockedAt: null, expiresAt: null };
+            return JSON.stringify(parsed);
+          } catch { return raw; }
+        },
+
+        /** Libera o lock subindo o payload local com sessionLock zerado.
+         *  Chamado ao fechar/ocultar a aba ou desconectar do Drive.
+         *  Falhas são silenciosas — o TTL garante expiração automática. */
+        async releaseLock(syncFileId) {
+          if (!syncFileId) return;
+          try {
+            const payload = Drive.localPayloadReleaseLock();
+            if (!payload) return; // sem dados locais reais — nada a subir
             await Drive._upload(
-              `/files/${fileId}?supportsAllDrives=true`,
-              {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  appProperties: { sessionId: null, lockedAt: null, expiresAt: null },
-                }),
-              }
+              `/files/${syncFileId}?uploadType=media&fields=id&supportsAllDrives=true`,
+              { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: payload }
             );
-            console.log('[DriveSync] lock released on', fileId);
+            console.log('[DriveSync] lock released on', syncFileId);
           } catch (e) {
             console.warn('[DriveSync] releaseLock failed (non-fatal):', e.message);
           }
@@ -8081,30 +8082,6 @@
               } catch (e) { console.warn('[DriveSync] existence check failed', e); }
             }
 
-            // ── Session Lock: lê appProperties do arquivo de sync ──────────────
-            // Lock externo ativo → grava em meta.activeLock para que updateSyncBadge
-            // exiba o badge ✏ editing. Não interrompe o sync — a decisão é do usuário.
-            // Lock próprio (mesmo _mySessionId) → ignora silenciosamente.
-            // Requer syncFileId — só executa se o arquivo já existe no Drive.
-            // Executado de forma não-bloqueante: falhas não afetam o fluxo de sync.
-            if (syncFileId) {
-              try {
-                const lock = await Drive.readLock(syncFileId);
-                if (lock && lock.sessionId !== _mySessionId) {
-                  // Lock externo ativo — persiste na meta para o badge
-                  _saveMeta({ activeLock: lock });
-                  console.log('[DriveSync] session lock detected from', lock.sessionId,
-                    '| expires', lock.expiresAt);
-                } else {
-                  // Lock próprio, expirado ou ausente — limpa da meta
-                  _saveMeta({ activeLock: null });
-                }
-              } catch (e) {
-                console.warn('[DriveSync] lock check failed (non-fatal):', e.message);
-              }
-              if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
-            }
-
             // ── Resolve cloudDate pelo savedAt DENTRO do arquivo (não pelo modifiedTime) ──
             // Baixa o conteúdo e lê o savedAt interno. Ambos local e cloud savedAt são
             // gerados pelo mesmo tipo de relógio (de quem salvou), eliminando a
@@ -8118,6 +8095,23 @@
                   cloudDate = new Date(cp.savedAt);
                   console.log('[DriveSync] cloud savedAt (from content):', cp.savedAt);
                 }
+
+                // ── Session Lock: lê campo sessionLock do cloudContent já baixado ──
+                // Reutiliza o JSON já em memória — sem chamada extra à API.
+                // Funciona para OWNER e SHARED: o campo está no conteúdo do arquivo,
+                // visível para qualquer usuário com acesso ao arquivo (OWNER e SHARED).
+                try {
+                  const lock = Drive.readLock(cloudContent);
+                  if (lock && lock.sessionId !== _mySessionId) {
+                    _saveMeta({ activeLock: lock });
+                    console.log('[DriveSync] session lock detected from', lock.sessionId,
+                      '| expires', lock.expiresAt);
+                  } else {
+                    _saveMeta({ activeLock: null });
+                  }
+                } catch (_) { /* non-fatal */ }
+                if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
+
               } catch (e) {
                 console.warn('[DriveSync] could not read cloud savedAt:', e);
               }
@@ -8195,13 +8189,11 @@
               // local, o savedAt dentro do arquivo no Drive agora É o savedAt local.
               // Assim a próxima comparação (cloud savedAt vs local savedAt) será igual.
 
-              // Adquire/renova lock desta sessão antes do upload — anuncia para
-              // outros dispositivos que esta sessão está em edição ativa.
-              // writeLock grava appProperties no próprio syncFileId: sem arquivo extra,
-              // invisível ao Picker, sem custo de cota de armazenamento.
-              await Drive.writeLock(syncFileId);
-
-              await Drive.patchSyncFile(syncFileId, localRaw);
+              // Adquire/renova lock desta sessão embutindo sessionLock no payload —
+              // sem chamada extra à API. O lock viaja junto com os dados e é visível
+              // para OWNER e SHARED ao lerem o cloudContent no próximo sync.
+              const _payloadWithLock = Drive.localPayloadWithLock() || localRaw;
+              await Drive.patchSyncFile(syncFileId, _payloadWithLock);
               _saveMeta({
                 lastSync: new Date().toISOString(),
                 lastFile: Drive.SYNC_FILENAME,
@@ -8472,7 +8464,7 @@
           // visibilitychange cobre: minimizar, trocar aba, fechar no mobile.
           // pagehide cobre: navegação, fechamento de aba no desktop.
           // Ambos são necessários — em algumas plataformas apenas um dispara.
-          // releaseLock usa syncFileId (appProperties) — sem arquivo de lock extra.
+          // releaseLock sobe o payload com sessionLock zerado no syncFileId.
           const _releaseOnHide = () => {
             if (!Auth.isValid()) return;
             try {
@@ -8807,7 +8799,7 @@
         disconnect() {
           clearInterval(_syncTimer);
           _syncTimer = null;
-          // Libera o lock desta sessão (appProperties no syncFileId) antes de revogar o token
+          // Libera o lock desta sessão (sessionLock no payload) antes de revogar o token
           try {
             const _m = _loadMeta();
             if (_m.syncFileId) Drive.releaseLock(_m.syncFileId).catch(() => { });
