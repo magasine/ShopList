@@ -4335,25 +4335,6 @@
       const _activeProfile = typeof _currentSlug !== 'undefined' ? _currentSlug : 'default';
       const _profileLabel = typeof Profiles !== 'undefined' ? Profiles.labelOf(_activeProfile) : _activeProfile;
 
-      // Guarda de role: não exibe botão "Link shared file" para dispositivos OWNER confirmados.
-      // Critério conservador — exige evidência POSITIVA de ownership:
-      //   folderOwnedByMe=true AND folderSource presente (só gravado por ensureFolder, que
-      //   o SHARED nunca chama) AND sem pickedManually.
-      // Isso evita falso-positivo quando pullIndex grava folderOwnedByMe=true em perfis
-      // descobertos no SHARED antes de ShopList_sharedFolderId estar disponível.
-      const _startupIsOwner = (() => {
-        try {
-          const profiles = typeof Profiles !== 'undefined' ? Profiles.list() : [];
-          return profiles.some(p => {
-            const mk = `ShopList_driveSync_${p.slug}`;
-            const m = JSON.parse(localStorage.getItem(mk) || '{}');
-            return m.folderOwnedByMe === true
-              && !!m.folderSource        // só presente se ensureFolder() executou — nunca no SHARED
-              && !m.pickedManually;
-          });
-        } catch { return false; }
-      })();
-
       const diffD = Math.floor((new Date() - new Date(_startupTs)) / 86400000);
       const ageColor = diffD < 7 ? 'var(--accent)' : diffD < 30 ? 'var(--warn)' : 'var(--crit)';
       const ageIcon = diffD < 7 ? '🟢' : diffD < 30 ? '🟡' : '🔴';
@@ -4388,7 +4369,6 @@
             <div class="modal-btn cancel" onclick="closeModal()">Use this data</div>
             <div class="modal-btn confirm" onclick="closeModal(); triggerImport()">Import backup</div>
           </div>
-          ${!_startupIsOwner ? `
           <div class="modal-btn link-file" onclick="closeModal(); DriveSync.pickSharedFolder()">
             <svg width="16" height="16" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
               <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" opacity=".72"/>
@@ -4399,7 +4379,7 @@
               <path d="m73.4 26.15-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z"/>
             </svg>
             ☁️ Link shared file (Shop-List-Sync.json)
-          </div>` : ''}
+          </div>
         </div>
       `);
     }
@@ -8775,10 +8755,8 @@
             ${connected
               ? `<div class="modal-btn neutral"
                       onclick="closeModal();DriveSync.manualSync()">Sync now</div>
-                 ${!ownedByMe
-                ? `<div class="modal-btn link-file"
-                           onclick="closeModal();DriveSync.pickSharedFolder()">Link shared file</div>`
-                : ''}
+                 <div class="modal-btn link-file"
+                      onclick="closeModal();DriveSync.pickSharedFolder()">Link shared file</div>
                  <div class="modal-btn danger-btn"
                       onclick="closeModal();DriveSync.disconnect()">Disconnect</div>`
               : `<div class="modal-btn confirm"
@@ -8905,30 +8883,6 @@
          *   SHARED escolha o Shop-List-Sync-{slug}.json correspondente.
          */
         async pickSharedFolder() {
-          // ── Guarda de role: impede que um dispositivo OWNER se reclassifique como SHARED ──
-          // Verifica todos os perfis — basta um com folderOwnedByMe=true para confirmar OWNER.
-          // Esta é a linha de defesa mais profunda: protege mesmo contra chamadas diretas
-          // via console do browser (DriveSync.pickSharedFolder()).
-          // Mesmo critério conservador de _startupIsOwner: exige folderSource (gravado
-          // exclusivamente por ensureFolder) como evidência positiva de ownership.
-          const _isConfirmedOwner = (() => {
-            try {
-              const profiles = window._profilesLoad ? window._profilesLoad() : [];
-              return profiles.some(p => {
-                const mk = window._syncMetaKey ? window._syncMetaKey(p.slug)
-                  : ('ShopList_driveSync_' + p.slug);
-                const m = JSON.parse(localStorage.getItem(mk) || '{}');
-                return m.folderOwnedByMe === true && !!m.folderSource && !m.pickedManually;
-              });
-            } catch { return false; }
-          })();
-          if (_isConfirmedOwner) {
-            if (typeof toast === 'function')
-              toast('⚠️ This device is the OWNER. Disconnect from Drive first if you need to re-link as a shared user.');
-            console.warn('[DriveSync] pickSharedFolder blocked — device is confirmed OWNER');
-            return;
-          }
-
           try {
             const token = await Auth.ensureToken();
             if (typeof toast === 'function') toast('📂 Select the Shop-List-Index.json file from the shared folder…');
@@ -8959,6 +8913,19 @@
               console.warn('[DriveSync] expected index file, got:', picked.name);
               if (typeof toast === 'function')
                 toast(`⚠️ Expected "${Drive.INDEX_FILENAME}", got "${picked.name}" — please select the index file`);
+              return;
+            }
+
+            // ── Guarda de ownership: impede selecionar arquivo próprio ──────────
+            // picked.ownedByMe=true significa que este dispositivo é o dono do arquivo
+            // selecionado — seria o OWNER tentando se vincular à própria pasta,
+            // o que reclassificaria incorretamente o dispositivo como SHARED.
+            // Aplicável a OWNER e a qualquer dispositivo: ninguém deve vincular
+            // um arquivo que pertence a si mesmo via pickSharedFolder.
+            if (picked.ownedByMe === true) {
+              console.warn('[DriveSync] pickSharedFolder: selected file is owned by this account — rejected');
+              if (typeof toast === 'function')
+                toast('⚠️ This file belongs to your own Drive. Select a file shared by another user.');
               return;
             }
 
