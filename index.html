@@ -4336,14 +4336,20 @@
       const _profileLabel = typeof Profiles !== 'undefined' ? Profiles.labelOf(_activeProfile) : _activeProfile;
 
       // Guarda de role: não exibe botão "Link shared file" para dispositivos OWNER confirmados.
-      // Um OWNER é identificado por qualquer perfil com folderOwnedByMe=true e sem pickedManually.
+      // Critério conservador — exige evidência POSITIVA de ownership:
+      //   folderOwnedByMe=true AND folderSource presente (só gravado por ensureFolder, que
+      //   o SHARED nunca chama) AND sem pickedManually.
+      // Isso evita falso-positivo quando pullIndex grava folderOwnedByMe=true em perfis
+      // descobertos no SHARED antes de ShopList_sharedFolderId estar disponível.
       const _startupIsOwner = (() => {
         try {
           const profiles = typeof Profiles !== 'undefined' ? Profiles.list() : [];
           return profiles.some(p => {
             const mk = `ShopList_driveSync_${p.slug}`;
             const m = JSON.parse(localStorage.getItem(mk) || '{}');
-            return m.folderOwnedByMe === true && !m.pickedManually;
+            return m.folderOwnedByMe === true
+              && !!m.folderSource        // só presente se ensureFolder() executou — nunca no SHARED
+              && !m.pickedManually;
           });
         } catch { return false; }
       })();
@@ -8903,6 +8909,8 @@
           // Verifica todos os perfis — basta um com folderOwnedByMe=true para confirmar OWNER.
           // Esta é a linha de defesa mais profunda: protege mesmo contra chamadas diretas
           // via console do browser (DriveSync.pickSharedFolder()).
+          // Mesmo critério conservador de _startupIsOwner: exige folderSource (gravado
+          // exclusivamente por ensureFolder) como evidência positiva de ownership.
           const _isConfirmedOwner = (() => {
             try {
               const profiles = window._profilesLoad ? window._profilesLoad() : [];
@@ -8910,7 +8918,7 @@
                 const mk = window._syncMetaKey ? window._syncMetaKey(p.slug)
                   : ('ShopList_driveSync_' + p.slug);
                 const m = JSON.parse(localStorage.getItem(mk) || '{}');
-                return m.folderOwnedByMe === true && !m.pickedManually;
+                return m.folderOwnedByMe === true && !!m.folderSource && !m.pickedManually;
               });
             } catch { return false; }
           })();
