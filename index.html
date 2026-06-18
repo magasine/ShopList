@@ -5408,13 +5408,16 @@
             !!localStorage.getItem('ShopList_sharedFolderId'));
         const hasDup = !!meta.duplicateFolderId;
 
-        // ── Segmento 2: nome da lista/slug (sempre presente quando não é 'default') ──
-        // Condição por slug (não por profiles.length) para funcionar no SHARED,
-        // que pode ter apenas um perfil registrado localmente mesmo usando uma
-        // lista nomeada — o catálogo completo só existe no dispositivo do OWNER.
-        const slugSuffix = _currentSlug !== 'default'
-          ? ` <span class="loc-slug">· ${esc(Profiles.labelOf(_currentSlug))}</span>`
-          : '';
+        // ── Segmento 2: nome da lista (sempre presente, exceto quando ainda é o
+        // label padrão de migração "Default" no perfil 'default' — único caso sem
+        // informação útil ao usuário).
+        // IMPORTANTE: a condição usa o LABEL, não o slug. O slug 'default' é a chave
+        // interna de armazenamento e permanece 'default' mesmo após renomear a lista
+        // para "Mercado", "Casa" etc. — filtrar por slug ocultaria o rename.
+        const _currentLabel = Profiles.labelOf(_currentSlug);
+        const slugSuffix = (_currentSlug === 'default' && _currentLabel === 'Default')
+          ? ''
+          : ` <span class="loc-slug">· ${esc(_currentLabel)}</span>`;
 
         // ── Session Lock: verifica lock externo ativo para badge ✏ editing ──
         const _activeLock = meta.activeLock || null;
@@ -6909,6 +6912,8 @@
       if (!newLabel || !newLabel.trim() || newLabel.trim() === current) return;
       Profiles.rename(slug, newLabel.trim());
       toast(`✅ Renamed to "${newLabel.trim()}"`);
+      // Atualiza badge imediatamente — reflete o novo label no segundo segmento
+      if (typeof updateSyncBadge === 'function') updateSyncBadge();
       openProfileModal();
     }
 
@@ -7788,12 +7793,17 @@
 
             // Atualiza badge e re-renderiza modal via window.X (acesso explícito cross-script)
             if (window._syncProfileBtn) window._syncProfileBtn();
+            // updateSyncBadge: necessário para refletir renames no segundo segmento do badge
+            if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
             const profileModal = document.getElementById('profile-modal');
+            // Re-renderiza modal sempre que aberto — tanto para novos perfis quanto para renames
             if (profileModal && profileModal.classList.contains('open') && window.openProfileModal) {
               window.openProfileModal();  // re-renderiza in-place com a lista atualizada
             }
             if (typeof toast === 'function' && toAdd.length > 0)
               toast(`📋 ${toAdd.length} list(s) discovered: ${toAdd.map(p => p.label).join(', ')}`);
+            if (typeof toast === 'function' && renamed > 0 && toAdd.length === 0)
+              toast(`✏️ ${renamed} list name(s) updated from Drive`);
           } catch (e) {
             console.warn('[DriveSync] pullIndex failed (non-fatal):', e.message);
           }
@@ -8237,20 +8247,21 @@
             }
 
             // ── Sincroniza índice de perfis (cross-device discovery) ────────────
-            // Owner: sobe o índice após qualquer sync bem-sucedido — mas apenas se
-            // o catálogo local mudou desde o último push (ShopList_indexPushedAt ausente).
-            // Evita push desnecessário a cada sync quando nada mudou no catálogo.
-            // SHARED: faz pullIndex usando sharedFolderId do localStorage — o folderId
-            // local do Sync.run é null para SHARED, mas o da pasta compartilhada persiste.
-            // Executado de forma não-bloqueante (não afeta o resultado do sync principal).
+            // OWNER: push quando o catálogo local mudou (ShopList_indexPushedAt ausente)
+            //        + pull sempre — recebe renames feitos no SHARED ou em outro dispositivo
+            //          do mesmo owner (ex: mobile renomeia, desktop atualiza sem rebuild).
+            // SHARED: pull usando sharedFolderId persistido — descobre listas e renames.
+            // Ambos executam de forma não-bloqueante (não afeta o sync principal).
             if (!isShared && folderId) {
               const _pushedAt = (() => { try { return localStorage.getItem('ShopList_indexPushedAt'); } catch { return null; } })();
               if (!_pushedAt) {
                 // Catálogo mudou desde o último push confirmado → sobe índice atualizado
                 Drive.pushIndex(folderId).catch(() => { });
               }
-              // Se _pushedAt existe, o índice já está atualizado no Drive — sem push necessário.
-              // Mutações (add/rename/remove) sempre removem _pushedAt para forçar re-push.
+              // OWNER também faz pullIndex — recebe renames vindos do SHARED ou de outra
+              // sessão OWNER. pullIndex já tem guard de updatedAt para não re-processar
+              // um índice que não mudou desde o último pull bem-sucedido.
+              Drive.pullIndex(folderId).catch(() => { });
             } else if (isShared) {
               // SHARED: usa sharedFolderId persistido — independente do perfil ativo
               const _sharedFid = (() => { try { return localStorage.getItem('ShopList_sharedFolderId') || null; } catch { return null; } })();
