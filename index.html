@@ -4042,7 +4042,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260617-single-file-sync.r16-picker-appid';
+    const APP_BUILD = '20260618-single-file-sync.r16-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4075,7 +4075,7 @@
       if (profiles.length > 0) return; // já migrado
 
       // Copia dados legados para as novas chaves com slug 'default'
-      const LEGACY_DATA_KEY = 'Shop_List_v20260617';
+      const LEGACY_DATA_KEY = 'Shop_List_v20260618';
       const LEGACY_UI_KEY = 'Shop_List_ui';
       const LEGACY_SYNC_KEY = 'ShopList_driveSync';
       const slug = 'default';
@@ -6730,16 +6730,27 @@
           return;
         }
         // Lê folderId e indexFileId de acordo com o role do dispositivo.
-        // SHARED: usa as chaves globais gravadas em pickSharedFolder.
-        // OWNER:  usa folderId da meta do perfil ativo.
+        // SHARED: usa as chaves globais gravadas em pickSharedFolder (drive.file scope
+        // não permite query de pasta — precisa do fileId direto do Picker).
         const _sharedFid = (() => { try { return localStorage.getItem('ShopList_sharedFolderId') || null; } catch { return null; } })();
         const _sharedIid = (() => { try { return localStorage.getItem('ShopList_sharedIndexFileId') || null; } catch { return null; } })();
-        const _activeMeta = (() => {
-          try { return JSON.parse(localStorage.getItem('ShopList_driveSync_' + _currentSlug) || '{}'); } catch { return {}; }
-        })();
-        const _ownerFid = _activeMeta.folderId || null;
-        const folderId = _sharedFid || _ownerFid;
-        const indexFileId = _sharedFid ? _sharedIid : null;
+
+        let folderId = _sharedFid;
+        let indexFileId = _sharedFid ? _sharedIid : null;
+
+        // OWNER: NÃO confia apenas na meta local do perfil ativo (ShopList_driveSync_<slug>),
+        // pois esse campo pode estar vazio/desatualizado se o sync ainda não rodou para
+        // este slug específico — causa raiz do bug onde o re-sync exibia só o 'default'
+        // mesmo havendo múltiplos arquivos na nuvem. ensureFolder() resolve via cache em
+        // memória, busca por nome na pasta raiz, ou criação — a mesma lógica usada pelo
+        // Sync.run principal, garantindo o folderId correto independente do perfil ativo.
+        if (!folderId) {
+          try {
+            folderId = await window.DriveSync.ensureFolder();
+          } catch (e) {
+            console.warn('[profileModalSync] ensureFolder failed:', e.message);
+          }
+        }
 
         if (!folderId) {
           if (typeof toast === 'function') toast('⚠️ No Drive folder linked yet');
@@ -7936,7 +7947,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260617');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260618');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -7977,7 +7988,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260617', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260618', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
@@ -8868,6 +8879,14 @@
         /** Exposição pública de pullIndex para uso por profileModalSync no script 1 */
         pullIndex(folderId, fileId) {
           return Drive.pullIndex(folderId, fileId);
+        },
+
+        /** Exposição pública de ensureFolder — resolve/descobre o folderId real do
+         *  OWNER (cache em memória, picker, busca por nome, ou criação), em vez de
+         *  depender apenas do que está gravado na meta do perfil ativo no localStorage,
+         *  que pode estar vazio ou desatualizado em alguns devices/perfis. */
+        ensureFolder() {
+          return Drive.ensureFolder();
         },
 
         /** Elege uma pasta como ativa, descartando a outra como duplicata */
