@@ -8,6 +8,7 @@
   <title>Shop List</title>
   <meta name="theme-color" content="#00796B" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0E1621" media="(prefers-color-scheme: dark)">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Shop List">
@@ -1669,6 +1670,13 @@
       padding: 3px 10px;
       min-width: 38px;
       text-align: center;
+    }
+
+    /* Destaque extra quando o estoque atual é zero (mais crítico que apenas "abaixo do mínimo") */
+    .buy-deficit.zero-stock {
+      background: var(--crit-light);
+      border: 1.5px solid var(--row-crit-border);
+      border-radius: 8px;
     }
 
     /* FOOTER */
@@ -3796,8 +3804,8 @@
             title="Credits: @magasine"><span class="title-main">Shop List</span><span class="title-suffix">
               Semaphore</span></a>
           <span id="title-sub"></span><span id="sync-badges"><span id="sync-locality" style="display:none"
-              onclick="DriveSync.openPanel()" title="Drive sync location — click for details"></span><span
-              id="sync-editing-badge" style="display:none" onclick="DriveSync.openPanel()" title=""></span></span>
+              onclick="openProfileModal()" title="Switch list / manage profiles"></span><span id="sync-editing-badge"
+              style="display:none" onclick="DriveSync.openPanel()" title=""></span></span>
         </div>
 
         <!-- Controles fixos da linha 1: sort · 🚦 · search · close -->
@@ -4042,7 +4050,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260618-single-file-sync.r16-picker-appid';
+    const APP_BUILD = '20260622-single-file-sync.r16-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4075,7 +4083,7 @@
       if (profiles.length > 0) return; // já migrado
 
       // Copia dados legados para as novas chaves com slug 'default'
-      const LEGACY_DATA_KEY = 'Shop_List_v20260618';
+      const LEGACY_DATA_KEY = 'Shop_List_v20260622';
       const LEGACY_UI_KEY = 'Shop_List_ui';
       const LEGACY_SYNC_KEY = 'ShopList_driveSync';
       const slug = 'default';
@@ -5334,7 +5342,7 @@
         row.appendChild(favBtn);
 
         // Deficit
-        const deficit = createElement('div', 'buy-deficit', `+${it.min - it.qty}`);
+        const deficit = createElement('div', `buy-deficit${it.qty === 0 ? ' zero-stock' : ''}`, `+${it.min - it.qty}`);
         row.appendChild(deficit);
 
         wrap.appendChild(row);
@@ -7947,7 +7955,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260618');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260622');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -7988,7 +7996,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260618', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260622', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
