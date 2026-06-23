@@ -5352,7 +5352,7 @@
         row.appendChild(favBtn);
 
         // Deficit
-        const deficit = createElement('div', `buy-deficit${it.qty === 0 ? ' zero-stock' : ''}`, `+${it.min - it.qty}`);
+        const deficit = createElement('div', `buy-deficit${it.qty === 0 ? ' zero-stock' : ''}`, `+ ${it.min - it.qty}`);
         row.appendChild(deficit);
 
         wrap.appendChild(row);
