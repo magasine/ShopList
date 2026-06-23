@@ -4290,13 +4290,17 @@
         console.warn('Erro ao carregar tema:', e);
       }
 
-      // Carregar preferências de UI (sortMode, filtro ativo)
+      // Carregar preferências de UI (sortMode, filtro ativo, sections colapsadas)
       try {
         const rawUI = localStorage.getItem(UI_KEY);
         if (rawUI) {
           const ui = JSON.parse(rawUI);
           if (['az', 'cat', 'fav'].includes(ui.sortMode)) sortMode = ui.sortMode;
           if (['', 'fav', 'fav-off', 'warn', 'crit', 'ok', 'zero'].includes(ui.activeQuickFilter)) activeQuickFilter = ui.activeQuickFilter;
+          _collapsedSections.clear();
+          if (Array.isArray(ui.collapsedSections)) {
+            ui.collapsedSections.forEach(k => { if (typeof k === 'string') _collapsedSections.add(k); });
+          }
         }
       } catch (e) {
         console.warn('Erro ao carregar preferências de UI:', e);
@@ -4444,7 +4448,11 @@
 
     function saveUI() {
       try {
-        localStorage.setItem(UI_KEY, JSON.stringify({ sortMode, activeQuickFilter }));
+        localStorage.setItem(UI_KEY, JSON.stringify({
+          sortMode,
+          activeQuickFilter,
+          collapsedSections: [..._collapsedSections]
+        }));
       } catch (e) {
         console.warn('Erro ao salvar preferências de UI:', e);
       }
@@ -4685,7 +4693,8 @@
       else if (sortMode === 'cat') sortMode = 'fav';
       else sortMode = 'az';
 
-      _collapsedSections.clear(); // Reseta collapses ao mudar de modo
+      // Não limpa _collapsedSections: a chave já isola por sortMode (sortMode||section),
+      // então o fold/unfold de cada modo (A-Z/Categoria/Favoritos) é preservado independentemente.
 
       const btn = document.getElementById('btn-sort');
       const icon = document.getElementById('sort-icon');
@@ -4995,8 +5004,8 @@
         const rowClass = !it.inStock ? 'row-off' : s === 'ok' ? 'row-ok' : s === 'warn' ? 'row-warn' : 'row-crit';
         const favClass = it.fav ? 'fav-on' : '';
 
-        // Wrapper de swipe — marcado com data-sec-key para toggle de seção
-        const secGroupKey = !searchQuery.trim() ? ('p0||' + sortMode + '||' + section) : '';
+        // Wrapper de swipe — marcado com data-sec-key para toggle de seção (unificado entre abas)
+        const secGroupKey = !searchQuery.trim() ? (sortMode + '||' + section) : '';
         const wrap = createElement('div', `swipe-wrap sec-group-item${_collapsedSections.has(secGroupKey) ? ' sec-group-hidden' : ''}`);
         if (secGroupKey) wrap.dataset.secKey = secGroupKey;
 
@@ -5053,7 +5062,7 @@
     }
 
     // ── Helper compartilhado: cria um sec-label com toggle collapse ──────────
-    // panelId: 'p0' | 'p1' | 'p2' — isola o namespace de chave por painel
+    // panelId: 'p0' | 'p1' | 'p2' — não entra mais na chave; fold/unfold é unificado entre abas
     function buildSectionLabel(section, panelId, { count = 0, menuBtn = '' } = {}) {
       const isFavMode = sortMode === 'fav';
       const isFavSection = isFavMode && section === '★ Favorites';
@@ -5068,8 +5077,8 @@
         : isOtherSection ? 'Other items'
           : esc(section);
 
-      // Chave estável: inclui panelId para que colapsos entre abas sejam independentes
-      const key = panelId + '||' + sortMode + '||' + section;
+      // Chave estável: por sortMode + nome da section — mesma visão de fold/unfold em todas as abas
+      const key = sortMode + '||' + section;
       const isCollapsed = _collapsedSections.has(key);
       if (isCollapsed) label.classList.add('collapsed');
       label.dataset.secKey = key;
@@ -5089,6 +5098,7 @@
         else _collapsedSections.delete(k);
         document.querySelectorAll(`.sec-group-item[data-sec-key="${CSS.escape(k)}"]`)
           .forEach(el => el.classList.toggle('sec-group-hidden', nowCollapsed));
+        saveUI();
       });
 
       return label;
@@ -5134,7 +5144,7 @@
           lastSection = section;
         }
 
-        const secGroupKey = 'p1||' + sortMode + '||' + section;
+        const secGroupKey = sortMode + '||' + section;
         const s = getStatus(it);
         const rowClass = s === 'ok' ? 'row-ok' : s === 'warn' ? 'row-warn' : 'row-crit';
         const row = createElement('div', `stock-row ${rowClass} sec-group-item${_collapsedSections.has(secGroupKey) ? ' sec-group-hidden' : ''}`);
@@ -5291,7 +5301,7 @@
           lastSection = section;
         }
 
-        const secGroupKey = 'p2||' + sortMode + '||' + section;
+        const secGroupKey = sortMode + '||' + section;
         // ── Swipe wrapper ─────────────────────────────────────────────────
         const wrap = createElement('div', `swipe-wrap sec-group-item${_collapsedSections.has(secGroupKey) ? ' sec-group-hidden' : ''}`);
         wrap.dataset.secKey = secGroupKey;
@@ -5342,7 +5352,7 @@
         row.appendChild(favBtn);
 
         // Deficit
-        const deficit = createElement('div', `buy-deficit${it.qty === 0 ? ' zero-stock' : ''}`, `+ ${it.min - it.qty}`);
+        const deficit = createElement('div', `buy-deficit${it.qty === 0 ? ' zero-stock' : ''}`, `+${it.min - it.qty}`);
         row.appendChild(deficit);
 
         wrap.appendChild(row);
@@ -5512,8 +5522,6 @@
     }
 
     function _toggleFoldAll(panelIdx) {
-      const panelId = 'p' + panelIdx;
-      const prefix = panelId + '||' + sortMode + '||';
       // Coleta todos os sec-labels do painel ativo
       const panelEl = document.getElementById('panel-' + panelIdx);
       if (!panelEl) return;
@@ -5531,6 +5539,7 @@
         panelEl.querySelectorAll(`.sec-group-item[data-sec-key="${CSS.escape(key)}"]`)
           .forEach(el => el.classList.toggle('sec-group-hidden', nowCollapsed));
       });
+      saveUI();
     }
 
     function toggleFilterBar() {
