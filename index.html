@@ -4050,7 +4050,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260622-single-file-sync.r16-picker-appid';
+    const APP_BUILD = '20260624-single-file-sync.r16-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4083,7 +4083,7 @@
       if (profiles.length > 0) return; // já migrado
 
       // Copia dados legados para as novas chaves com slug 'default'
-      const LEGACY_DATA_KEY = 'Shop_List_v20260622';
+      const LEGACY_DATA_KEY = 'Shop_List_v20260624';
       const LEGACY_UI_KEY = 'Shop_List_ui';
       const LEGACY_SYNC_KEY = 'ShopList_driveSync';
       const slug = 'default';
@@ -5974,13 +5974,24 @@
     }
 
     // ── Menu para resultado de busca ───────────────────────────────────────
+    // Se a query for um token "puro" de prefixo (@loja ou &atributo, sem texto
+    // adicional), habilita também a opção de rename em lote — mesmo padrão de #categoria.
     function openSearchSectionMenu(triggerEl, query, count) {
       const matchIds = sorted(filteredItems()).map(i => i.id);
       const key = _registerBulk(matchIds);
       const label = `search results for "${query}"`;
 
+      // Detecta token puro: @algo ou &algo, sem espaço/delimitador/texto extra
+      const tokenMatch = query.match(/^([@&])([^\s·,;@&]+)$/);
+      const renameItem = tokenMatch ? `
+        <div class="sec-action-item" data-action="rename-token" data-prefix="${esc(tokenMatch[1])}" data-token="${esc(tokenMatch[2])}">
+          <span class="sec-action-icon">✏️</span> Rename ${tokenMatch[1] === '@' ? 'store/brand' : 'attribute'}
+        </div>
+      ` : '';
+
       _showSectionMenu(triggerEl, `
         <div class="sec-action-header">Search: &ldquo;${esc(query)}&rdquo; · ${count} result${count !== 1 ? 's' : ''}</div>
+        ${renameItem}
         <div class="sec-action-item danger" data-action="bulk-delete" data-key="${key}" data-label="${esc(label)}">
           <span class="sec-action-icon">🗑️</span> Delete all ${count} result${count !== 1 ? 's' : ''}
         </div>
@@ -5989,8 +6000,13 @@
       _secMenuEl.addEventListener('click', e => {
         const item = e.target.closest('[data-action]');
         if (!item) return;
+        const action = item.dataset.action;
         closeSectionMenu();
-        confirmBulkDeleteByKey(item.dataset.key, item.dataset.label);
+        if (action === 'rename-token') {
+          startTokenRename(item.dataset.prefix, item.dataset.token);
+        } else {
+          confirmBulkDeleteByKey(item.dataset.key, item.dataset.label);
+        }
       });
     }
 
@@ -6051,6 +6067,76 @@
         });
         saveAndRender();
         toast(`Category renamed to #${newCat}`);
+      }
+
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); applyRename(); }
+        if (e.key === 'Escape') { targetLabel.innerHTML = originalHTML; }
+      });
+      input.addEventListener('blur', applyRename);
+    }
+
+    // ── Rename de token @ (loja/marca) ou & (atributo) inline ─────────────
+    // Mesmo padrão de startCatRename, mas genérico para qualquer prefixo de
+    // token estruturado (@ / &), disparado a partir do menu de busca quando a
+    // query é um token "puro" (sem texto adicional misturado).
+    function startTokenRename(prefix, token) {
+      // Acha o sec-label de busca cujo texto é exatamente "🔍 "prefixo+token""
+      const labels = document.querySelectorAll('.sec-label.sec-search');
+      let targetLabel = null;
+      for (const l of labels) {
+        const txt = l.querySelector('.sec-label-text');
+        if (txt && txt.textContent.trim().toLowerCase() === `🔍 "${prefix}${token}"`.toLowerCase()) {
+          targetLabel = l;
+          break;
+        }
+      }
+      if (!targetLabel) return;
+
+      const originalHTML = targetLabel.innerHTML;
+      targetLabel.style.setProperty('--before-opacity', '0');
+
+      const input = document.createElement('input');
+      input.className = 'sec-label-input';
+      input.value = token;
+      input.maxLength = 40;
+      input.spellcheck = false;
+
+      targetLabel.innerHTML = '';
+      const bar = document.createElement('span');
+      bar.className = 'sec-label-bar';
+      targetLabel.appendChild(bar);
+      targetLabel.appendChild(input);
+
+      const hint = document.createElement('span');
+      hint.className = 'sec-label-hint';
+      hint.textContent = 'Enter ↵ to save';
+      targetLabel.appendChild(hint);
+
+      input.focus();
+      input.select();
+
+      function applyRename() {
+        const newToken = input.value.trim().toLowerCase().replace(/\s+/g, '-');
+        if (!newToken || newToken === token) {
+          targetLabel.innerHTML = originalHTML;
+          return;
+        }
+        // Atualiza o desc de todos os itens cujo token (delimitado) bate exatamente
+        const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const escapedToken = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const rx = new RegExp(escapedPrefix + escapedToken + '(?=[\\s·,;]|$)', 'gi');
+        let touched = 0;
+        items.forEach(it => {
+          if (it.desc && it.desc.match(rx)) {
+            it.desc = it.desc.replace(rx, prefix + newToken);
+            touched++;
+          }
+        });
+        // Atualiza a busca ativa para refletir o novo token, mantendo o filtro visível
+        searchQuery = prefix + newToken;
+        saveAndRender();
+        toast(`${touched} item${touched !== 1 ? 's' : ''} renamed to ${prefix}${newToken}`);
       }
 
       input.addEventListener('keydown', e => {
@@ -7964,7 +8050,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260622');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260624');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -8005,7 +8091,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260622', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260624', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
