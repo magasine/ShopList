@@ -5985,7 +5985,7 @@
       const tokenMatch = query.match(/^([@&])([^\s·,;@&]+)$/);
       const renameItem = tokenMatch ? `
         <div class="sec-action-item" data-action="rename-token" data-prefix="${esc(tokenMatch[1])}" data-token="${esc(tokenMatch[2])}">
-          <span class="sec-action-icon">✏️</span> Rename ${tokenMatch[1] === '@' ? '@ filtered' : '& filtered'}
+          <span class="sec-action-icon">✏️</span> Rename ${tokenMatch[1] === '@' ? 'store/brand' : 'attribute'}
         </div>
       ` : '';
 
