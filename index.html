@@ -1126,6 +1126,55 @@
       flex-shrink: 0;
     }
 
+    /* Input inline dentro de um .sec-action-item, quando a ação pede um token
+       (include/exclude/rename de @ ou &) — substitui o item clicado sem fechar o menu */
+    .sec-action-input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sec-action-input-row:last-child {
+      border-bottom: none;
+    }
+
+    .sec-action-input-row .sec-action-icon {
+      font-size: 15px;
+      width: 22px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .sec-action-input {
+      flex: 1;
+      min-width: 0;
+      border: 1.5px solid var(--accent);
+      background: var(--surface);
+      color: var(--text);
+      font-size: var(--fs-sm);
+      font-weight: 500;
+      border-radius: 6px;
+      padding: 6px 8px;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(0, 121, 107, 0.12);
+    }
+
+    [data-theme="dark"] .sec-action-input {
+      box-shadow: 0 0 0 3px rgba(38, 198, 186, 0.14);
+    }
+
+    .sec-action-input-confirm {
+      flex-shrink: 0;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      cursor: pointer;
+      padding: 4px 6px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
     /* Inline rename input dentro do sec-label */
     .sec-label-input {
       flex: 1;
@@ -4050,7 +4099,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260624-single-file-sync.r16-picker-appid';
+    const APP_BUILD = '20260627-single-file-sync.r16-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4083,7 +4132,7 @@
       if (profiles.length > 0) return; // já migrado
 
       // Copia dados legados para as novas chaves com slug 'default'
-      const LEGACY_DATA_KEY = 'Shop_List_v20260624';
+      const LEGACY_DATA_KEY = 'Shop_List_v20260627';
       const LEGACY_UI_KEY = 'Shop_List_ui';
       const LEGACY_SYNC_KEY = 'ShopList_driveSync';
       const slug = 'default';
@@ -4980,8 +5029,10 @@
           let menuOnclick = '';
           if (isCat && rawCat && rawCat !== '—') {
             menuOnclick = `openCatSectionMenu(this,'${rawCat.replace(/'/g, "\\'")}')`;
+          } else if (!isCat && sortMode === 'fav' && section === '★ Favorites') {
+            menuOnclick = `openFavSectionMenu(this,'${section.replace(/'/g, "\\'")}','p0')`;
           } else if (!isCat) {
-            menuOnclick = `openGenericSectionMenu(this,'${section.replace(/'/g, "\\'")}')`;
+            menuOnclick = `openGenericSectionMenu(this,'${section.replace(/'/g, "\\'")}','p0')`;
           }
 
           const menuBtn = menuOnclick
@@ -5139,7 +5190,23 @@
       for (const it of list) {
         const section = sectionKeyOf(it);
         if (section !== lastSection) {
-          const label = buildSectionLabel(section, 'p1', { count: sectionCounts1[section] });
+          const isCat = sortMode === 'cat';
+          const rawCat = isCat ? getCategoryOf(it) : null;
+
+          let menuOnclick = '';
+          if (isCat && rawCat && rawCat !== '—') {
+            menuOnclick = `openCatSectionMenu(this,'${rawCat.replace(/'/g, "\\'")}')`;
+          } else if (!isCat && sortMode === 'fav' && section === '★ Favorites') {
+            menuOnclick = `openFavSectionMenu(this,'${section.replace(/'/g, "\\'")}','p1')`;
+          } else if (!isCat) {
+            menuOnclick = `openGenericSectionMenu(this,'${section.replace(/'/g, "\\'")}','p1')`;
+          }
+
+          const menuBtn = menuOnclick
+            ? `<div class="sec-menu-btn" title="Section actions" onclick="event.stopPropagation();${menuOnclick}">···</div>`
+            : '';
+
+          const label = buildSectionLabel(section, 'p1', { count: sectionCounts1[section], menuBtn });
           fragment.appendChild(label);
           lastSection = section;
         }
@@ -5296,7 +5363,23 @@
       for (const it of list) {
         const section = sectionKeyOf(it);
         if (section !== lastSection) {
-          const label = buildSectionLabel(section, 'p2', { count: sectionCounts2[section] });
+          const isCat = sortMode === 'cat';
+          const rawCat = isCat ? getCategoryOf(it) : null;
+
+          let menuOnclick = '';
+          if (isCat && rawCat && rawCat !== '—') {
+            menuOnclick = `openCatSectionMenu(this,'${rawCat.replace(/'/g, "\\'")}')`;
+          } else if (!isCat && sortMode === 'fav' && section === '★ Favorites') {
+            menuOnclick = `openFavSectionMenu(this,'${section.replace(/'/g, "\\'")}','p2')`;
+          } else if (!isCat) {
+            menuOnclick = `openGenericSectionMenu(this,'${section.replace(/'/g, "\\'")}','p2')`;
+          }
+
+          const menuBtn = menuOnclick
+            ? `<div class="sec-menu-btn" title="Section actions" onclick="event.stopPropagation();${menuOnclick}">···</div>`
+            : '';
+
+          const label = buildSectionLabel(section, 'p2', { count: sectionCounts2[section], menuBtn });
           fragment.appendChild(label);
           lastSection = section;
         }
@@ -5951,9 +6034,19 @@
       });
     }
 
+    // ── Helper: escolhe a lista de itens correta conforme o painel de origem ──
+    // p0 = All (filteredItems), p1 = Stock (stockItems), p2 = Refill (buyItems).
+    // Necessário porque o quantitativo de favoritos (e de qualquer seção) pode
+    // diferir entre abas — um item favoritado pode não estar em estoque, por exemplo.
+    function _scopedItems(scope) {
+      if (scope === 'p1') return stockItems();
+      if (scope === 'p2') return buyItems();
+      return filteredItems();
+    }
+
     // ── Menu genérico (sortMode A-Z ou fav) ───────────────────────────────
-    function openGenericSectionMenu(triggerEl, sectionKey) {
-      const secItems = sorted(filteredItems()).filter(i => sectionKeyOf(i) === sectionKey);
+    function openGenericSectionMenu(triggerEl, sectionKey, scope) {
+      const secItems = sorted(_scopedItems(scope)).filter(i => sectionKeyOf(i) === sectionKey);
       const count = secItems.length;
       const key = _registerBulk(secItems.map(i => i.id));
       const label = sectionKey;
@@ -5973,7 +6066,211 @@
       });
     }
 
-    // ── Menu para resultado de busca ───────────────────────────────────────
+    // ── Menu para a seção de Favoritos (sortMode === 'fav') ────────────────
+    // Além do delete em lote padrão, oferece: desfavoritar todos, incluir
+    // token (@/&), excluir token (@/&) e renomear token (@/&) — cada ação
+    // abre seu próprio input inline dentro do item de menu clicado, sem
+    // fechar o dropdown, no mesmo espírito do rename de #categoria.
+    function openFavSectionMenu(triggerEl, sectionKey, scope) {
+      const secItems = sorted(_scopedItems(scope)).filter(i => sectionKeyOf(i) === sectionKey);
+      const count = secItems.length;
+      const key = _registerBulk(secItems.map(i => i.id));
+      const label = sectionKey;
+
+      _showSectionMenu(triggerEl, `
+        <div class="sec-action-header">${esc(sectionKey)} · ${count} item${count !== 1 ? 's' : ''}</div>
+        <div class="sec-action-item" data-action="unfav-all" data-key="${key}">
+          <span class="sec-action-icon">☆</span> Unfavorite all ${count} item${count !== 1 ? 's' : ''}
+        </div>
+        <div class="sec-action-item" data-action="open-include" data-key="${key}">
+          <span class="sec-action-icon">➕</span> Include token (@ or &amp;)
+        </div>
+        <div class="sec-action-item" data-action="open-exclude" data-key="${key}">
+          <span class="sec-action-icon">➖</span> Exclude token (@ or &amp;)
+        </div>
+        <div class="sec-action-item" data-action="open-rename" data-key="${key}">
+          <span class="sec-action-icon">✏️</span> Rename token (@ or &amp;)
+        </div>
+        <div class="sec-action-item danger" data-action="bulk-delete" data-key="${key}" data-label="${esc(label)}">
+          <span class="sec-action-icon">🗑️</span> Delete all ${count} item${count !== 1 ? 's' : ''}
+        </div>
+      `);
+
+      _secMenuEl.addEventListener('click', e => {
+        const item = e.target.closest('[data-action]');
+        if (!item) return;
+        const action = item.dataset.action;
+        const bulkKey = item.dataset.key;
+
+        if (action === 'bulk-delete') {
+          closeSectionMenu();
+          confirmBulkDeleteByKey(bulkKey, item.dataset.label);
+          return;
+        }
+        if (action === 'unfav-all') {
+          closeSectionMenu();
+          bulkUnfavoriteByKey(bulkKey);
+          return;
+        }
+        // Ações de token: substituem o próprio item por um input inline,
+        // sem fechar o menu (evita re-abrir o dropdown do zero)
+        if (action === 'open-include') _showTokenInputRow(item, bulkKey, 'include');
+        if (action === 'open-exclude') _showTokenInputRow(item, bulkKey, 'exclude');
+        if (action === 'open-rename') _showTokenInputRow(item, bulkKey, 'rename');
+      });
+    }
+
+    // ── Desfavoritar todos os itens de um lote registrado ──────────────────
+    function bulkUnfavoriteByKey(key) {
+      const ids = _bulkRegistry[key];
+      if (!ids) return;
+      delete _bulkRegistry[key];
+      const idSet = new Set(ids);
+      let touched = 0;
+      items.forEach(it => {
+        if (idSet.has(it.id) && it.fav) { it.fav = false; touched++; }
+      });
+      saveAndRender();
+      toast(`${touched} item${touched !== 1 ? 's' : ''} removed from favorites`);
+    }
+
+    // ── Substitui um .sec-action-item por uma linha de input inline ────────
+    // mode: 'include' | 'exclude' | 'rename'
+    function _showTokenInputRow(itemEl, bulkKey, mode) {
+      const icons = { include: '➕', exclude: '➖', rename: '✏️' };
+      const placeholders = {
+        include: 'with prefix, e.g. &promo',
+        exclude: 'with prefix, e.g. &organico',
+        rename: 'current token, with prefix, e.g. @mercado',
+      };
+
+      const row = document.createElement('div');
+      row.className = 'sec-action-input-row';
+      row.innerHTML = `
+        <span class="sec-action-icon">${icons[mode]}</span>
+        <input type="text" class="sec-action-input" placeholder="${placeholders[mode]}" />
+        <span class="sec-action-input-confirm">OK</span>
+      `;
+      itemEl.replaceWith(row);
+
+      const input = row.querySelector('.sec-action-input');
+      const confirmBtn = row.querySelector('.sec-action-input-confirm');
+      input.focus();
+
+      // Para 'rename', o fluxo tem 2 etapas: token atual → novo token.
+      // Reaproveita a mesma linha, troca o placeholder na 2ª etapa.
+      let renameStage = 1;
+      let renameFrom = '';
+
+      function parseToken(raw) {
+        const m = raw.trim().match(/^([@&])([^\s·,;@&]+)$/i);
+        return m ? { prefix: m[1], token: m[2].toLowerCase().replace(/\s+/g, '-') } : null;
+      }
+
+      function run() {
+        const raw = input.value;
+
+        if (mode === 'rename' && renameStage === 1) {
+          const parsed = parseToken(raw);
+          if (!parsed) { toast('Use format @token or &token'); return; }
+          renameFrom = parsed;
+          renameStage = 2;
+          input.value = '';
+          input.placeholder = `new name for ${parsed.prefix}${parsed.token} (no prefix)`;
+          input.focus();
+          return;
+        }
+
+        if (mode === 'rename') {
+          // 2ª etapa: o prefixo é fixo (o mesmo da 1ª etapa) e NÃO deve ser
+          // redigitado aqui — se o usuário digitar @ ou & por hábito, descarta
+          // para evitar duplicidade (@@token, &&token).
+          let newTokenRaw = raw.trim().toLowerCase().replace(/\s+/g, '-');
+          newTokenRaw = newTokenRaw.replace(/^[@&]+/, '');
+          if (!newTokenRaw) { row.remove(); return; }
+          _bulkRenameToken(bulkKey, renameFrom.prefix, renameFrom.token, newTokenRaw);
+          closeSectionMenu();
+          return;
+        }
+
+        const parsed = parseToken(raw);
+        if (!parsed) { toast('Use format @token or &token'); return; }
+
+        if (mode === 'include') _bulkIncludeToken(bulkKey, parsed.prefix, parsed.token);
+        if (mode === 'exclude') _bulkExcludeToken(bulkKey, parsed.prefix, parsed.token);
+        closeSectionMenu();
+      }
+
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); run(); }
+        if (e.key === 'Escape') { e.stopPropagation(); closeSectionMenu(); }
+      });
+      confirmBtn.addEventListener('click', e => { e.stopPropagation(); run(); });
+      // Evita que o clique dentro do input feche o menu via _outsideMenuHandler
+      row.addEventListener('mousedown', e => e.stopPropagation());
+    }
+
+    // ── Operações de lote sobre desc, por ids registrados em _bulkRegistry ─
+    function _escapeRx(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+    function _bulkIncludeToken(key, prefix, token) {
+      const ids = _bulkRegistry[key];
+      if (!ids) return;
+      delete _bulkRegistry[key];
+      // Defesa extra: token nunca deve trazer prefixo embutido (evita @@token).
+      const cleanToken = String(token).replace(/^[@&#]+/, '');
+      if (!cleanToken) return;
+      const idSet = new Set(ids);
+      const rx = new RegExp(_escapeRx(prefix) + _escapeRx(cleanToken) + '(?=[\\s·,;]|$)', 'i');
+      let touched = 0;
+      items.forEach(it => {
+        if (!idSet.has(it.id)) return;
+        if (rx.test(it.desc || '')) return; // já tem o token, não duplica
+        it.desc = (it.desc ? it.desc + ' ' : '') + prefix + cleanToken;
+        touched++;
+      });
+      saveAndRender();
+      toast(`${prefix}${cleanToken} added to ${touched} item${touched !== 1 ? 's' : ''}`);
+    }
+
+    function _bulkExcludeToken(key, prefix, token) {
+      const ids = _bulkRegistry[key];
+      if (!ids) return;
+      delete _bulkRegistry[key];
+      const idSet = new Set(ids);
+      const rx = new RegExp(_escapeRx(prefix) + _escapeRx(token) + '(?=[\\s·,;]|$)', 'gi');
+      let touched = 0;
+      items.forEach(it => {
+        if (!idSet.has(it.id) || !it.desc) return;
+        if (!it.desc.match(rx)) return;
+        it.desc = it.desc.replace(rx, '').replace(/\s+/g, ' ').trim();
+        touched++;
+      });
+      saveAndRender();
+      toast(`${prefix}${token} removed from ${touched} item${touched !== 1 ? 's' : ''}`);
+    }
+
+    function _bulkRenameToken(key, prefix, fromToken, toToken) {
+      const ids = _bulkRegistry[key];
+      if (!ids) return;
+      delete _bulkRegistry[key];
+      // Defesa extra: toToken nunca deve trazer prefixo embutido (evita @@token).
+      const cleanToToken = String(toToken).replace(/^[@&#]+/, '');
+      if (!cleanToToken) return;
+      const idSet = new Set(ids);
+      const rx = new RegExp(_escapeRx(prefix) + _escapeRx(fromToken) + '(?=[\\s·,;]|$)', 'gi');
+      let touched = 0;
+      items.forEach(it => {
+        if (!idSet.has(it.id) || !it.desc) return;
+        if (!it.desc.match(rx)) return;
+        it.desc = it.desc.replace(rx, prefix + cleanToToken);
+        touched++;
+      });
+      saveAndRender();
+      toast(`${prefix}${fromToken} renamed to ${prefix}${cleanToToken} in ${touched} item${touched !== 1 ? 's' : ''}`);
+    }
+
+
     // Se a query for um token "puro" de prefixo (@loja ou &atributo, sem texto
     // adicional), habilita também a opção de rename em lote — mesmo padrão de #categoria.
     function openSearchSectionMenu(triggerEl, query, count) {
@@ -8050,7 +8347,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260624');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260627');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -8091,7 +8388,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260624', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260627', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
