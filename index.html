@@ -3907,8 +3907,8 @@
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
-          <input id="search-input" type="text" placeholder="name, #category, A*, *term*…" oninput="onSearch()"
-            autocomplete="off" onkeydown="acOnKeydown(event)" onblur="setTimeout(acClose,150)" />
+          <input id="search-input" type="text" placeholder="name, #cat, @ctx, &amp;rel, A*, *term*…"
+            oninput="onSearch()" autocomplete="off" onkeydown="acOnKeydown(event)" onblur="setTimeout(acClose,150)" />
 
           <span id="search-clear" onclick="clearSearch()">clear</span>
         </div>
@@ -4099,7 +4099,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260627-single-file-sync.r16-picker-appid';
+    const APP_BUILD = '20260628-single-file-sync.r16-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4132,7 +4132,7 @@
       if (profiles.length > 0) return; // já migrado
 
       // Copia dados legados para as novas chaves com slug 'default'
-      const LEGACY_DATA_KEY = 'Shop_List_v20260627';
+      const LEGACY_DATA_KEY = 'Shop_List_v20260628';
       const LEGACY_UI_KEY = 'Shop_List_ui';
       const LEGACY_SYNC_KEY = 'ShopList_driveSync';
       const slug = 'default';
@@ -6083,13 +6083,13 @@
           <span class="sec-action-icon">☆</span> Unfavorite all ${count} item${count !== 1 ? 's' : ''}
         </div>
         <div class="sec-action-item" data-action="open-include" data-key="${key}">
-          <span class="sec-action-icon">➕</span> Include token (@ or &amp;)
+          <span class="sec-action-icon">➕</span> Include context (@) or relationship (&amp;)
         </div>
         <div class="sec-action-item" data-action="open-exclude" data-key="${key}">
-          <span class="sec-action-icon">➖</span> Exclude token (@ or &amp;)
+          <span class="sec-action-icon">➖</span> Exclude context (@) or relationship (&amp;)
         </div>
         <div class="sec-action-item" data-action="open-rename" data-key="${key}">
-          <span class="sec-action-icon">✏️</span> Rename token (@ or &amp;)
+          <span class="sec-action-icon">✏️</span> Rename context (@) or relationship (&amp;)
         </div>
         <div class="sec-action-item danger" data-action="bulk-delete" data-key="${key}" data-label="${esc(label)}">
           <span class="sec-action-icon">🗑️</span> Delete all ${count} item${count !== 1 ? 's' : ''}
@@ -6139,9 +6139,9 @@
     function _showTokenInputRow(itemEl, bulkKey, mode) {
       const icons = { include: '➕', exclude: '➖', rename: '✏️' };
       const placeholders = {
-        include: 'with prefix, e.g. &promo',
-        exclude: 'with prefix, e.g. &organico',
-        rename: 'current token, with prefix, e.g. @mercado',
+        include: '@context or &relationship, e.g. &promo',
+        exclude: '@context or &relationship, e.g. &organico',
+        rename: 'current @context or &relationship, e.g. @mercado',
       };
 
       const row = document.createElement('div');
@@ -6172,11 +6172,11 @@
 
         if (mode === 'rename' && renameStage === 1) {
           const parsed = parseToken(raw);
-          if (!parsed) { toast('Use format @token or &token'); return; }
+          if (!parsed) { toast('Use @context or &relationship format'); return; }
           renameFrom = parsed;
           renameStage = 2;
           input.value = '';
-          input.placeholder = `new name for ${parsed.prefix}${parsed.token} (no prefix)`;
+          input.placeholder = `new name for ${PREFIX_META[parsed.prefix].noun} ${parsed.prefix}${parsed.token} (no prefix)`;
           input.focus();
           return;
         }
@@ -6194,7 +6194,7 @@
         }
 
         const parsed = parseToken(raw);
-        if (!parsed) { toast('Use format @token or &token'); return; }
+        if (!parsed) { toast('Use @context or &relationship format'); return; }
 
         if (mode === 'include') _bulkIncludeToken(bulkKey, parsed.prefix, parsed.token);
         if (mode === 'exclude') _bulkExcludeToken(bulkKey, parsed.prefix, parsed.token);
@@ -6230,7 +6230,7 @@
         touched++;
       });
       saveAndRender();
-      toast(`${prefix}${cleanToken} added to ${touched} item${touched !== 1 ? 's' : ''}`);
+      toast(`${PREFIX_META[prefix].noun} ${prefix}${cleanToken} added to ${touched} item${touched !== 1 ? 's' : ''}`);
     }
 
     function _bulkExcludeToken(key, prefix, token) {
@@ -6247,7 +6247,7 @@
         touched++;
       });
       saveAndRender();
-      toast(`${prefix}${token} removed from ${touched} item${touched !== 1 ? 's' : ''}`);
+      toast(`${PREFIX_META[prefix].noun} ${prefix}${token} removed from ${touched} item${touched !== 1 ? 's' : ''}`);
     }
 
     function _bulkRenameToken(key, prefix, fromToken, toToken) {
@@ -6267,7 +6267,7 @@
         touched++;
       });
       saveAndRender();
-      toast(`${prefix}${fromToken} renamed to ${prefix}${cleanToToken} in ${touched} item${touched !== 1 ? 's' : ''}`);
+      toast(`${PREFIX_META[prefix].noun} ${prefix}${fromToken} renamed to ${prefix}${cleanToToken} in ${touched} item${touched !== 1 ? 's' : ''}`);
     }
 
 
@@ -6282,7 +6282,7 @@
       const tokenMatch = query.match(/^([@&])([^\s·,;@&]+)$/);
       const renameItem = tokenMatch ? `
         <div class="sec-action-item" data-action="rename-token" data-prefix="${esc(tokenMatch[1])}" data-token="${esc(tokenMatch[2])}">
-          <span class="sec-action-icon">✏️</span> Rename ${tokenMatch[1] === '@' ? 'store/brand' : 'attribute'}
+          <span class="sec-action-icon">✏️</span> Rename ${PREFIX_META[tokenMatch[1]].noun}
         </div>
       ` : '';
 
@@ -6847,17 +6847,32 @@
       else window.close();
     }
 
+    // ── Autocomplete do campo de busca (#search-input) ─────────────────────
+    // Reconhece os 3 prefixos de token estruturado: # categoria, @ contexto,
+    // & relacionamento — mesmos delimitadores e extração usados no resto do
+    // app (getExistingCategories / getTokensForPrefix), para sugerir apenas
+    // valores já existentes no dataset. Ao escolher uma sugestão, a busca é
+    // disparada imediatamente (searchQuery + render()), assim como já
+    // funcionava para #categoria.
     function acOnInputSearch(input) {
       const val = input.value;
-      const hashPos = val.lastIndexOf('#');
-      if (hashPos !== -1) {
-        const afterHash = val.slice(hashPos + 1);
-        if (!/\s/.test(afterHash)) {
-          const cats = getExistingCategories(afterHash);
-          if (cats.length) {
-            acOpen(input, 'search-cat', cats, '🏷️ Filter by category');
-            return;
-          }
+
+      for (const prefix of ['#', '@', '&']) {
+        const lastPos = val.lastIndexOf(prefix);
+        if (lastPos === -1) continue;
+        const afterPrefix = val.slice(lastPos + 1);
+        if (/\s/.test(afterPrefix)) continue; // token já encerrado por espaço
+
+        const meta = PREFIX_META[prefix];
+        const suggestions = prefix === '#'
+          ? getExistingCategories(afterPrefix)
+          : getTokensForPrefix(prefix, afterPrefix);
+
+        if (suggestions.length) {
+          acOpen(input, 'search-token', suggestions, `${meta.icon} Filter by ${meta.noun}`);
+          // Guarda o prefixo ativo para o acPick saber qual trecho substituir
+          document.getElementById('ac-dropdown')._searchPrefix = prefix;
+          return;
         }
       }
       acClose();
@@ -6902,6 +6917,36 @@
         .filter(c => !q || c.startsWith(q))
         .sort()
         .map(c => ({ label: c, icon: '🏷️', desc: '' }));
+    }
+
+    // ── Metadados visuais e nomenclatura canônica por prefixo de token ─────
+    // # categories | @ contexts (store/brand) | & relationships (atributos de um contexto) | $ budget/price
+    // Único ponto de verdade para ícone/rótulo/acMode usado em todo autocomplete
+    // (edição de item e busca) e nos menus de ação em lote — evita nomenclatura
+    // divergente entre toasts, placeholders e cabeçalhos de menu.
+    const PREFIX_META = {
+      '#': { icon: '🏷️', desc: '', acMode: 'category', header: '🏷️ Categories', noun: 'category' },
+      '@': { icon: '🏪', desc: 'context', acMode: 'at-token', header: '🏪 Contexts', noun: 'context' },
+      '&': { icon: '🔖', desc: 'relationship', acMode: 'amp-token', header: '🔖 Relationships', noun: 'relationship' },
+      '$': { icon: '💲', desc: 'budget/price', acMode: 'dol-token', header: '💲 Budget / Price', noun: 'budget' },
+    };
+
+    // ── Helper: extrai tokens de um prefixo genérico dos descs existentes ──
+    function getTokensForPrefix(prefix, query = '') {
+      const tokens = new Set();
+      const regex = new RegExp(`\\${prefix}([^\\s·,;${prefix}]+)`, 'g');
+      items.forEach(it => {
+        if (!it.desc) return;
+        for (const m of it.desc.matchAll(regex)) {
+          const tok = m[1].trim().toLowerCase();
+          if (tok) tokens.add(tok);
+        }
+      });
+      const q = query.toLowerCase();
+      return [...tokens]
+        .filter(t => !q || t.startsWith(q))
+        .sort()
+        .map(t => ({ label: t, icon: PREFIX_META[prefix]?.icon || '🔖', desc: PREFIX_META[prefix]?.desc || '' }));
     }
 
     function getUnitSuggestions(query = '') {
@@ -6963,6 +7008,7 @@
       const drop = document.getElementById('ac-dropdown');
       drop.classList.remove('open');
       drop._suggestions = null;
+      drop._searchPrefix = null;
       acTarget = null;
       acMode = null;
       acFocusIdx = -1;
@@ -6993,10 +7039,14 @@
         const prefix = MODE_PREFIX[acMode];
         const lastPos = val.lastIndexOf(prefix);
         acTarget.value = val.slice(0, lastPos) + prefix + sugs[idx].label;
-        if (acMode === 'search-cat') {
-          searchQuery = acTarget.value;
-          render();
-        }
+      } else if (acMode === 'search-token') {
+        // Autocomplete do #search-input para # / @ / & — o prefixo ativo foi
+        // guardado em drop._searchPrefix por acOnInputSearch.
+        const prefix = drop._searchPrefix || '#';
+        const lastPos = val.lastIndexOf(prefix);
+        acTarget.value = val.slice(0, lastPos) + prefix + sugs[idx].label;
+        searchQuery = acTarget.value;
+        render();
       } else if (acMode === 'search-cat') {
         const hashPos = val.lastIndexOf('#');
         acTarget.value = val.slice(0, hashPos) + '#' + sugs[idx].label;
@@ -7014,32 +7064,6 @@
     function acOnInput(e) {
       const input = e.target;
       const val = input.value;
-
-      // ── Helper: extrai tokens de um prefixo genérico dos descs existentes ──
-      function getTokensForPrefix(prefix, query = '') {
-        const tokens = new Set();
-        const regex = new RegExp(`\\${prefix}([^\\s·,;${prefix}]+)`, 'g');
-        items.forEach(it => {
-          if (!it.desc) return;
-          for (const m of it.desc.matchAll(regex)) {
-            const tok = m[1].trim().toLowerCase();
-            if (tok) tokens.add(tok);
-          }
-        });
-        const q = query.toLowerCase();
-        return [...tokens]
-          .filter(t => !q || t.startsWith(q))
-          .sort()
-          .map(t => ({ label: t, icon: PREFIX_META[prefix]?.icon || '🔖', desc: PREFIX_META[prefix]?.desc || '' }));
-      }
-
-      // Metadados visuais por prefixo
-      const PREFIX_META = {
-        '#': { icon: '🏷️', desc: '', acMode: 'category', header: '🏷️ Categories' },
-        '@': { icon: '🏪', desc: 'brand/store', acMode: 'at-token', header: '🏪 Brands / Stores' },
-        '&': { icon: '🔖', desc: 'attribute', acMode: 'amp-token', header: '🔖 Attributes' },
-        '$': { icon: '💲', desc: 'budget/price', acMode: 'dol-token', header: '💲 Budget / Price' },
-      };
 
       // Verifica se o cursor está logo após um dos prefixos ativos sem espaço
       for (const prefix of ['#', '@', '&', '$']) {
@@ -8347,7 +8371,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260627');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260628');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -8388,7 +8412,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260627', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260628', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
