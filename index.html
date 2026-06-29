@@ -44,14 +44,30 @@
       --accent: #00796B;
       --accent-light: #E0F2F1;
       --accent-text: #004D40;
+      /* Reaproveita a cor vívida do dark mode (não uma versão escurecida) —
+         no light, ela aparece como filete sobre o anel --status-ring (tom do
+         header/footer). Ver border-left de .row-ok/.row-warn/.row-crit. */
+      --accent-strong: #26C6BA;
 
       /* Warn — âmbar dourado */
       --warn: #B45309;
       --warn-light: #FEF3C7;
+      --warn-strong: #FFB300;
 
       /* Crit — coral-vermelho */
       --crit: #C62828;
       --crit-light: #FFEBEE;
+      --crit-strong: #EF5350;
+
+      /* Anel escuro de moldura para a border-left de status no light —
+         recria o "ambiente escuro" do dark mode em volta da cor vívida,
+         já que ela não contrasta sozinha contra um fundo branco. */
+      /* Anel de moldura para a border-left de status no light — usa o mesmo
+         tom do header/footer (#E4EEF5), para harmonizar com a identidade
+         visual do app em vez de um neutro genérico. Funciona em conjunto
+         com uma faixa total mais larga (8px): o anel ocupa a maior parte,
+         e a cor vívida de status aparece como um filete por cima. */
+      --status-ring: #E4EEF5;
 
       /* Purple — Índigo suave para destaques UI secundários */
       --purple: #5C6BC0;
@@ -125,14 +141,23 @@
       --accent: #26C6BA;
       --accent-light: #0A2826;
       --accent-text: #80DEDB;
+      /* No dark, --accent já tem contraste alto (~7.7) — reaproveita o mesmo
+         valor, sem necessidade de reforço como no light. */
+      --accent-strong: #26C6BA;
 
       /* Warn — âmbar saturado */
       --warn: #FFB300;
       --warn-light: #261C00;
+      --warn-strong: #FFB300;
 
       /* Crit — coral néon */
       --crit: #EF5350;
       --crit-light: #2A0808;
+      --crit-strong: #EF5350;
+
+      /* No dark, a cor vívida já contrasta direto contra --surface escuro —
+         o anel de moldura não é necessário aqui. */
+      --status-ring: transparent;
 
       /* Purple — violeta suave para dark */
       --purple: #8C92F0;
@@ -1222,20 +1247,23 @@
 
     .stock-row.row-ok,
     .item-row.row-ok {
-      border-left: 4px solid var(--accent);
-      padding-left: 14px;
+      border-left: 4px solid var(--accent-strong);
+      box-shadow: inset 4px 0 0 0 var(--status-ring);
+      padding-left: 10px;
     }
 
     .stock-row.row-crit,
     .item-row.row-crit {
-      border-left: 4px solid var(--crit);
-      padding-left: 14px;
+      border-left: 4px solid var(--crit-strong);
+      box-shadow: inset 4px 0 0 0 var(--status-ring);
+      padding-left: 10px;
     }
 
     .stock-row.row-warn,
     .item-row.row-warn {
-      border-left: 4px solid var(--warn);
-      padding-left: 14px;
+      border-left: 4px solid var(--warn-strong);
+      box-shadow: inset 4px 0 0 0 var(--status-ring);
+      padding-left: 10px;
     }
 
     .item-cb {
@@ -1657,16 +1685,17 @@
     .buy-row {
       display: flex;
       align-items: flex-start;
-      padding: 12px 16px;
+      padding: 12px 16px 12px 10px;
       /* border-bottom: 1px solid var(--row-crit-border); */
       gap: 12px;
-      border-left: 3px solid var(--crit);
+      border-left: 4px solid var(--crit-strong);
+      box-shadow: inset 4px 0 0 0 var(--status-ring);
     }
 
     .buy-row.done {
       opacity: 0.72;
       background: var(--surface2);
-      border-left-color: var(--accent);
+      border-left-color: var(--accent-strong);
       border-bottom-color: var(--border);
     }
 
