@@ -226,6 +226,12 @@
       position: relative;
       box-shadow: 0 0 60px rgba(13, 27, 42, 0.12);
       overflow: hidden;
+      /* Respiro nas zonas curvas de telas edge-to-edge (ex: Motorola Edge 50) —
+         evita que a border-left de status (.row-ok/.row-warn/.row-crit) caia
+         na faixa de curvatura física, onde perde contraste visual.
+         env() resolve para 0px em devices sem inset reportado (sem efeito ali). */
+      padding-left: env(safe-area-inset-left, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
     }
 
     #title-link {
@@ -1216,20 +1222,20 @@
 
     .stock-row.row-ok,
     .item-row.row-ok {
-      border-left: 3px solid var(--accent);
-      padding-left: 13px;
+      border-left: 4px solid var(--accent);
+      padding-left: 14px;
     }
 
     .stock-row.row-crit,
     .item-row.row-crit {
-      border-left: 3px solid var(--crit);
-      padding-left: 13px;
+      border-left: 4px solid var(--crit);
+      padding-left: 14px;
     }
 
     .stock-row.row-warn,
     .item-row.row-warn {
-      border-left: 3px solid var(--warn);
-      padding-left: 13px;
+      border-left: 4px solid var(--warn);
+      padding-left: 14px;
     }
 
     .item-cb {
@@ -4099,7 +4105,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260622-single-file-sync.r16-picker-appid';
+    const APP_BUILD = '20260628-single-file-sync.r16-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4132,7 +4138,7 @@
       if (profiles.length > 0) return; // já migrado
 
       // Copia dados legados para as novas chaves com slug 'default'
-      const LEGACY_DATA_KEY = 'Shop_List_v20260622';
+      const LEGACY_DATA_KEY = 'Shop_List_v20260628';
       const LEGACY_UI_KEY = 'Shop_List_ui';
       const LEGACY_SYNC_KEY = 'ShopList_driveSync';
       const slug = 'default';
@@ -8372,7 +8378,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260622');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260628');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -8413,7 +8419,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260622', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260628', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
