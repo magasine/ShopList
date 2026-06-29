@@ -1239,10 +1239,15 @@
     }
 
     /* Status indicator: minimalist border-left only — no background tinting */
+    /* row-off = item fora de estoque / não rastreado — NÃO é um nível de
+       severidade do semáforo (ok/warn/crit), então não recebe cor nem anel.
+       padding-left volta ao valor base de .item-row (16px), já que não há
+       faixa lateral ocupando espaço aqui. */
     .stock-row.row-off,
     .item-row.row-off {
-      border-left: 3px solid var(--warn);
-      padding-left: 13px;
+      border-left: none;
+      box-shadow: none;
+      padding-left: 16px;
     }
 
     .stock-row.row-ok,
