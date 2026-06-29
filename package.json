@@ -1,0 +1,7 @@
+{
+  "name": "shop-list",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "echo 'Sem build necessario. Prontinho para o deploy!'"
+  }
+}
