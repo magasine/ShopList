@@ -4768,15 +4768,23 @@
       return norm(item.name).includes(nt) || norm(item.desc || '').includes(nt);
     }
 
-    // Decide o match da query completa: TODOS os positivos E NENHUM negativo.
+    // Decide o match da query completa.
+    // Gramática (v20260702): OR de menor precedência — a query é dividida por '|'
+    // em grupos; cada grupo é uma conjunção de termos com exclusões ('-termo').
+    // O item casa se QUALQUER grupo casar:
+    //   "#bebidas @casa | #limpeza -#pesado" = (bebidas E casa) OU (limpeza E não-pesado)
+    // Grupos vazios (ex: "bebidas |" durante a digitação) são ignorados.
     // Query só com exclusões (ex: "-#laticinios") = tudo, exceto os excluídos.
-    // Nota de semântica (v20260702): query multi-palavra é conjunção de termos —
-    // "leite integral" casa "leite" E "integral" em qualquer posição, não mais a
-    // frase exata. Preço natural dos critérios conjugados separados por espaço.
+    // Nota de semântica: query multi-palavra é conjunção de termos — "leite integral"
+    // casa "leite" E "integral" em qualquer posição, não mais a frase exata.
     function simpleMatch(item, rawQuery) {
-      const { pos, neg } = parseSearchTerms(rawQuery);
-      if (!pos.length && !neg.length) return true;
-      return pos.every(t => termMatch(item, t)) && !neg.some(t => termMatch(item, t));
+      const groups = (rawQuery || '').split('|')
+        .map(g => parseSearchTerms(g))
+        .filter(g => g.pos.length || g.neg.length);
+      if (!groups.length) return true;
+      return groups.some(({ pos, neg }) =>
+        pos.every(t => termMatch(item, t)) && !neg.some(t => termMatch(item, t))
+      );
     }
 
     function filteredItems() {
