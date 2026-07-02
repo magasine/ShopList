@@ -6929,11 +6929,19 @@
         'zero': 'Zero stock',
       };
       const filterLabel = filterMap[activeQuickFilter] || null;
+
+      // Critérios de recorte adicionais aplicados por buyItems()/filteredItems():
+      // busca textual e chips checked/unchecked — sem eles no metaLine, quem recebe
+      // a mensagem não sabe que a lista é um recorte, não o total pendente.
+      const _q = searchQuery.trim();
+      const searchLabel = _q ? `🔍 "${_q}"` : null;
+      const chipLabel = { checked: 'checked only', unchecked: 'unchecked only' }[checkFilter] || null;
+
       const sortLabel = {
         az: 'A–Z', cat: 'by category', fav: 'favorites first',
         'tok:@': 'by context', 'tok:&': 'by relationship',
       }[sortMode] || sortMode;
-      const metaParts = [filterLabel, `${list.length} item${list.length !== 1 ? 's' : ''}`, sortLabel].filter(Boolean);
+      const metaParts = [filterLabel, searchLabel, chipLabel, `${list.length} item${list.length !== 1 ? 's' : ''}`, sortLabel].filter(Boolean);
       const metaLine = metaParts.join(' - ');
 
       // ── Monta o output ────────────────────────────────────────────────────
