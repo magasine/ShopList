@@ -725,6 +725,12 @@
       transition: all var(--transition);
       flex-shrink: 0;
       box-shadow: 0 1px 3px rgba(13, 27, 42, 0.06);
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      /* iOS: suprime callout no toque longo (menu de modos) */
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
 
     #btn-sort:hover {
@@ -3069,7 +3075,9 @@
     }
 
     .sort-icon-label--az,
-    .sort-icon-label--cat {
+    .sort-icon-label--cat,
+    .sort-icon-label--ctx,
+    .sort-icon-label--rel {
       font-size: 12px;
       letter-spacing: -0.5px;
     }
@@ -3077,6 +3085,29 @@
     .sort-icon-label--fav {
       font-size: 11px;
       letter-spacing: -1px;
+    }
+
+    /* ── Menu de modos de ordenação (toque longo em #btn-sort) ── */
+    .sort-mode-item .sort-icon-label {
+      display: inline-block;
+      min-width: 32px;
+      font-size: 11px;
+    }
+
+    .sort-mode-item--current {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .sort-mode-item--disabled {
+      opacity: 0.45;
+      pointer-events: none;
+    }
+
+    .sort-mode-count {
+      color: var(--text3);
+      font-size: 10px;
+      white-space: nowrap;
     }
 
     /* sec-search label text: sem capitalize, com espaçamento menor */
@@ -3902,7 +3933,7 @@
 
         <!-- Controles fixos da linha 1: sort · 🚦 · search · close -->
         <div class="header-controls">
-          <div id="btn-sort" title="Sort (A-Z, #-Z, ⭐)" onclick="toggleSortMode()">
+          <div id="btn-sort" title="Sort: tap cycles A-Z / #-Z / ⭐ · hold for all modes">
             <span id="sort-icon"><span class="sort-icon-label sort-icon-label--az">A·Z</span></span>
           </div>
 
@@ -4210,7 +4241,8 @@
     let pendingDoneId = null;
     let changeCounter = 0;
     let bannerDismissed = false;
-    let sortMode = 'az';          // 'az' | 'cat' | 'fav'
+    let sortMode = 'az';          // 'az' | 'cat' | 'fav' | 'tok:@' | 'tok:&'
+    let _sortHintShown = false;   // dica única do toque longo no #btn-sort (persistida no UI_KEY)
     const _collapsedSections = new Set(); // persiste estado collapsed entre renders
     let activeQuickFilter = '';   // '' | 'fav' | 'warn' | 'crit'
 
@@ -4255,6 +4287,7 @@
       if (_sbt) _sbt.classList.remove('active');
 
       load();
+      _syncSortBtnVisual(); // FIX pré-existente: load() restaura o sortMode do perfil, mas o ícone ficava obsoleto
       render();
       updateSyncBadge();
       syncFavBtn();
@@ -4337,37 +4370,38 @@
       el._t = setTimeout(() => el.classList.remove('show'), 2200);
     }
 
-    // ── Toque longo em botões de stepper ──────────────────────────────────────
-    // Toque curto: aplica step(sign * 1) · Toque longo (500ms): step(sign * 5), sem
-    // auto-repeat — cada toque longo aplica um único ±5. O clamp (ex.: Math.max(0,…))
-    // é responsabilidade da função step recebida.
-    // setPointerCapture: garante pointerup no botão mesmo se o dedo derivar (mobile).
+    // ── Toque longo genérico ───────────────────────────────────────────────────
+    // Tap curto → onTap() · Toque mantido por LONG_PRESS_MS → onLong() (suprime o tap).
+    // setPointerCapture: garante pointerup no elemento mesmo se o dedo derivar (mobile).
     // contextmenu: suprime o menu de contexto do Android em toque longo.
-    const STEPPER_LONG_PRESS_MS = 500;
-    const STEPPER_LONG_STEP = 5;
-    function attachStepperPress(btn, sign, step) {
-      if (!btn) return;
+    const LONG_PRESS_MS = 500;
+    function attachLongPress(el, onTap, onLong) {
+      if (!el) return;
       let pressTimer = null, longFired = false;
       const clearTimer = () => { clearTimeout(pressTimer); pressTimer = null; };
-      btn.addEventListener('pointerdown', (e) => {
+      el.addEventListener('pointerdown', (e) => {
         e.preventDefault(); // evita seleção de texto/roubo de foco durante o toque
         longFired = false;
-        try { btn.setPointerCapture(e.pointerId); } catch (_) { }
-        pressTimer = setTimeout(() => {
-          longFired = true;
-          step(sign * STEPPER_LONG_STEP);
-        }, STEPPER_LONG_PRESS_MS);
+        try { el.setPointerCapture(e.pointerId); } catch (_) { }
+        pressTimer = setTimeout(() => { longFired = true; onLong(); }, LONG_PRESS_MS);
       });
-      btn.addEventListener('pointerup', () => {
+      el.addEventListener('pointerup', () => {
         const wasLong = longFired;
         longFired = false;
         clearTimer();
-        if (!wasLong) step(sign); // toque curto: passo unitário (comportamento original)
+        if (!wasLong) onTap(); // toque curto: ação padrão
       });
       const _cancelPress = () => { longFired = false; clearTimer(); };
-      btn.addEventListener('pointercancel', _cancelPress);
-      btn.addEventListener('lostpointercapture', _cancelPress);
-      btn.addEventListener('contextmenu', (e) => e.preventDefault());
+      el.addEventListener('pointercancel', _cancelPress);
+      el.addEventListener('lostpointercapture', _cancelPress);
+      el.addEventListener('contextmenu', (e) => e.preventDefault());
+    }
+
+    // ── Steppers: toque curto ±1 · toque longo ±5 (sem auto-repeat) ────────────
+    // O clamp (ex.: Math.max(0,…)) é responsabilidade da função step recebida.
+    const STEPPER_LONG_STEP = 5;
+    function attachStepperPress(btn, sign, step) {
+      attachLongPress(btn, () => step(sign), () => step(sign * STEPPER_LONG_STEP));
     }
 
     // ==================== LOCALSTORAGE COM TRATAMENTO DE ERRO ====================
@@ -4420,7 +4454,8 @@
         const rawUI = localStorage.getItem(UI_KEY);
         if (rawUI) {
           const ui = JSON.parse(rawUI);
-          if (['az', 'cat', 'fav'].includes(ui.sortMode)) sortMode = ui.sortMode;
+          if (['az', 'cat', 'fav', 'tok:@', 'tok:&'].includes(ui.sortMode)) sortMode = ui.sortMode;
+          _sortHintShown = !!ui.sortHintShown;
           if (['', 'fav', 'fav-off', 'warn', 'crit', 'ok', 'zero'].includes(ui.activeQuickFilter)) activeQuickFilter = ui.activeQuickFilter;
           _collapsedSections.clear();
           if (Array.isArray(ui.collapsedSections)) {
@@ -4576,6 +4611,7 @@
         localStorage.setItem(UI_KEY, JSON.stringify({
           sortMode,
           activeQuickFilter,
+          sortHintShown: _sortHintShown,
           collapsedSections: [..._collapsedSections]
         }));
       } catch (e) {
@@ -4775,12 +4811,18 @@
     function stockItems() { return filteredItems().filter(it => it.inStock); }
     function buyItems() { return filteredItems().filter(it => it.inStock && (it.qty < it.min || it._done)); }
 
-    // Extrai a primeira categoria (#tag) do campo desc de um item
-    function getCategoryOf(it) {
+    // Extrai o primeiro token de um prefixo (#, @, &, $) do desc de um item.
+    // Regex harmonizado com getTokensForPrefix: exclui espaço, ·, vírgula, ';' e o
+    // próprio prefixo — "kg #a#b" agrupa por "a" (antes: "a#b"), alinhando o
+    // agrupamento ao autocomplete e ao bulk rename.
+    function getTokenOf(it, prefix) {
       if (!it.desc) return '—';
-      const m = it.desc.match(/#([^\s·,]+)/);
+      const m = it.desc.match(new RegExp(`\\${prefix}([^\\s·,;\\${prefix}]+)`));
       return m ? m[1].toLowerCase() : '—';
     }
+
+    // Caso particular histórico (#) — mantém os callers existentes intactos
+    function getCategoryOf(it) { return getTokenOf(it, '#'); }
 
     // Ordena conforme o modo atual
     function sorted(arr) {
@@ -4788,10 +4830,17 @@
       if (sortMode === 'az') {
         return [...arr].sort((a, b) => collator.compare(a.name, b.name));
       }
-      if (sortMode === 'cat') {
+      const _tp = _sortTokenPrefix();
+      if (_tp) {
+        // Modos por token (cat/#, tok:@, tok:&): agrupa pelo 1º token do prefixo.
+        // Itens sem token ('—') sempre por último — consistente entre os modos.
         return [...arr].sort((a, b) => {
-          const ca = getCategoryOf(a), cb = getCategoryOf(b);
-          if (ca !== cb) return collator.compare(ca, cb);
+          const ta = getTokenOf(a, _tp), tb = getTokenOf(b, _tp);
+          if (ta !== tb) {
+            if (ta === '—') return 1;
+            if (tb === '—') return -1;
+            return collator.compare(ta, tb);
+          }
           return collator.compare(a.name, b.name);
         });
       }
@@ -4811,43 +4860,104 @@
         const normalized = firstChar.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
         return normalized || firstChar.toUpperCase();
       }
-      if (sortMode === 'cat') {
-        const cat = getCategoryOf(it);
-        return cat === '—' ? '—' : '#' + cat;
+      const _tp = _sortTokenPrefix();
+      if (_tp) {
+        const tok = getTokenOf(it, _tp);
+        return tok === '—' ? '—' : _tp + tok;
       }
       // Modo fav: duas seções — favoritos e o resto
       return it.fav ? '★ Favorites' : '· Other items';
     }
 
-    function toggleSortMode() {
-      // Cicla entre os três estados
-      if (sortMode === 'az') sortMode = 'cat';
-      else if (sortMode === 'cat') sortMode = 'fav';
-      else sortMode = 'az';
+    // ── Registro dos modos de ordenação ────────────────────────────────────────
+    // Fonte única para ciclo (tap), ícone do botão e menu (toque longo).
+    // 'az' | 'cat' | 'fav' preservam os valores históricos — compatibilidade com o
+    // UI_KEY já salvo nos dispositivos; modos estendidos usam o namespace 'tok:<prefix>'.
+    // '$' (budget) já previsto no PREFIX_META — entra aqui quando o recurso amadurecer.
+    // Nota: glyph é HTML-ready ('&amp;' para o prefixo &) — injetado via innerHTML.
+    const SORT_MODES = {
+      'az': { glyph: 'A·Z', iconCls: 'sort-icon-label--az', btnCls: null, toastMsg: 'Sorting A–Z', menuLabel: 'Alphabetical' },
+      'cat': { glyph: '#·Z', iconCls: 'sort-icon-label--cat', btnCls: 'active', toastMsg: 'Sorting by category', menuLabel: 'Categories', prefix: '#' },
+      'tok:@': { glyph: '@·Z', iconCls: 'sort-icon-label--ctx', btnCls: 'active', toastMsg: 'Sorting by context', menuLabel: 'Contexts', prefix: '@' },
+      'tok:&': { glyph: '&amp;·Z', iconCls: 'sort-icon-label--rel', btnCls: 'active', toastMsg: 'Sorting by relationship', menuLabel: 'Relationships', prefix: '&' },
+      'fav': { glyph: '★↕', iconCls: 'sort-icon-label--fav', btnCls: 'fav-active', toastMsg: 'Sorting by favorites', menuLabel: 'Favorites first' },
+    };
+    const SORT_CYCLE = ['az', 'cat', 'fav'];  // tap cicla apenas o núcleo
 
-      // Não limpa _collapsedSections: a chave já isola por sortMode (sortMode||section),
-      // então o fold/unfold de cada modo (A-Z/Categoria/Favoritos) é preservado independentemente.
+    // Prefixo do token do modo atual — 'cat' é o caso particular tok:#
+    function _sortTokenPrefix() {
+      if (sortMode === 'cat') return '#';
+      return sortMode.startsWith('tok:') ? sortMode.slice(4) : null;
+    }
 
+    // Sincroniza APENAS o visual do #btn-sort (ícone + classes) com sortMode.
+    // Usado no init, no switchProfile e dentro de _applySortMode.
+    function _syncSortBtnVisual() {
       const btn = document.getElementById('btn-sort');
       const icon = document.getElementById('sort-icon');
-
+      if (!btn || !icon) return;
+      const meta = SORT_MODES[sortMode] || SORT_MODES.az;
       btn.classList.remove('active', 'fav-active');
+      if (meta.btnCls) btn.classList.add(meta.btnCls);
+      icon.innerHTML = `<span class="sort-icon-label ${meta.iconCls}">${meta.glyph}</span>`;
+    }
 
-      if (sortMode === 'cat') {
-        icon.innerHTML = '<span class="sort-icon-label sort-icon-label--cat">#·Z</span>';
-        btn.classList.add('active');
-        toast('Sorting by category');
-      } else if (sortMode === 'fav') {
-        // Ícone ★↕ — diferencia visualmente do filtro ⭐ no badge amarelo
-        icon.innerHTML = '<span class="sort-icon-label sort-icon-label--fav">★↕</span>';
-        btn.classList.add('fav-active');
-        toast('Sorting by favorites');
-      } else {
-        icon.innerHTML = '<span class="sort-icon-label sort-icon-label--az">A·Z</span>';
-        toast('Sorting A–Z');
-      }
+    // Aplica um modo: estado + visual + toast + render + persistência
+    function _applySortMode(mode) {
+      if (!SORT_MODES[mode]) mode = 'az';
+      sortMode = mode;
+
+      // Não limpa _collapsedSections: a chave já isola por sortMode (sortMode||section),
+      // então o fold/unfold de cada modo é preservado independentemente.
+
+      _syncSortBtnVisual();
+      toast(SORT_MODES[mode].toastMsg);
       render();
       saveUI();
+    }
+
+    function toggleSortMode() {
+      // Tap: cicla o núcleo az → cat → fav. Modos estendidos (tok:@ / tok:&) ficam
+      // fora do ciclo — tap a partir deles retorna ao ponto de entrada A·Z (previsível).
+      const i = SORT_CYCLE.indexOf(sortMode);
+      const next = i === -1 ? 'az' : SORT_CYCLE[(i + 1) % SORT_CYCLE.length];
+
+      // Dica única de descoberta: ao completar o 1º ciclo inteiro (fav → az), sugere o
+      // toque longo. Encadeada 2400ms após o toast do modo (mesmo elemento #toast).
+      if (i === SORT_CYCLE.length - 1 && !_sortHintShown) {
+        _sortHintShown = true; // persistido pelo saveUI dentro de _applySortMode
+        setTimeout(() => toast('💡 Hold the sort button for more grouping modes'), 2400);
+      }
+      _applySortMode(next);
+    }
+
+    // ── Menu de modos (toque longo no #btn-sort) ───────────────────────────────
+    // Reutiliza a infraestrutura visual/posicional dos menus de seção (···).
+    // Modos por token exibem a contagem de tokens distintos; vazios ficam
+    // desabilitados com "· none yet" — vitrine de descoberta dos prefixos @/&.
+    function openSortMenu(triggerEl) {
+      let html = '<div class="sec-action-header">Group by</div>';
+      for (const [id, m] of Object.entries(SORT_MODES)) {
+        let suffix = '', disabled = false;
+        if (m.prefix) {
+          const n = getTokensForPrefix(m.prefix).length;
+          disabled = n === 0;
+          suffix = ` <span class="sort-mode-count">· ${disabled ? 'none yet' : n}</span>`;
+        }
+        const cls = 'sec-action-item sort-mode-item'
+          + (disabled ? ' sort-mode-item--disabled' : '')
+          + (id === sortMode ? ' sort-mode-item--current' : '');
+        html += `<div class="${cls}" data-action="set-sort" data-mode="${id}">`
+          + `<span class="sort-icon-label ${m.iconCls}">${m.glyph}</span> ${m.menuLabel}${suffix}`
+          + (id === sortMode ? ' ✓' : '') + `</div>`;
+      }
+      _showSectionMenu(triggerEl, html);
+      _secMenuEl.addEventListener('click', e => {
+        const item = e.target.closest('.sec-action-item');
+        if (!item || item.dataset.action !== 'set-sort') return;
+        closeSectionMenu();
+        _applySortMode(item.dataset.mode);
+      });
     }
 
     // ==================== SWIPE GESTURE ====================
@@ -7519,22 +7629,14 @@
     // Restaura estado inicial do #search-fav-btn
     syncFavBtn();
 
-    // Restaura visual do botão de ordenação persistido
-    (function restoreSortBtn() {
-      const btn = document.getElementById('btn-sort');
-      const icon = document.getElementById('sort-icon');
-      if (!btn || !icon) return;
-      btn.classList.remove('active', 'fav-active');
-      if (sortMode === 'cat') {
-        icon.innerHTML = '<span class="sort-icon-label sort-icon-label--cat">#·Z</span>';
-        btn.classList.add('active');
-      } else if (sortMode === 'fav') {
-        icon.innerHTML = '<span class="sort-icon-label sort-icon-label--fav">★↕</span>';
-        btn.classList.add('fav-active');
-      } else {
-        icon.innerHTML = '<span class="sort-icon-label sort-icon-label--az">A·Z</span>';
-      }
-    })();
+    // Restaura visual do botão de ordenação persistido — visual only (render acontece
+    // logo abaixo no fluxo de init); SORT_MODES é a fonte única do glyph/classe.
+    _syncSortBtnVisual();
+
+    // Binding do #btn-sort: tap cicla o núcleo, toque longo (500ms) abre o menu de modos.
+    attachLongPress(document.getElementById('btn-sort'), toggleSortMode, () => {
+      openSortMenu(document.getElementById('btn-sort'));
+    });
 
     render();
     _syncProfileBtn(); // dot indicador no botão de perfil
