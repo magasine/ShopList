@@ -6929,7 +6929,10 @@
         'zero': 'Zero stock',
       };
       const filterLabel = filterMap[activeQuickFilter] || null;
-      const sortLabel = { az: 'A–Z', cat: 'by category', fav: 'favorites first' }[sortMode] || sortMode;
+      const sortLabel = {
+        az: 'A–Z', cat: 'by category', fav: 'favorites first',
+        'tok:@': 'by context', 'tok:&': 'by relationship',
+      }[sortMode] || sortMode;
       const metaParts = [filterLabel, `${list.length} item${list.length !== 1 ? 's' : ''}`, sortLabel].filter(Boolean);
       const metaLine = metaParts.join(' - ');
 
@@ -6952,13 +6955,18 @@
       // lines.push('```');
 
       // ── Corpo: espelha a renderização do painel ───────────────────────────
-      if (sortMode === 'cat') {
+      const _tp = _sortTokenPrefix();
+      if (_tp) {
+        // Modos por token (cat/#, tok:@, tok:&): seções espelham sectionKeyOf —
+        // exatamente a visão do painel no momento do acionamento. A seção '—'
+        // (itens sem o token) sai por último (ordem do sorted) com rótulo
+        // legível 'Others' — um '—' isolado seria críptico no WhatsApp.
         let lastSection = null;
         list.forEach(it => {
           const section = sectionKeyOf(it);
           if (section !== lastSection) {
             lines.push('');
-            lines.push(`${section}`);
+            lines.push(section === '—' ? 'Others' : `${section}`);
             lastSection = section;
           }
           lines.push(itemLine(it));
