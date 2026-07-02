@@ -1632,6 +1632,9 @@
       flex-shrink: 0;
       transition: background var(--transition), color var(--transition);
       user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      /* iOS: suprime callout em toque longo (feature ±5) */
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
     }
@@ -4139,7 +4142,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260628-single-file-sync.r16-picker-appid';
+    const APP_BUILD = '20260702-single-file-sync.r16-picker-appid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4172,7 +4175,7 @@
       if (profiles.length > 0) return; // já migrado
 
       // Copia dados legados para as novas chaves com slug 'default'
-      const LEGACY_DATA_KEY = 'Shop_List_v20260628';
+      const LEGACY_DATA_KEY = 'Shop_List_v20260702';
       const LEGACY_UI_KEY = 'Shop_List_ui';
       const LEGACY_SYNC_KEY = 'ShopList_driveSync';
       const slug = 'default';
@@ -4332,6 +4335,39 @@
       el.classList.add('show');
       clearTimeout(el._t);
       el._t = setTimeout(() => el.classList.remove('show'), 2200);
+    }
+
+    // ── Toque longo em botões de stepper ──────────────────────────────────────
+    // Toque curto: aplica step(sign * 1) · Toque longo (500ms): step(sign * 5), sem
+    // auto-repeat — cada toque longo aplica um único ±5. O clamp (ex.: Math.max(0,…))
+    // é responsabilidade da função step recebida.
+    // setPointerCapture: garante pointerup no botão mesmo se o dedo derivar (mobile).
+    // contextmenu: suprime o menu de contexto do Android em toque longo.
+    const STEPPER_LONG_PRESS_MS = 500;
+    const STEPPER_LONG_STEP = 5;
+    function attachStepperPress(btn, sign, step) {
+      if (!btn) return;
+      let pressTimer = null, longFired = false;
+      const clearTimer = () => { clearTimeout(pressTimer); pressTimer = null; };
+      btn.addEventListener('pointerdown', (e) => {
+        e.preventDefault(); // evita seleção de texto/roubo de foco durante o toque
+        longFired = false;
+        try { btn.setPointerCapture(e.pointerId); } catch (_) { }
+        pressTimer = setTimeout(() => {
+          longFired = true;
+          step(sign * STEPPER_LONG_STEP);
+        }, STEPPER_LONG_PRESS_MS);
+      });
+      btn.addEventListener('pointerup', () => {
+        const wasLong = longFired;
+        longFired = false;
+        clearTimer();
+        if (!wasLong) step(sign); // toque curto: passo unitário (comportamento original)
+      });
+      const _cancelPress = () => { longFired = false; clearTimer(); };
+      btn.addEventListener('pointercancel', _cancelPress);
+      btn.addEventListener('lostpointercapture', _cancelPress);
+      btn.addEventListener('contextmenu', (e) => e.preventDefault());
     }
 
     // ==================== LOCALSTORAGE COM TRATAMENTO DE ERRO ====================
@@ -4702,9 +4738,15 @@
       const q = searchQuery.trim();
       if (q) result = result.filter(it => simpleMatch(it, q));
 
-      // filtro de checkbox — só aplicável na aba Refill (tab 2), onde _done existe
-      if (currentTab === 2 && checkFilter === 'checked') result = result.filter(it => !!it._done);
-      if (currentTab === 2 && checkFilter === 'unchecked') result = result.filter(it => !it._done);
+      // filtro de checkbox — All (tab 0): inStock · Refill (tab 2): _done.
+      // Stock (tab 1) não aplica: chips ocultos lá (syncChips), sem filtro fantasma.
+      // checkFilter persiste entre All ↔ Refill — o chip filtra sempre "o estado
+      // do checkbox do painel ativo", modelo mental único para as duas abas.
+      if (checkFilter) {
+        const want = checkFilter === 'checked';
+        if (currentTab === 2) result = result.filter(it => !!it._done === want);
+        else if (currentTab === 0) result = result.filter(it => !!it.inStock === want);
+      }
 
       return result;
     }
@@ -4725,8 +4767,9 @@
       if (cc) cc.className = 'sch-chip' + (checkFilter === 'checked' ? ' active-checked' : '');
       if (cu) cu.className = 'sch-chip' + (checkFilter === 'unchecked' ? ' active-unchecked' : '');
 
-      // Chips só relevantes na aba Refill (tab 2) — _done é estado de sessão exclusivo dela
-      chips.classList.toggle('hidden', currentTab !== 2);
+      // Chips visíveis em All (filtra inStock) e Refill (filtra _done) — ocultos em Stock.
+      // Alinha o JS à intenção original documentada no CSS (#search-chips.hidden).
+      chips.classList.toggle('hidden', currentTab === 1);
     }
 
     function stockItems() { return filteredItems().filter(it => it.inStock); }
@@ -5311,11 +5354,13 @@
           function doStep(delta) {
             const cur = parseInt(input.value, 10) || 0;
             const next = Math.max(0, cur + delta);
+            if (next === cur) return;    // clamp em 0 — nada a aplicar, evita save redundante
             input.value = next;
             onStepChange(next);  // passa o valor já calculado
           }
-          btnMinus.addEventListener('pointerup', () => doStep(-1));
-          btnPlus.addEventListener('pointerup', () => doStep(+1));
+          // Toque curto: ±1 · Toque longo (500ms): ±5 — helper global attachStepperPress
+          attachStepperPress(btnMinus, -1, doStep);
+          attachStepperPress(btnPlus, +1, doStep);
 
           return { wrap, input };
         }
@@ -5873,9 +5918,9 @@
           <div class="modal-stepper-center">
             <div class="stepper-wrap modal-stepper-fixed">
               <div class="stepper">
-                <div class="stepper-btn minus" ontouchstart="" onmousedown="doneStepperChange(-1)">−</div>
+                <div class="stepper-btn minus" id="done-step-minus" ontouchstart="">−</div>
                 <input class="stepper-val" id="done-qty" type="number" min="0" value="${deficit}" />
-                <div class="stepper-btn plus" ontouchstart="" onmousedown="doneStepperChange(+1)">+</div>
+                <div class="stepper-btn plus" id="done-step-plus" ontouchstart="">+</div>
               </div>
               <div class="stepper-label">units acquired</div>
             </div>
@@ -5886,6 +5931,11 @@
           <div class="modal-btn confirm" onclick="confirmDone()">Confirm</div>
         </div>
       `);
+
+      // Toque curto ±1 · toque longo (500ms) ±5 — mesmo comportamento do painel Stock.
+      // Binding pós-openModal: os elementos só existem no DOM a partir daqui.
+      attachStepperPress(document.getElementById('done-step-minus'), -1, doneStepperChange);
+      attachStepperPress(document.getElementById('done-step-plus'), +1, doneStepperChange);
     }
 
     function doneStepperChange(delta) {
@@ -8412,7 +8462,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260628');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260702');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -8453,7 +8503,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260628', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260702', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
