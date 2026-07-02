@@ -4725,35 +4725,58 @@
       return new RegExp('^' + escaped + '$', 'i');
     }
 
-    // Decide a estratégia de match e retorna true/false
-    function simpleMatch(item, rawQuery) {
-      const q = rawQuery.trim();
-      if (!q) return true;
+    // ── Parser de termos: conjunção + exclusão ──────────────────────────────
+    // Divide a query por espaços; termo iniciado por '-' é exclusão (negativo).
+    // Negativos "triviais" (vazio ou prefixo solto '#'/'@'/'&'/'-') são ignorados —
+    // evita que um "-#" incompleto exclua a lista inteira no meio da digitação.
+    function parseSearchTerms(rawQuery) {
+      const pos = [], neg = [];
+      for (const raw of (rawQuery || '').trim().split(/\s+/)) {
+        if (!raw) continue;
+        if (raw.startsWith('-')) {
+          const t = raw.slice(1);
+          if (t && !['#', '@', '&', '-'].includes(t)) neg.push(t);
+        } else {
+          pos.push(raw);
+        }
+      }
+      return { pos, neg };
+    }
 
-      const hasWildcard = q.includes('*');
-
-      // ── Curinga de inicial: "A*" → filtra pelo grupo A-Z ──────────────────
-      if (/^[a-záàãâéêíóôõúüç]\*$/i.test(norm(q))) {
-        const letter = norm(q)[0];
-        const itemLetter = norm(item.name[0] || '');
-        return itemLetter === letter;
+    // Avalia UM termo contra o item — mesmas 4 estratégias da busca original:
+    // curinga de inicial, curinga livre, token '#', substring genérica.
+    // Tokens '@' e '&' caem na substring genérica — o desc contém o prefixo literal.
+    function termMatch(item, term) {
+      // ── Curinga de inicial: "a*" → filtra pelo grupo da letra ──────────────
+      if (/^[a-záàãâéêíóôõúüç]\*$/i.test(norm(term))) {
+        return norm(item.name[0] || '') === norm(term)[0];
       }
 
       // ── Curinga livre: qualquer padrão com * ───────────────────────────────
-      if (hasWildcard) {
-        const rx = wildcardToRegex(q);
+      if (term.includes('*')) {
+        const rx = wildcardToRegex(term);
         return rx.test(norm(item.name)) || rx.test(norm(item.desc || ''));
       }
 
       // ── Busca por #categoria ───────────────────────────────────────────────
-      if (q.startsWith('#')) {
-        const tag = norm(q.slice(1));
-        return norm(item.desc || '').includes(tag);
+      if (term.startsWith('#')) {
+        return norm(item.desc || '').includes(norm(term.slice(1)));
       }
 
       // ── Substring simples (case/accent insensitive) ────────────────────────
-      const nq = norm(q);
-      return norm(item.name).includes(nq) || norm(item.desc || '').includes(nq);
+      const nt = norm(term);
+      return norm(item.name).includes(nt) || norm(item.desc || '').includes(nt);
+    }
+
+    // Decide o match da query completa: TODOS os positivos E NENHUM negativo.
+    // Query só com exclusões (ex: "-#laticinios") = tudo, exceto os excluídos.
+    // Nota de semântica (v20260702): query multi-palavra é conjunção de termos —
+    // "leite integral" casa "leite" E "integral" em qualquer posição, não mais a
+    // frase exata. Preço natural dos critérios conjugados separados por espaço.
+    function simpleMatch(item, rawQuery) {
+      const { pos, neg } = parseSearchTerms(rawQuery);
+      if (!pos.length && !neg.length) return true;
+      return pos.every(t => termMatch(item, t)) && !neg.some(t => termMatch(item, t));
     }
 
     function filteredItems() {
