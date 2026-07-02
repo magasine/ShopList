@@ -573,7 +573,7 @@
     /* Estado fav-on: só ⭐ visível, brilhante */
     .fav-filter-icon.fav-on .fav-star--on {
       opacity: 1;
-      font-size: 16px;
+      font-size: 11px;
     }
 
     .fav-filter-icon.fav-on .fav-star--off {
@@ -3933,7 +3933,7 @@
 
         <!-- Controles fixos da linha 1: sort · 🚦 · search · close -->
         <div class="header-controls">
-          <div id="btn-sort" title="Sort: tap cycles A-Z / #-Z / ⭐ · hold for all modes">
+          <div id="btn-sort" title="Sort: tap cycles A-Z / #-Z / ★ · hold for all modes">
             <span id="sort-icon"><span class="sort-icon-label sort-icon-label--az">A·Z</span></span>
           </div>
 
@@ -4911,7 +4911,7 @@
       'cat': { glyph: '#·Z', iconCls: 'sort-icon-label--cat', btnCls: 'active', toastMsg: 'Sorting by category', menuLabel: 'Categories', prefix: '#' },
       'tok:@': { glyph: '@·Z', iconCls: 'sort-icon-label--ctx', btnCls: 'active', toastMsg: 'Sorting by context', menuLabel: 'Contexts', prefix: '@' },
       'tok:&': { glyph: '&amp;·Z', iconCls: 'sort-icon-label--rel', btnCls: 'active', toastMsg: 'Sorting by relationship', menuLabel: 'Relationships', prefix: '&' },
-      'fav': { glyph: '★↕', iconCls: 'sort-icon-label--fav', btnCls: 'fav-active', toastMsg: 'Sorting by favorites', menuLabel: 'Favorites first' },
+      'fav': { glyph: '⭐', iconCls: 'sort-icon-label--fav', btnCls: 'fav-active', toastMsg: 'Sorting by favorites', menuLabel: 'Favorites first' },
     };
     const SORT_CYCLE = ['az', 'cat', 'fav'];  // tap cicla apenas o núcleo
 
@@ -5937,8 +5937,8 @@
           activeQuickFilter = 'fav';
           const favCount = items.filter(i => i.fav).length;
           toast(favCount > 0
-            ? `⭐ ${favCount} favorite${favCount !== 1 ? 's' : ''} shown`
-            : '⭐ No favorites added yet');
+            ? `★ ${favCount} favorite${favCount !== 1 ? 's' : ''} shown`
+            : '★ No favorites added yet');
         } else if (activeQuickFilter === 'fav') {
           activeQuickFilter = 'fav-off';
           const nonFavCount = items.filter(i => !i.fav).length;
@@ -6938,7 +6938,7 @@
 
       // ── Helper: linha de item ─────────────────────────────────────────────
       function itemLine(it, showFavStar = true) {
-        const star = (showFavStar && it.fav) ? '⭐ ' : '';
+        const star = (showFavStar && it.fav) ? '★ ' : ''; // anterior ⭐
         const sub = formatSub(it);
         return `- ${star}${it.name}: ${sub}`;
       }
@@ -7016,7 +7016,7 @@
         const others = list.filter(it => !it.fav);
         if (favs.length) {
           lines.push('');
-          lines.push('⭐ Favorites');
+          lines.push('Favorites "★"'); // anterior ⭐
           favs.forEach(it => lines.push(itemLine(it, false)));
         }
         if (others.length) {
