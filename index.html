@@ -4176,7 +4176,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260703-single-file-sync.r18-catrename-scope';
+    const APP_BUILD = '20260703-single-file-sync.r19-menu-measure-fix';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -6214,6 +6214,12 @@
       // Posicionamento: abaixo do trigger, alinhado à direita
       const rect = triggerEl.getBoundingClientRect();
       const menuW = Math.min(220, window.innerWidth - 24); // nunca maior que viewport - 24px
+      // LARGURA PRIMEIRO: na largura natural (até vw-24) as linhas longas não
+      // quebram; medir a altura antes de fixar 220px subestimava o menu já
+      // quebrado — o clip decidia "cabe abaixo" e as últimas linhas (Rename/
+      // Delete) ficavam fora da tela no mobile.
+      menu.style.width = menuW + 'px';
+
       let left = rect.right - menuW;
       let top = rect.bottom + 6;
 
@@ -6221,14 +6227,15 @@
       if (left < 8) left = 8;
       if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
 
-      // Clipa vertical pela altura REAL do menu (já no DOM) — o menu unificado
-      // varia de 3 a 8 linhas, então a estimativa fixa de 240px não serve mais.
+      // Clipa vertical pela altura REAL do menu (já com largura final aplicada)
       const menuH = Math.min(menu.offsetHeight || 240, window.innerHeight - 16);
-      if (top + menuH > window.innerHeight - 8) top = Math.max(8, rect.top - menuH - 6);
+      if (top + menuH > window.innerHeight - 8) top = rect.top - menuH - 6;
+      // Clamp duro: nunca acima do topo; se maior que o viewport, ancora em 8
+      // e o max-height + overflow-y do CSS assume com scroll interno
+      if (top < 8) top = 8;
 
       menu.style.left = left + 'px';
       menu.style.top = top + 'px';
-      menu.style.width = menuW + 'px';
 
       // Fecha ao clicar fora
       setTimeout(() => {
@@ -6407,6 +6414,20 @@
       const input = row.querySelector('.sec-action-input');
       const confirmBtn = row.querySelector('.sec-action-input-confirm');
       input.focus();
+
+      // Mobile: o teclado virtual pode cobrir um menu posicionado na metade
+      // inferior — quando o visualViewport encolher, reancora o menu acima
+      // do teclado para manter o input (e o OK) visíveis e tocáveis.
+      if (window.visualViewport) {
+        const vv = window.visualViewport;
+        vv.addEventListener('resize', function _kb() {
+          vv.removeEventListener('resize', _kb);
+          if (!_secMenuEl) return;
+          const r = _secMenuEl.getBoundingClientRect();
+          const limit = vv.height - 12;
+          if (r.bottom > limit) _secMenuEl.style.top = Math.max(8, limit - r.height) + 'px';
+        });
+      }
 
       // Para 'rename', o fluxo tem 2 etapas: token atual → novo token.
       // Reaproveita a mesma linha, troca o placeholder na 2ª etapa.
