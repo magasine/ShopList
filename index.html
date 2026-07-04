@@ -4176,7 +4176,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260703-single-file-sync.r17-bulk-menu-unified';
+    const APP_BUILD = '20260703-single-file-sync.r18-catrename-scope';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -6194,6 +6194,11 @@
         _secMenuEl.remove();
         _secMenuEl = null;
       }
+      // Sempre desanexa os handlers de clique-fora — antes só eram removidos
+      // quando o fechamento vinha do próprio _outsideMenuHandler; fechar via
+      // clique em item de menu deixava listeners no-op acumulando no document.
+      document.removeEventListener('mousedown', _outsideMenuHandler);
+      document.removeEventListener('touchstart', _outsideMenuHandler);
     }
 
     // Posiciona e exibe o dropdown próximo ao botão ⋯
@@ -6234,9 +6239,7 @@
 
     function _outsideMenuHandler(e) {
       if (_secMenuEl && !_secMenuEl.contains(e.target)) {
-        closeSectionMenu();
-        document.removeEventListener('mousedown', _outsideMenuHandler);
-        document.removeEventListener('touchstart', _outsideMenuHandler);
+        closeSectionMenu(); // já remove os próprios listeners
       }
     }
 
@@ -6541,8 +6544,12 @@
     // ── Rename de categoria inline ─────────────────────────────────────────
     // Substitui o sec-label pelo campo de edição inline; confirma com Enter/blur
     function startCatRename(cat) {
-      // Acha o sec-label cujo texto começa com #cat
-      const labels = document.querySelectorAll('.sec-label');
+      // Busca o sec-label APENAS no painel ativo — os três painéis coexistem
+      // no DOM (inativos ficam display:none). A busca global pegava o primeiro
+      // match do documento (panel-0), inserindo o input num label invisível
+      // quando o clique vinha de Stock/Refill — "primeiro clique sem efeito".
+      const scope = document.querySelector('.panel.active') || document;
+      const labels = scope.querySelectorAll('.sec-label');
       let targetLabel = null;
       for (const l of labels) {
         const txt = l.querySelector('.sec-label-text');
