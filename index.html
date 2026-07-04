@@ -1101,7 +1101,10 @@
       min-width: 210px;
       /* Nunca ultrapassa a largura do viewport, com margem de 12px */
       max-width: calc(100vw - 24px);
-      overflow: hidden;
+      /* Menu unificado pode ter 7-8 linhas — limita altura e rola internamente */
+      max-height: min(60vh, 420px);
+      overflow-x: hidden;
+      overflow-y: auto;
       animation: acFadeIn 0.14s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
@@ -3981,7 +3984,7 @@
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
-          <input id="search-input" type="text" placeholder="name, #cat, @ctx, &amp;rel, A*, *term*…"
+          <input id="search-input" type="text" placeholder="name · #cat @ctx &amp;rel $val · -not · a|b · A*…"
             oninput="onSearch()" autocomplete="off" onkeydown="acOnKeydown(event)" onblur="setTimeout(acClose,150)" />
 
           <span id="search-clear" onclick="clearSearch()">clear</span>
@@ -4173,7 +4176,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260702-single-file-sync.r16-picker-appid';
+    const APP_BUILD = '20260703-single-file-sync.r17-bulk-menu-unified';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4206,7 +4209,7 @@
       if (profiles.length > 0) return; // já migrado
 
       // Copia dados legados para as novas chaves com slug 'default'
-      const LEGACY_DATA_KEY = 'Shop_List_v20260702';
+      const LEGACY_DATA_KEY = 'Shop_List_v20260703';
       const LEGACY_UI_KEY = 'Shop_List_ui';
       const LEGACY_SYNC_KEY = 'ShopList_driveSync';
       const slug = 'default';
@@ -4769,7 +4772,7 @@
     }
 
     // Decide o match da query completa.
-    // Gramática (v20260702): OR de menor precedência — a query é dividida por '|'
+    // Gramática (v20260703): OR de menor precedência — a query é dividida por '|'
     // em grupos; cada grupo é uma conjunção de termos com exclusões ('-termo').
     // O item casa se QUALQUER grupo casar:
     //   "#bebidas @casa | #limpeza -#pesado" = (bebidas E casa) OU (limpeza E não-pesado)
@@ -5252,7 +5255,7 @@
 
           let menuOnclick = '';
           if (isCat && rawCat && rawCat !== '—') {
-            menuOnclick = `openCatSectionMenu(this,'${rawCat.replace(/'/g, "\\'")}')`;
+            menuOnclick = `openCatSectionMenu(this,'${rawCat.replace(/'/g, "\\'")}','p0')`;
           } else if (!isCat && sortMode === 'fav' && section === '★ Favorites') {
             menuOnclick = `openFavSectionMenu(this,'${section.replace(/'/g, "\\'")}','p0')`;
           } else if (!isCat) {
@@ -5419,7 +5422,7 @@
 
           let menuOnclick = '';
           if (isCat && rawCat && rawCat !== '—') {
-            menuOnclick = `openCatSectionMenu(this,'${rawCat.replace(/'/g, "\\'")}')`;
+            menuOnclick = `openCatSectionMenu(this,'${rawCat.replace(/'/g, "\\'")}','p1')`;
           } else if (!isCat && sortMode === 'fav' && section === '★ Favorites') {
             menuOnclick = `openFavSectionMenu(this,'${section.replace(/'/g, "\\'")}','p1')`;
           } else if (!isCat) {
@@ -5594,7 +5597,7 @@
 
           let menuOnclick = '';
           if (isCat && rawCat && rawCat !== '—') {
-            menuOnclick = `openCatSectionMenu(this,'${rawCat.replace(/'/g, "\\'")}')`;
+            menuOnclick = `openCatSectionMenu(this,'${rawCat.replace(/'/g, "\\'")}','p2')`;
           } else if (!isCat && sortMode === 'fav' && section === '★ Favorites') {
             menuOnclick = `openFavSectionMenu(this,'${section.replace(/'/g, "\\'")}','p2')`;
           } else if (!isCat) {
@@ -6213,8 +6216,10 @@
       if (left < 8) left = 8;
       if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
 
-      // Clipa vertical: se não couber abaixo, abre acima do trigger
-      if (top + 240 > window.innerHeight) top = Math.max(8, rect.top - 240);
+      // Clipa vertical pela altura REAL do menu (já no DOM) — o menu unificado
+      // varia de 3 a 8 linhas, então a estimativa fixa de 240px não serve mais.
+      const menuH = Math.min(menu.offsetHeight || 240, window.innerHeight - 16);
+      if (top + menuH > window.innerHeight - 8) top = Math.max(8, rect.top - menuH - 6);
 
       menu.style.left = left + 'px';
       menu.style.top = top + 'px';
@@ -6235,33 +6240,104 @@
       }
     }
 
-    // ── Menu para categoria (sortMode === 'cat') ───────────────────────────
-    function openCatSectionMenu(triggerEl, cat) {
-      const catItems = items.filter(i => getCategoryOf(i) === cat);
-      const count = catItems.length;
-      const key = _registerBulk(catItems.map(i => i.id));
+    // ── Builder unificado de menu de ações em lote ──────────────────────────
+    // Todas as seções (fav, #cat, A-Z, tok:@/&) e a busca filtrada compartilham
+    // o MESMO conjunto de ações: favorite/unfavorite (linhas condicionais à
+    // composição do lote — sem ambiguidade em lotes mistos), add/remove/rename
+    // de token (# @ & $) e delete. Os wrappers open*SectionMenu apenas resolvem
+    // QUAL coleção de itens alimenta o lote.
+    // opts:
+    //   label          — rótulo do header e do confirm de delete (ex.: '#hortifruti')
+    //   list           — itens já coletados (escopados + filtrados pelo caller)
+    //   deleteLabel    — opcional; sobrepõe label no confirm de delete
+    //   renameShortcut — opcional { prefix, token, global } → atalho de rename
+    //                    GLOBAL (todos os itens), distinto do rename em lote
+    function openBulkSectionMenu(triggerEl, opts) {
+      const { label, list, renameShortcut } = opts;
+      const count = list.length;
+      const key = _registerBulk(list.map(i => i.id));
+
+      // Fav toggle: duas linhas condicionais com contagem real — só aparece o
+      // que faz sentido para a composição do lote (homogêneo = 1 linha).
+      const favCount = list.filter(i => i.fav).length;
+      const nonFavCount = count - favCount;
+      const favRows =
+        (nonFavCount ? `
+        <div class="sec-action-item" data-action="fav-all">
+          <span class="sec-action-icon">★</span> Favorite ${nonFavCount}
+        </div>` : '') +
+        (favCount ? `
+        <div class="sec-action-item" data-action="unfav-all">
+          <span class="sec-action-icon">☆</span> Unfavorite ${favCount}
+        </div>` : '');
+
+      // Atalho de rename global (categoria em modo cat, token puro na busca) —
+      // explicita "everywhere" para não confundir com o rename em lote abaixo.
+      const shortcutRow = renameShortcut ? `
+        <div class="sec-action-item" data-action="rename-shortcut">
+          <span class="sec-action-icon">✏️</span> Rename ${esc(renameShortcut.prefix + renameShortcut.token)} everywhere
+        </div>` : '';
 
       _showSectionMenu(triggerEl, `
-        <div class="sec-action-header">#${esc(cat)} · ${count} item${count !== 1 ? 's' : ''}</div>
-        <div class="sec-action-item" data-action="rename-cat" data-cat="${esc(cat)}">
-          <span class="sec-action-icon">✏️</span> Rename category
+        <div class="sec-action-header">${esc(label)} · ${count} item${count !== 1 ? 's' : ''}</div>
+        ${favRows}
+        <div class="sec-action-item" data-action="open-include">
+          <span class="sec-action-icon">➕</span> Add token (# @ &amp; $)
         </div>
-        <div class="sec-action-item danger" data-action="delete-cat" data-key="${key}" data-cat="${esc(cat)}">
-          <span class="sec-action-icon">🗑️</span> Delete all ${count} item${count !== 1 ? 's' : ''}
+        <div class="sec-action-item" data-action="open-exclude">
+          <span class="sec-action-icon">➖</span> Remove token
+        </div>
+        <div class="sec-action-item" data-action="open-rename">
+          <span class="sec-action-icon">✏️</span> Rename token here
+        </div>
+        ${shortcutRow}
+        <div class="sec-action-item danger" data-action="bulk-delete">
+          <span class="sec-action-icon">🗑️</span> Delete ${count} item${count !== 1 ? 's' : ''}
         </div>
       `);
 
-      // Listener delegado no menu — evita onclick inline com dados interpolados
+      // Listener delegado — dados via closure, sem interpolação em datasets
       _secMenuEl.addEventListener('click', e => {
         const item = e.target.closest('[data-action]');
         if (!item) return;
         const action = item.dataset.action;
-        closeSectionMenu();
-        if (action === 'rename-cat') {
-          startCatRename(item.dataset.cat);
-        } else if (action === 'delete-cat') {
-          confirmBulkDeleteByKey(item.dataset.key, item.dataset.cat);
+
+        if (action === 'bulk-delete') {
+          closeSectionMenu();
+          confirmBulkDeleteByKey(key, opts.deleteLabel || label);
+          return;
         }
+        if (action === 'fav-all' || action === 'unfav-all') {
+          closeSectionMenu();
+          bulkSetFavByKey(key, action === 'fav-all');
+          return;
+        }
+        if (action === 'rename-shortcut') {
+          closeSectionMenu();
+          if (renameShortcut.global && renameShortcut.prefix === '#') startCatRename(renameShortcut.token);
+          else startTokenRename(renameShortcut.prefix, renameShortcut.token);
+          return;
+        }
+        // Ações de token: substituem o próprio item por um input inline,
+        // sem fechar o menu (evita re-abrir o dropdown do zero)
+        if (action === 'open-include') _showTokenInputRow(item, key, 'include');
+        if (action === 'open-exclude') _showTokenInputRow(item, key, 'exclude');
+        if (action === 'open-rename') _showTokenInputRow(item, key, 'rename');
+      });
+    }
+
+    // ── Menu para categoria (sortMode === 'cat') ───────────────────────────
+    // Agora ESCOPADO: coleta via _scopedItems(scope) + busca ativa — o delete
+    // e as demais ações operam apenas sobre o que o usuário vê no painel.
+    // (Antes filtrava sobre `items` global: um delete durante uma busca ativa
+    // apagava itens fora do filtro visível.) O rename da categoria permanece
+    // global via atalho, pois renomear um token é operação de identidade.
+    function openCatSectionMenu(triggerEl, cat, scope) {
+      const list = sorted(_scopedItems(scope)).filter(i => getCategoryOf(i) === cat);
+      openBulkSectionMenu(triggerEl, {
+        label: '#' + cat,
+        list,
+        renameShortcut: { prefix: '#', token: cat, global: true },
       });
     }
 
@@ -6275,104 +6351,45 @@
       return filteredItems();
     }
 
-    // ── Menu genérico (sortMode A-Z ou fav) ───────────────────────────────
+    // ── Menu genérico (sortMode A-Z, fav 'Other', tok:@/&) ─────────────────
+    // Uniformizado: mesmas ações do modo favoritos (fav toggle, tokens, delete)
     function openGenericSectionMenu(triggerEl, sectionKey, scope) {
-      const secItems = sorted(_scopedItems(scope)).filter(i => sectionKeyOf(i) === sectionKey);
-      const count = secItems.length;
-      const key = _registerBulk(secItems.map(i => i.id));
-      const label = sectionKey;
-
-      _showSectionMenu(triggerEl, `
-        <div class="sec-action-header">${esc(sectionKey)} · ${count} item${count !== 1 ? 's' : ''}</div>
-        <div class="sec-action-item danger" data-action="bulk-delete" data-key="${key}" data-label="${esc(label)}">
-          <span class="sec-action-icon">🗑️</span> Delete all ${count} item${count !== 1 ? 's' : ''}
-        </div>
-      `);
-
-      _secMenuEl.addEventListener('click', e => {
-        const item = e.target.closest('[data-action]');
-        if (!item) return;
-        closeSectionMenu();
-        confirmBulkDeleteByKey(item.dataset.key, item.dataset.label);
-      });
+      const list = sorted(_scopedItems(scope)).filter(i => sectionKeyOf(i) === sectionKey);
+      openBulkSectionMenu(triggerEl, { label: sectionKey, list });
     }
 
     // ── Menu para a seção de Favoritos (sortMode === 'fav') ────────────────
-    // Além do delete em lote padrão, oferece: desfavoritar todos, incluir
-    // token (@/&), excluir token (@/&) e renomear token (@/&) — cada ação
-    // abre seu próprio input inline dentro do item de menu clicado, sem
-    // fechar o dropdown, no mesmo espírito do rename de #categoria.
+    // Delegado ao menu genérico unificado — a seção ★ tem lote 100% favorito,
+    // então o fav toggle condicional exibe apenas "Unfavorite N" (comportamento
+    // anterior preservado), mais as ações de token e delete.
     function openFavSectionMenu(triggerEl, sectionKey, scope) {
-      const secItems = sorted(_scopedItems(scope)).filter(i => sectionKeyOf(i) === sectionKey);
-      const count = secItems.length;
-      const key = _registerBulk(secItems.map(i => i.id));
-      const label = sectionKey;
-
-      _showSectionMenu(triggerEl, `
-        <div class="sec-action-header">${esc(sectionKey)} · ${count} item${count !== 1 ? 's' : ''}</div>
-        <div class="sec-action-item" data-action="unfav-all" data-key="${key}">
-          <span class="sec-action-icon">☆</span> Unfavorite all ${count} item${count !== 1 ? 's' : ''}
-        </div>
-        <div class="sec-action-item" data-action="open-include" data-key="${key}">
-          <span class="sec-action-icon">➕</span> Include context (@) or relationship (&amp;)
-        </div>
-        <div class="sec-action-item" data-action="open-exclude" data-key="${key}">
-          <span class="sec-action-icon">➖</span> Exclude context (@) or relationship (&amp;)
-        </div>
-        <div class="sec-action-item" data-action="open-rename" data-key="${key}">
-          <span class="sec-action-icon">✏️</span> Rename context (@) or relationship (&amp;)
-        </div>
-        <div class="sec-action-item danger" data-action="bulk-delete" data-key="${key}" data-label="${esc(label)}">
-          <span class="sec-action-icon">🗑️</span> Delete all ${count} item${count !== 1 ? 's' : ''}
-        </div>
-      `);
-
-      _secMenuEl.addEventListener('click', e => {
-        const item = e.target.closest('[data-action]');
-        if (!item) return;
-        const action = item.dataset.action;
-        const bulkKey = item.dataset.key;
-
-        if (action === 'bulk-delete') {
-          closeSectionMenu();
-          confirmBulkDeleteByKey(bulkKey, item.dataset.label);
-          return;
-        }
-        if (action === 'unfav-all') {
-          closeSectionMenu();
-          bulkUnfavoriteByKey(bulkKey);
-          return;
-        }
-        // Ações de token: substituem o próprio item por um input inline,
-        // sem fechar o menu (evita re-abrir o dropdown do zero)
-        if (action === 'open-include') _showTokenInputRow(item, bulkKey, 'include');
-        if (action === 'open-exclude') _showTokenInputRow(item, bulkKey, 'exclude');
-        if (action === 'open-rename') _showTokenInputRow(item, bulkKey, 'rename');
-      });
+      openGenericSectionMenu(triggerEl, sectionKey, scope);
     }
 
-    // ── Desfavoritar todos os itens de um lote registrado ──────────────────
-    function bulkUnfavoriteByKey(key) {
+    // ── Favoritar/desfavoritar todos os itens de um lote registrado ────────
+    // Generaliza o antigo bulkUnfavoriteByKey num toggle explícito por direção
+    function bulkSetFavByKey(key, makeFav) {
       const ids = _bulkRegistry[key];
       if (!ids) return;
       delete _bulkRegistry[key];
       const idSet = new Set(ids);
       let touched = 0;
       items.forEach(it => {
-        if (idSet.has(it.id) && it.fav) { it.fav = false; touched++; }
+        if (idSet.has(it.id) && !!it.fav !== makeFav) { it.fav = makeFav; touched++; }
       });
       saveAndRender();
-      toast(`${touched} item${touched !== 1 ? 's' : ''} removed from favorites`);
+      toast(`${touched} item${touched !== 1 ? 's' : ''} ${makeFav ? 'added to' : 'removed from'} favorites`);
     }
 
     // ── Substitui um .sec-action-item por uma linha de input inline ────────
     // mode: 'include' | 'exclude' | 'rename'
     function _showTokenInputRow(itemEl, bulkKey, mode) {
       const icons = { include: '➕', exclude: '➖', rename: '✏️' };
+      // Placeholders minimalistas — aceita os 4 prefixos (# @ & $)
       const placeholders = {
-        include: '@context or &relationship, e.g. &promo',
-        exclude: '@context or &relationship, e.g. &organico',
-        rename: 'current @context or &relationship, e.g. @mercado',
+        include: '#cat @ctx &rel $val — e.g. &promo',
+        exclude: 'token to remove — e.g. @mercado',
+        rename: 'current token — e.g. #hortifruti',
       };
 
       const row = document.createElement('div');
@@ -6394,7 +6411,7 @@
       let renameFrom = '';
 
       function parseToken(raw) {
-        const m = raw.trim().match(/^([@&])([^\s·,;@&]+)$/i);
+        const m = raw.trim().match(/^([#@&$])([^\s·,;#@&$]+)$/i);
         return m ? { prefix: m[1], token: m[2].toLowerCase().replace(/\s+/g, '-') } : null;
       }
 
@@ -6403,7 +6420,7 @@
 
         if (mode === 'rename' && renameStage === 1) {
           const parsed = parseToken(raw);
-          if (!parsed) { toast('Use @context or &relationship format'); return; }
+          if (!parsed) { toast('Use a #, @, & or $ prefixed token'); return; }
           renameFrom = parsed;
           renameStage = 2;
           input.value = '';
@@ -6417,7 +6434,7 @@
           // redigitado aqui — se o usuário digitar @ ou & por hábito, descarta
           // para evitar duplicidade (@@token, &&token).
           let newTokenRaw = raw.trim().toLowerCase().replace(/\s+/g, '-');
-          newTokenRaw = newTokenRaw.replace(/^[@&]+/, '');
+          newTokenRaw = newTokenRaw.replace(/^[#@&$]+/, '');
           if (!newTokenRaw) { row.remove(); return; }
           _bulkRenameToken(bulkKey, renameFrom.prefix, renameFrom.token, newTokenRaw);
           closeSectionMenu();
@@ -6425,7 +6442,7 @@
         }
 
         const parsed = parseToken(raw);
-        if (!parsed) { toast('Use @context or &relationship format'); return; }
+        if (!parsed) { toast('Use a #, @, & or $ prefixed token'); return; }
 
         if (mode === 'include') _bulkIncludeToken(bulkKey, parsed.prefix, parsed.token);
         if (mode === 'exclude') _bulkExcludeToken(bulkKey, parsed.prefix, parsed.token);
@@ -6449,7 +6466,7 @@
       if (!ids) return;
       delete _bulkRegistry[key];
       // Defesa extra: token nunca deve trazer prefixo embutido (evita @@token).
-      const cleanToken = String(token).replace(/^[@&#]+/, '');
+      const cleanToken = String(token).replace(/^[#@&$]+/, '');
       if (!cleanToken) return;
       const idSet = new Set(ids);
       const rx = new RegExp(_escapeRx(prefix) + _escapeRx(cleanToken) + '(?=[\\s·,;]|$)', 'i');
@@ -6486,7 +6503,7 @@
       if (!ids) return;
       delete _bulkRegistry[key];
       // Defesa extra: toToken nunca deve trazer prefixo embutido (evita @@token).
-      const cleanToToken = String(toToken).replace(/^[@&#]+/, '');
+      const cleanToToken = String(toToken).replace(/^[#@&$]+/, '');
       if (!cleanToToken) return;
       const idSet = new Set(ids);
       const rx = new RegExp(_escapeRx(prefix) + _escapeRx(fromToken) + '(?=[\\s·,;]|$)', 'gi');
@@ -6502,39 +6519,22 @@
     }
 
 
-    // Se a query for um token "puro" de prefixo (@loja ou &atributo, sem texto
-    // adicional), habilita também a opção de rename em lote — mesmo padrão de #categoria.
+    // ── Menu da busca filtrada — o caso central da unificação ──────────────
+    // A busca booleana (AND/NOT/OR) reúne itens com tokens distintos; o menu
+    // unificado permite aplicar fav toggle, add/remove/rename de token e delete
+    // sobre exatamente o conjunto visível (filteredItems = busca + quick filter
+    // + chips). Se a query for um token PURO (#x, @x, &x ou $x, sem texto
+    // extra), oferece também o atalho de rename global — antes restrito a @/&.
     function openSearchSectionMenu(triggerEl, query, count) {
-      const matchIds = sorted(filteredItems()).map(i => i.id);
-      const key = _registerBulk(matchIds);
-      const label = `search results for "${query}"`;
-
-      // Detecta token puro: @algo ou &algo, sem espaço/delimitador/texto extra
-      const tokenMatch = query.match(/^([@&])([^\s·,;@&]+)$/);
-      const renameItem = tokenMatch ? `
-        <div class="sec-action-item" data-action="rename-token" data-prefix="${esc(tokenMatch[1])}" data-token="${esc(tokenMatch[2])}">
-          <span class="sec-action-icon">✏️</span> Rename ${PREFIX_META[tokenMatch[1]].noun}
-        </div>
-      ` : '';
-
-      _showSectionMenu(triggerEl, `
-        <div class="sec-action-header">Search: &ldquo;${esc(query)}&rdquo; · ${count} result${count !== 1 ? 's' : ''}</div>
-        ${renameItem}
-        <div class="sec-action-item danger" data-action="bulk-delete" data-key="${key}" data-label="${esc(label)}">
-          <span class="sec-action-icon">🗑️</span> Delete all ${count} result${count !== 1 ? 's' : ''}
-        </div>
-      `);
-
-      _secMenuEl.addEventListener('click', e => {
-        const item = e.target.closest('[data-action]');
-        if (!item) return;
-        const action = item.dataset.action;
-        closeSectionMenu();
-        if (action === 'rename-token') {
-          startTokenRename(item.dataset.prefix, item.dataset.token);
-        } else {
-          confirmBulkDeleteByKey(item.dataset.key, item.dataset.label);
-        }
+      const list = sorted(filteredItems());
+      const tokenMatch = query.match(/^([#@&$])([^\s·,;#@&$]+)$/);
+      openBulkSectionMenu(triggerEl, {
+        label: `🔍 "${query}"`,
+        deleteLabel: `search results for "${query}"`,
+        list,
+        renameShortcut: tokenMatch
+          ? { prefix: tokenMatch[1], token: tokenMatch[2].toLowerCase() }
+          : null,
       });
     }
 
@@ -8611,7 +8611,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260702');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260703');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -8652,7 +8652,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260702', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260703', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
