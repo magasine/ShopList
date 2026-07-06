@@ -213,6 +213,53 @@
       -webkit-tap-highlight-color: transparent;
     }
 
+    /* ── Scrollbars discretas ────────────────────────────────────────────
+       Invisíveis em repouso; o thumb só aparece quando o container está sob
+       interação (hover ou foco interno) e reforça durante o arrasto.
+       Firefox: scrollbar-color · WebKit: ::-webkit-scrollbar. No touch,
+       os browsers já usam overlay efêmero nativo — nada a fazer. */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+    }
+
+    *:hover,
+    *:focus-within {
+      scrollbar-color: var(--border2) transparent;
+    }
+
+    *::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+      background: transparent;
+    }
+
+    *::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    *::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+
+    *::-webkit-scrollbar-thumb {
+      background: transparent;
+      border-radius: 8px;
+      /* borda transparente cria "respiro" visual entre thumb e conteúdo */
+      border: 2px solid transparent;
+      background-clip: padding-box;
+      transition: background-color 0.25s ease;
+    }
+
+    *:hover::-webkit-scrollbar-thumb,
+    *:focus-within::-webkit-scrollbar-thumb {
+      background-color: var(--border2);
+    }
+
+    *::-webkit-scrollbar-thumb:active {
+      background-color: var(--text2, var(--border2));
+    }
+
     html {
       /* Bloqueia scroll horizontal no nível raiz */
       overflow-x: hidden;
@@ -4176,7 +4223,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260703-single-file-sync.r19-menu-measure-fix';
+    const APP_BUILD = '20260706-single-file-sync.r20-swipe-unmark-scrollbars';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4209,7 +4256,7 @@
       if (profiles.length > 0) return; // já migrado
 
       // Copia dados legados para as novas chaves com slug 'default'
-      const LEGACY_DATA_KEY = 'Shop_List_v20260703';
+      const LEGACY_DATA_KEY = 'Shop_List_v20260706';
       const LEGACY_UI_KEY = 'Shop_List_ui';
       const LEGACY_SYNC_KEY = 'ShopList_driveSync';
       const slug = 'default';
@@ -4772,7 +4819,7 @@
     }
 
     // Decide o match da query completa.
-    // Gramática (v20260703): OR de menor precedência — a query é dividida por '|'
+    // Gramática (v20260706): OR de menor precedência — a query é dividida por '|'
     // em grupos; cada grupo é uma conjunção de termos com exclusões ('-termo').
     // O item casa se QUALQUER grupo casar:
     //   "#bebidas @casa | #limpeza -#pesado" = (bebidas E casa) OU (limpeza E não-pesado)
@@ -5168,16 +5215,14 @@
               // Swipe right: abre modal "units acquired" (mesmo fluxo do toque no checkbox)
               toggleDone(it.id);
             } else {
-              // Swipe left: desmarcar
+              // Swipe left: desmarcar — DELEGA ao toggleDone (mesmo caminho do
+              // toque no checkbox: _done=false + saveAndRender). O patch manual
+              // de DOM anterior não removia a classe `item-name--done` (o
+              // strikethrough vem dela, não de style inline) e deixava
+              // contagens, chips e membership do buyItems obsoletos —
+              // o unmark parecia não concluir.
               if (it._done) {
-                it._done = false;
-                save();
-                const row = content;
-                row.classList.remove('done');
-                const cb = row.querySelector('.buy-cb');
-                if (cb) { cb.classList.remove('on'); cb.innerHTML = ''; }
-                const nameEl = row.querySelector('.item-name');
-                if (nameEl) nameEl.style.textDecoration = '';
+                toggleDone(it.id);
                 toast('↩ Unmarked');
               }
             }
@@ -8639,7 +8684,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260703');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260706');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -8680,7 +8725,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260703', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260706', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
