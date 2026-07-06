@@ -7,8 +7,13 @@
    detecte a mudança e dispare o fluxo de atualização no cliente.
    ────────────────────────────────────────────────────────────────────────── */
 
-const CACHE_VERSION = 'shoplist-v20260703';   // ← incremente a cada release: v5, v6, ...
+const CACHE_VERSION = 'shoplist-v20260703-r24';   // ← incremente a cada release: v5, v6, ...
 const CACHE_NAME     = CACHE_VERSION;
+
+// Cache PRÓPRIO para fontes — desacoplado do CACHE_VERSION porque fontes
+// praticamente nunca mudam: sobrevive aos deploys (preservado no activate),
+// evitando re-download de CSS + woff2 a cada release.
+const FONT_CACHE = 'shoplist-fonts-v1';
 
 // Recursos do app shell para precache. Ajuste conforme os arquivos do projeto.
 const PRECACHE_URLS = [
@@ -38,7 +43,8 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+        // FONT_CACHE é preservado: não segue o versionamento do app
+        keys.filter((k) => k !== CACHE_NAME && k !== FONT_CACHE).map((k) => caches.delete(k))
       ))
       .then(() => self.clients.claim())
   );
@@ -70,13 +76,20 @@ self.addEventListener('fetch', (event) => {
 
   // Fontes Google (fonts.googleapis.com / fonts.gstatic.com) → cache-first.
   // São estáticas e versionadas, seguras para cachear entre sessões.
+  // ATENÇÃO a dois detalhes que faziam o handler anterior falhar em parte:
+  //  1. O CSS do googleapis chega via <link> no-cors → resposta OPAQUE com
+  //     res.ok === false. O guard `if (res.ok)` cacheava só os woff2 (CORS)
+  //     e descartava o CSS — todo cold start ainda pagava um RTT, e offline
+  //     a fonte falhava. Opaque agora é aceito.
+  //  2. Gravar no CACHE_NAME versionado apagava as fontes a cada release
+  //     (activate limpa versões antigas). Agora usam o FONT_CACHE persistente.
   const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
   if (FONT_HOSTS.includes(url.hostname)) {
     event.respondWith(
       caches.match(req).then((cached) => cached || fetch(req).then((res) => {
-        if (res.ok) {
+        if (res && (res.ok || res.type === 'opaque')) {
           const copy = res.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => {});
+          caches.open(FONT_CACHE).then((c) => c.put(req, copy)).catch(() => {});
         }
         return res;
       }).catch(() => cached))

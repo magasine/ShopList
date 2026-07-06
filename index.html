@@ -14,14 +14,35 @@
   <meta name="apple-mobile-web-app-title" content="Shop List">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
+
+  <!-- Anti-flash de tema: aplica data-theme ANTES do primeiro paint.
+       Sem isto, a página pinta clara e vira escura quando o JS do fim
+       do body executa. A chave espelha THEME_KEY do script principal. -->
+  <script>
+    try {
+      var _t = localStorage.getItem('Shop_List_theme');
+      if (_t) document.documentElement.setAttribute('data-theme', _t);
+    } catch (e) { }
+  </script>
   <!-- Google Identity Services (OAuth 2.0 implicit flow) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <!-- Google Picker API -->
   <script src="https://apis.google.com/js/api.js" async defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <!-- Os woff2 vêm do gstatic — preconnect com crossorigin abre a conexão
+       TLS em paralelo, antes do CSS de fontes ser sequer baixado -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Não-bloqueante: media="print" tira o CSS do caminho crítico de render;
+       onload promove a media="all". O texto pinta imediatamente com fonte de
+       sistema e troca para DM Sans quando ela chega (display=swap). -->
   <link
     href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap"
-    rel="stylesheet">
+    rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript>
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet">
+  </noscript>
   <style>
     :root {
       /* ── Light Theme — MD3 Futuristic ── */
@@ -4277,7 +4298,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260703-single-file-sync.r23-thumb-drag';
+    const APP_BUILD = '20260706-single-file-sync.r24-boot-fluid';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4310,7 +4331,7 @@
       if (profiles.length > 0) return; // já migrado
 
       // Copia dados legados para as novas chaves com slug 'default'
-      const LEGACY_DATA_KEY = 'Shop_List_v20260703';
+      const LEGACY_DATA_KEY = 'Shop_List_v20260706';
       const LEGACY_UI_KEY = 'Shop_List_ui';
       const LEGACY_SYNC_KEY = 'ShopList_driveSync';
       const slug = 'default';
@@ -4873,7 +4894,7 @@
     }
 
     // Decide o match da query completa.
-    // Gramática (v20260703): OR de menor precedência — a query é dividida por '|'
+    // Gramática (v20260706): OR de menor precedência — a query é dividida por '|'
     // em grupos; cada grupo é uma conjunção de termos com exclusões ('-termo').
     // O item casa se QUALQUER grupo casar:
     //   "#bebidas @casa | #limpeza -#pesado" = (bebidas E casa) OU (limpeza E não-pesado)
@@ -8835,7 +8856,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260703');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260706');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -8876,7 +8897,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260703', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260706', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
