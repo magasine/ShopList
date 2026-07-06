@@ -263,6 +263,55 @@
       *::-webkit-scrollbar-thumb:active {
         background-color: var(--text2, var(--border2));
       }
+
+      /* ── #panels: overlay thumb próprio, gutter ZERO ──────────────────
+         A scrollbar nativa clássica reserva espaço de layout (a "calha")
+         mesmo transparente. Aqui ela é removida do #panels — conteúdo
+         full-bleed — e um thumb overlay (div fixed, z-index: 50, acima do
+         conteúdo e abaixo de dropdowns/modais) flutua por cima, visível
+         apenas em hover/scroll. pointer-events: none — é indicador de
+         posição; a rolagem segue nativa (wheel/teclado/trackpad). */
+      #panels {
+        scrollbar-width: none;
+      }
+
+      #panels::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
+      }
+
+      #panels-sb-thumb {
+        position: fixed;
+        width: 8px;
+        border-radius: 6px;
+        background: var(--border2);
+        opacity: 0;
+        transition: opacity 0.25s ease, background-color 0.15s ease;
+        z-index: 50;
+        cursor: grab;
+      }
+
+      /* Área de acerto ampliada (pseudo-elemento não afeta layout):
+         facilita agarrar o thumb de 8px sem engordá-lo visualmente */
+      #panels-sb-thumb::before {
+        content: '';
+        position: absolute;
+        top: -4px;
+        bottom: -4px;
+        left: -6px;
+        right: -4px;
+      }
+
+      #panels-sb-thumb.visible {
+        opacity: 0.85;
+      }
+
+      #panels-sb-thumb.dragging {
+        cursor: grabbing;
+        background: var(--text2, var(--border2));
+        opacity: 1;
+      }
     }
 
     html {
@@ -4228,7 +4277,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260706-single-file-sync.r21-unmark-undo-overlay-sb';
+    const APP_BUILD = '20260703-single-file-sync.r23-thumb-drag';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4261,7 +4310,7 @@
       if (profiles.length > 0) return; // já migrado
 
       // Copia dados legados para as novas chaves com slug 'default'
-      const LEGACY_DATA_KEY = 'Shop_List_v20260706';
+      const LEGACY_DATA_KEY = 'Shop_List_v20260703';
       const LEGACY_UI_KEY = 'Shop_List_ui';
       const LEGACY_SYNC_KEY = 'ShopList_driveSync';
       const slug = 'default';
@@ -4824,7 +4873,7 @@
     }
 
     // Decide o match da query completa.
-    // Gramática (v20260706): OR de menor precedência — a query é dividida por '|'
+    // Gramática (v20260703): OR de menor precedência — a query é dividida por '|'
     // em grupos; cada grupo é uma conjunção de termos com exclusões ('-termo').
     // O item casa se QUALQUER grupo casar:
     //   "#bebidas @casa | #limpeza -#pesado" = (bebidas E casa) OU (limpeza E não-pesado)
@@ -7707,6 +7756,95 @@
     }
 
     // ==================== INICIALIZAÇÃO ====================
+
+    // ── Overlay scrollbar do #panels (somente desktop) ──────────────────────
+    // Substitui a scrollbar nativa (removida via CSS — gutter zero) por um
+    // thumb flutuante com z-index sobre o conteúdo. Visível apenas enquanto
+    // o ponteiro está sobre a lista ou durante o scroll; some em repouso.
+    // Arrastável: o delta vertical do mouse é mapeado para scrollTop.
+    (function initPanelsOverlayScrollbar() {
+      if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+      const panels = document.getElementById('panels');
+      if (!panels) return;
+
+      const thumb = document.createElement('div');
+      thumb.id = 'panels-sb-thumb';
+      document.body.appendChild(thumb);
+
+      let hideTimer = null;
+      let hovering = false;
+      let dragging = false;
+
+      function update() {
+        const sh = panels.scrollHeight, ch = panels.clientHeight;
+        if (sh <= ch + 1) { thumb.classList.remove('visible'); return false; }
+        const rect = panels.getBoundingClientRect();
+        const h = Math.max(28, (ch / sh) * ch);
+        const maxTop = ch - h;
+        const top = rect.top + (panels.scrollTop / (sh - ch)) * maxTop;
+        thumb.style.height = h + 'px';
+        thumb.style.top = top + 'px';
+        thumb.style.left = (rect.right - 10) + 'px';
+        return true;
+      }
+
+      function show() {
+        if (!update()) return;
+        thumb.classList.add('visible');
+        clearTimeout(hideTimer);
+        if (!hovering && !dragging) hideTimer = setTimeout(() => thumb.classList.remove('visible'), 900);
+      }
+
+      // ── Drag do thumb → scrollTop ──
+      // Proporção: 1px de thumb percorre (scrollável / curso do thumb) px de
+      // conteúdo — mesma matemática do update(), invertida.
+      thumb.addEventListener('mousedown', e => {
+        e.preventDefault();          // sem seleção de texto durante o arrasto
+        e.stopPropagation();
+        dragging = true;
+        thumb.classList.add('dragging');
+        clearTimeout(hideTimer);
+        const startY = e.clientY;
+        const startScrollTop = panels.scrollTop;
+        const sh = panels.scrollHeight, ch = panels.clientHeight;
+        const h = Math.max(28, (ch / sh) * ch);
+        const trackRange = ch - h;                 // curso disponível do thumb
+        const scrollRange = sh - ch;               // curso do conteúdo
+        const pxRatio = trackRange > 0 ? scrollRange / trackRange : 0;
+
+        function onDragMove(ev) {
+          panels.scrollTop = startScrollTop + (ev.clientY - startY) * pxRatio;
+          // o evento 'scroll' resultante já chama show() → update()
+        }
+        function onDragEnd() {
+          dragging = false;
+          thumb.classList.remove('dragging');
+          window.removeEventListener('mousemove', onDragMove);
+          window.removeEventListener('mouseup', onDragEnd);
+          if (!hovering) hideTimer = setTimeout(() => thumb.classList.remove('visible'), 900);
+        }
+        window.addEventListener('mousemove', onDragMove);
+        window.addEventListener('mouseup', onDragEnd);
+      });
+      // Manter visível enquanto o ponteiro está sobre o próprio thumb
+      thumb.addEventListener('mouseenter', () => { clearTimeout(hideTimer); thumb.classList.add('visible'); });
+      thumb.addEventListener('mouseleave', () => {
+        if (dragging || hovering) return;
+        hideTimer = setTimeout(() => thumb.classList.remove('visible'), 400);
+      });
+
+      panels.addEventListener('scroll', show, { passive: true });
+      panels.addEventListener('mouseenter', () => { hovering = true; show(); });
+      panels.addEventListener('mousemove', () => { if (!hovering) { hovering = true; } show(); });
+      panels.addEventListener('mouseleave', () => {
+        hovering = false;
+        if (dragging) return;      // arrasto ativo segura a visibilidade
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(() => thumb.classList.remove('visible'), 400);
+      });
+      window.addEventListener('resize', () => { if (thumb.classList.contains('visible')) update(); });
+    })();
+
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') {
         closeModal();
@@ -8697,7 +8835,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260706');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260703');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -8738,7 +8876,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260706', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260703', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
