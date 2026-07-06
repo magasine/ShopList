@@ -214,50 +214,55 @@
     }
 
     /* ── Scrollbars discretas ────────────────────────────────────────────
-       Invisíveis em repouso; o thumb só aparece quando o container está sob
-       interação (hover ou foco interno) e reforça durante o arrasto.
-       Firefox: scrollbar-color · WebKit: ::-webkit-scrollbar. No touch,
-       os browsers já usam overlay efêmero nativo — nada a fazer. */
-    * {
-      scrollbar-width: thin;
-      scrollbar-color: transparent transparent;
-    }
+       ESCOPADO a dispositivos com ponteiro fino (desktop): estilizar
+       ::-webkit-scrollbar troca a scrollbar OVERLAY nativa (flutua sobre o
+       conteúdo, footprint zero) por uma clássica que reserva espaço de
+       layout — no touch isso empurrava/sobrepunha elementos da borda
+       direita. Mobile mantém a overlay nativa efêmera: invisível em
+       repouso, sem espaço reservado. No desktop, o gutter fica 100%
+       transparente em repouso e o thumb só aparece sob interação. */
+    @media (hover: hover) and (pointer: fine) {
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: transparent transparent;
+      }
 
-    *:hover,
-    *:focus-within {
-      scrollbar-color: var(--border2) transparent;
-    }
+      *:hover,
+      *:focus-within {
+        scrollbar-color: var(--border2) transparent;
+      }
 
-    *::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-      background: transparent;
-    }
+      *::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+        background: transparent;
+      }
 
-    *::-webkit-scrollbar-track {
-      background: transparent;
-    }
+      *::-webkit-scrollbar-track {
+        background: transparent;
+      }
 
-    *::-webkit-scrollbar-corner {
-      background: transparent;
-    }
+      *::-webkit-scrollbar-corner {
+        background: transparent;
+      }
 
-    *::-webkit-scrollbar-thumb {
-      background: transparent;
-      border-radius: 8px;
-      /* borda transparente cria "respiro" visual entre thumb e conteúdo */
-      border: 2px solid transparent;
-      background-clip: padding-box;
-      transition: background-color 0.25s ease;
-    }
+      *::-webkit-scrollbar-thumb {
+        background: transparent;
+        border-radius: 8px;
+        /* borda transparente cria "respiro" visual entre thumb e conteúdo */
+        border: 2px solid transparent;
+        background-clip: padding-box;
+        transition: background-color 0.25s ease;
+      }
 
-    *:hover::-webkit-scrollbar-thumb,
-    *:focus-within::-webkit-scrollbar-thumb {
-      background-color: var(--border2);
-    }
+      *:hover::-webkit-scrollbar-thumb,
+      *:focus-within::-webkit-scrollbar-thumb {
+        background-color: var(--border2);
+      }
 
-    *::-webkit-scrollbar-thumb:active {
-      background-color: var(--text2, var(--border2));
+      *::-webkit-scrollbar-thumb:active {
+        background-color: var(--text2, var(--border2));
+      }
     }
 
     html {
@@ -4223,7 +4228,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260706-single-file-sync.r20-swipe-unmark-scrollbars';
+    const APP_BUILD = '20260706-single-file-sync.r21-unmark-undo-overlay-sb';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4640,7 +4645,7 @@
     function save() {
       try {
         // Remove _done antes de persistir — é estado de sessão, não de dados
-        const toSave = items.map(({ _done, ...rest }) => rest);
+        const toSave = items.map(({ _done, _doneAdd, ...rest }) => rest);
         const now = new Date().toISOString();
         const payload = { savedAt: now, data: toSave };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -4694,7 +4699,7 @@
 
       // Regrava no storage com savedAt = momento exato do export.
       // Isso garante que o arquivo baixado, o storage e o badge fiquem 100% sincronizados.
-      const toSave = items.map(({ _done, ...rest }) => rest);
+      const toSave = items.map(({ _done, _doneAdd, ...rest }) => rest);
       const exportedAt = now.toISOString();
       const freshPayload = { savedAt: exportedAt, data: toSave };
       try {
@@ -6089,6 +6094,13 @@
       if (!it) return;
 
       if (it._done) {
+        // Unmark = UNDO completo: reverte as unidades adicionadas ao marcar.
+        // Sem isso, qty fica ≥ min e o item sai da lista do Refill no
+        // re-render (buyItems: qty < min || _done) — parecia deleção.
+        // Com a reversão, qty volta a < min e o item PERMANECE na lista,
+        // apenas com a fonte restaurada. Vale para swipe e checkbox.
+        it.qty = Math.max(0, it.qty - (it._doneAdd || 0));
+        delete it._doneAdd;
         it._done = false;
         saveAndRender();
         return;
@@ -6142,6 +6154,7 @@
       const it = items.find(i => i.id === pendingDoneId);
       if (it) {
         it.qty += val;
+        it._doneAdd = val;   // memoriza p/ undo: unmark reverte a aquisição
         it._done = true;
       }
       closeModal();
@@ -6909,7 +6922,7 @@
 
           // Atualiza os itens
           items = data;
-          const toSave = items.map(({ _done, ...rest }) => rest);
+          const toSave = items.map(({ _done, _doneAdd, ...rest }) => rest);
 
           // CARIMBA COM O MOMENTO DO IMPORT, não com o savedAt antigo do arquivo.
           // A intenção do import é "estes dados passam a valer agora" — então
