@@ -2273,6 +2273,95 @@
       border: 1.5px solid var(--row-ok-border);
     }
 
+    /* Terciário do Estado B: ação de menor prioridade (Import backup) */
+    .modal-btn.import-muted {
+      color: var(--text2);
+      background: transparent;
+      border: 1px dashed var(--border2);
+      font-weight: 500;
+    }
+
+    /* Estado C — edit guard */
+    .guard-banner {
+      background: var(--warn-light);
+      border: 1px solid var(--warn-strong);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: var(--fs-xs);
+      color: var(--warn);
+      line-height: 1.5;
+    }
+
+    .guard-banner b {
+      display: block;
+      font-size: var(--fs-sm);
+      margin-bottom: 3px;
+    }
+
+    .modal-btn.guard-anyway {
+      color: var(--warn);
+      background: var(--warn-light);
+      font-weight: 500;
+    }
+
+    /* Estado A — cloud-first */
+    .cf-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--accent-light);
+      color: var(--accent-text);
+      border: 1px solid var(--row-ok-border);
+      border-radius: 999px;
+      padding: 5px 12px;
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .cf-chip .cf-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent-strong);
+      animation: cfPulse 1.6s ease-in-out infinite;
+    }
+
+    @keyframes cfPulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.35;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .cf-chip .cf-dot {
+        animation: none;
+      }
+    }
+
+    .cf-count {
+      font-size: var(--fs-xs);
+      color: var(--text2);
+      text-align: center;
+      padding-top: 2px;
+    }
+
+    .cf-count b {
+      color: var(--accent-text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cf-count .cf-cancel {
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
     .modal-btn.link-file:hover {
       background: var(--filter-ok-bg);
     }
@@ -4298,7 +4387,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260706-single-file-sync.r24-boot-fluid';
+    const APP_BUILD = '20260703-single-file-sync.r25-cloud-first-boot';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4325,13 +4414,66 @@
     function _uiKey(slug) { return `Shop_List_ui_${slug}`; }
     function _syncMetaKey(slug) { return `ShopList_driveSync_${slug}`; }
 
+    // ── Edit guard (last-write-wins) ─────────────────────────────────────────
+    // Sessão vinculada ao Drive porém ainda não sincronizada: editar agora pode
+    // sobrescrever dados mais novos vindos de outro dispositivo. O guard
+    // intercepta o PRIMEIRO gesto mutante e oferece sync antes.
+    // Flags em window: o desarme acontece no bloco <script> do DriveSync
+    // (padrão cross-script do projeto — let/const não atravessam blocos).
+    window._cloudStale = false;     // armado no boot quando há syncFileId sem sync
+    window._editAnywayAck = false;  // usuário aceitou editar sem sync (1x por sessão)
+    window._disarmEditGuard = function () { window._cloudStale = false; };
+
+    function _needsEditGuard() { return window._cloudStale && !window._editAnywayAck; }
+
+    function _startCloudSync() {
+      try { DriveSync.connect(); } catch (_) { }
+    }
+
+    // Estado C — interceptação do primeiro gesto de edição pré-sync.
+    // retryFn: o gesto original, re-executado se o usuário escolher "Edit anyway".
+    function openEditGuardModal(retryFn) {
+      const _p = typeof _currentSlug !== 'undefined' ? _currentSlug : 'default';
+      const _label = typeof Profiles !== 'undefined' ? Profiles.labelOf(_p) : _p;
+      openModal(`
+        <div class="modal-header">
+          <div class="modal-title">Sync before editing?</div>
+          <div class="modal-sub">📋 ${esc(_label)} · linked</div>
+        </div>
+        <div class="modal-body">
+          <div class="guard-banner">
+            <b>⚠️ Cloud may have newer data</b>
+            This list is linked but not synced in this session. Under
+            last-write-wins, editing now can overwrite newer changes
+            from other devices.
+          </div>
+        </div>
+        <div class="modal-foot modal-foot--col">
+          <div class="modal-btn confirm" id="guard-sync">☁️ Sync now (recommended)</div>
+          <div class="modal-btn guard-anyway" id="guard-edit">Edit anyway</div>
+        </div>
+      `);
+      const bSync = document.getElementById('guard-sync');
+      const bEdit = document.getElementById('guard-edit');
+      if (bSync) bSync.onclick = () => {
+        closeModal();
+        toast('☁️ Syncing — redo your edit afterwards');
+        _startCloudSync();
+      };
+      if (bEdit) bEdit.onclick = () => {
+        window._editAnywayAck = true;   // não pergunta de novo nesta sessão
+        closeModal();
+        if (typeof retryFn === 'function') retryFn();
+      };
+    }
+
     // Migração silenciosa: se ainda não há perfis, empacota o dado atual como 'default'
     function _migrateIfNeeded() {
       const profiles = _profilesLoad();
       if (profiles.length > 0) return; // já migrado
 
       // Copia dados legados para as novas chaves com slug 'default'
-      const LEGACY_DATA_KEY = 'Shop_List_v20260706';
+      const LEGACY_DATA_KEY = 'Shop_List_v20260703';
       const LEGACY_UI_KEY = 'Shop_List_ui';
       const LEGACY_SYNC_KEY = 'ShopList_driveSync';
       const slug = 'default';
@@ -4526,7 +4668,12 @@
     // O clamp (ex.: Math.max(0,…)) é responsabilidade da função step recebida.
     const STEPPER_LONG_STEP = 5;
     function attachStepperPress(btn, sign, step) {
-      attachLongPress(btn, () => step(sign), () => step(sign * STEPPER_LONG_STEP));
+      // Edit guard: intercepta o gesto do stepper antes da mutação
+      const guarded = s => {
+        if (_needsEditGuard()) return openEditGuardModal(() => step(s));
+        step(s);
+      };
+      attachLongPress(btn, () => guarded(sign), () => guarded(sign * STEPPER_LONG_STEP));
     }
 
     // ==================== LOCALSTORAGE COM TRATAMENTO DE ERRO ====================
@@ -4620,6 +4767,75 @@
       return { label, age };
     }
 
+    // Estado A — perfil vinculado ao Drive (meta.syncFileId presente).
+    // Substitui o "Local database" no boot: prioriza a nuvem sob last-write-wins.
+    // Countdown de 5s dispara DriveSync.connect() sozinho (token silencioso via
+    // GIS quando já autorizado); cancelável, com saída explícita para local.
+    function showCloudFirstDialog() {
+      const _p = typeof _currentSlug !== 'undefined' ? _currentSlug : 'default';
+      const _label = typeof Profiles !== 'undefined' ? Profiles.labelOf(_p) : _p;
+      const _ts = readSavedAt();
+      const _fmt = _ts ? formatSavedAt(_ts) : null;
+      const _count = items.length;
+      const _statVal = _ts
+        ? `${_count} item${_count !== 1 ? 's' : ''} · saved ${_fmt.age}`
+        : 'No local data yet';
+
+      openModal(`
+        <div class="modal-header">
+          <div class="modal-title">Cloud sync</div>
+          <div class="modal-sub">📋 ${esc(_label)}</div>
+        </div>
+        <div class="modal-body">
+          <span class="cf-chip"><span class="cf-dot"></span> Linked · ${esc(typeof Drive !== 'undefined' && Drive.SYNC_FILENAME ? Drive.SYNC_FILENAME : 'Shop-List-Sync.json')}</span>
+          <div class="modal-stat-card">
+            <div class="modal-stat-card__label">Local copy</div>
+            <div class="modal-stat-card__value">${esc(_statVal)}</div>
+            <div class="modal-stat-card__age" style="color:var(--accent)">🟢 cloud may be newer</div>
+          </div>
+          <div class="modal-body-hint">
+            Sync brings the latest shared changes before you edit —
+            recommended under last-write-wins.
+          </div>
+        </div>
+        <div class="modal-foot modal-foot--col">
+          <div class="modal-btn confirm" id="cf-sync">☁️ Sync now</div>
+          <div class="modal-btn cancel" id="cf-local">Work locally for now</div>
+          <div class="cf-count" id="cf-note">Syncing automatically in <b id="cf-num">5</b>s · <span class="cf-cancel" id="cf-cancel">cancel</span></div>
+        </div>
+      `);
+
+      let n = 5;
+      const iv = setInterval(() => {
+        const el = document.getElementById('cf-num');
+        if (!el) { clearInterval(iv); return; }   // modal fechado por qualquer via
+        n--;
+        el.textContent = n;
+        if (n <= 0) {
+          clearInterval(iv);
+          closeModal();
+          toast('☁️ Connecting to Drive…');
+          _startCloudSync();
+        }
+      }, 1000);
+      const _stopCount = () => {
+        clearInterval(iv);
+        const note = document.getElementById('cf-note');
+        if (note) note.textContent = 'Auto-sync canceled — choose an option.';
+      };
+      const bSync = document.getElementById('cf-sync');
+      const bLocal = document.getElementById('cf-local');
+      const bCancel = document.getElementById('cf-cancel');
+      if (bSync) bSync.onclick = () => { clearInterval(iv); closeModal(); _startCloudSync(); };
+      if (bLocal) bLocal.onclick = () => {
+        clearInterval(iv);
+        closeModal();
+        toast('Working locally — sync anytime via ☁️');
+        // _cloudStale permanece armado: o edit guard cobre esta sessão
+      };
+      if (bCancel) bCancel.onclick = _stopCount;
+    }
+
     function showStartupDialog() {
       // ATENÇÃO: esta função é estritamente read-only — nunca deve escrever no storage.
       // O savedAt exibido aqui é lido via readSavedAt() e não deve ser modificado aqui.
@@ -4689,14 +4905,11 @@
             </div>
           </div>
           <div class="modal-body-hint">
-            Continue with this data, import a local backup, or link a shared Drive File.
+            Link a shared Drive file to keep this list in sync across
+            devices — or continue with the local copy.
           </div>
         </div>
         <div class="modal-foot modal-foot--col">
-          <div class="modal-foot__row">
-            <div class="modal-btn cancel" onclick="closeModal()">Use this data</div>
-            <div class="modal-btn confirm" onclick="closeModal(); triggerImport()">Import backup</div>
-          </div>
           <div class="modal-btn link-file" onclick="closeModal(); DriveSync.pickSharedFolder()">
             <svg width="16" height="16" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
               <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" opacity=".72"/>
@@ -4707,6 +4920,10 @@
               <path d="m73.4 26.15-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z"/>
             </svg>
             ☁️ Link shared file (Shop-List-Sync.json)
+          </div>
+          <div class="modal-foot__row">
+            <div class="modal-btn cancel" onclick="closeModal()">Use this data</div>
+            <div class="modal-btn import-muted" onclick="closeModal(); triggerImport()">Import backup</div>
           </div>
         </div>
       `);
@@ -4894,7 +5111,7 @@
     }
 
     // Decide o match da query completa.
-    // Gramática (v20260706): OR de menor precedência — a query é dividida por '|'
+    // Gramática (v20260703): OR de menor precedência — a query é dividida por '|'
     // em grupos; cada grupo é uma conjunção de termos com exclusões ('-termo').
     // O item casa se QUALQUER grupo casar:
     //   "#bebidas @casa | #limpeza -#pesado" = (bebidas E casa) OU (limpeza E não-pesado)
@@ -6095,6 +6312,7 @@
       render();
     }
     function toggleStock(id) {
+      if (_needsEditGuard()) return openEditGuardModal(() => toggleStock(id));
       const it = items.find(i => i.id === id);
       if (!it) return;
       it.inStock = !it.inStock;
@@ -6160,6 +6378,7 @@
     }
 
     function toggleDone(id) {
+      if (_needsEditGuard()) return openEditGuardModal(() => toggleDone(id));
       const it = items.find(i => i.id === id);
       if (!it) return;
 
@@ -6233,6 +6452,7 @@
     }
 
     function openAddModal() {
+      if (_needsEditGuard()) return openEditGuardModal(() => openAddModal());
       openModal(`
         <div class="modal-header"><div class="modal-title">New item</div></div>
         <div class="modal-body">
@@ -6259,6 +6479,7 @@
     }
 
     function openEditModal(id) {
+      if (_needsEditGuard()) return openEditGuardModal(() => openEditModal(id));
       const it = items.find(i => i.id === id);
       if (!it) return;
       openModal(`
@@ -6391,6 +6612,7 @@
     //   renameShortcut — opcional { prefix, token, global } → atalho de rename
     //                    GLOBAL (todos os itens), distinto do rename em lote
     function openBulkSectionMenu(triggerEl, opts) {
+      if (_needsEditGuard()) return openEditGuardModal(() => openBulkSectionMenu(triggerEl, opts));
       const { label, list, renameShortcut } = opts;
       const count = list.length;
       const key = _registerBulk(list.map(i => i.id));
@@ -7944,8 +8166,22 @@
       }
     })();
 
-    // Exibe diálogo de validade dos dados após o primeiro render
-    showStartupDialog();
+    // ── Origem dos dados no boot ────────────────────────────────────────────
+    // Perfil vinculado (syncFileId) → Estado A cloud-first, com guard armado
+    // até o primeiro sync OK da sessão. Sem vínculo → Local database (Estado B).
+    (function bootDataOrigin() {
+      let _meta = {};
+      try {
+        const _p = typeof _currentSlug !== 'undefined' ? _currentSlug : 'default';
+        _meta = JSON.parse(localStorage.getItem(_syncMetaKey(_p)) || '{}');
+      } catch (_) { }
+      if (_meta.syncFileId) {
+        window._cloudStale = true;   // desarmado no fim do Sync.run bem-sucedido
+        showCloudFirstDialog();
+      } else {
+        showStartupDialog();
+      }
+    })();
 
     // ── Query params: ?tab=N e ?action=add ──────────────────
     (function handleQueryParams() {
@@ -8856,7 +9092,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260706');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260703');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -8897,7 +9133,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260706', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260703', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
@@ -9201,6 +9437,10 @@
                 Drive.pullIndex(_sharedFid, _sharedIid).catch(() => { });
               }
             }
+
+            // Sync concluído sem exceções (qualquer branch) → sessão em dia com
+            // a nuvem: desarma o edit guard até o próximo boot/troca de perfil.
+            if (window._disarmEditGuard) window._disarmEditGuard();
 
           } catch (e) {
             console.error('[DriveSync] sync error:', e);
