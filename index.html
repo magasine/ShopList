@@ -956,6 +956,62 @@
       flex-shrink: 0;
     }
 
+    /* ── Busca por voz (Web Speech API) ── */
+    #voice-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      color: var(--text3);
+      flex-shrink: 0;
+      position: relative;
+      transition: color var(--transition), background var(--transition);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #voice-btn:hover {
+      color: var(--accent);
+      background: var(--accent-light);
+    }
+
+    #voice-btn.listening {
+      color: var(--accent-text);
+      background: var(--accent-light);
+    }
+
+    /* Anel pulsante durante a gravação */
+    #voice-btn.listening::after {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      border: 2px solid var(--accent-strong);
+      animation: vsPulse 1.2s ease-out infinite;
+      pointer-events: none;
+    }
+
+    @keyframes vsPulse {
+      0% {
+        transform: scale(0.85);
+        opacity: 0.9;
+      }
+
+      100% {
+        transform: scale(1.25);
+        opacity: 0;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #voice-btn.listening::after {
+        animation: none;
+        opacity: 0.7;
+      }
+    }
+
     #search-input {
       -webkit-flex: 1;
       flex: 1;
@@ -4198,6 +4254,14 @@
           <input id="search-input" type="text" placeholder="name · #cat @ctx &amp;rel $val · -not · a|b · A*…"
             oninput="onSearch()" autocomplete="off" onkeydown="acOnKeydown(event)" onblur="setTimeout(acClose,150)" />
 
+          <span id="voice-btn" role="button" aria-label="Search by voice" aria-pressed="false" title="Search by voice">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" y1="19" x2="12" y2="23" />
+              <line x1="8" y1="23" x2="16" y2="23" />
+            </svg>
+          </span>
           <span id="search-clear" onclick="clearSearch()">clear</span>
         </div>
         <!-- Chips de filtro por checkbox — visíveis em All e Refill -->
@@ -4387,7 +4451,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260703-single-file-sync.r25-cloud-first-boot';
+    const APP_BUILD = '20260703-single-file-sync.r26-voice-search';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -6228,6 +6292,107 @@
       acOnInputSearch(input);
       render();
     }
+
+    // ── VoiceSearch: busca por voz → conversão booleana OR ──────────────────
+    // Web Speech API nativa (SpeechRecognition/webkitSpeechRecognition), sem
+    // dependências. Modular e não-invasivo: no resultado, preenche o campo e
+    // delega ao onSearch() — o mesmo caminho do teclado, lógica intocada.
+    // Sem suporte (ex.: Firefox) ou com microfone negado, o botão some/avisa
+    // discretamente e o campo segue funcionando normalmente.
+    const VoiceSearch = (() => {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const LANG_KEY = 'ShopList_voiceLang';
+      let rec = null;
+      let listening = false;
+
+      // Idioma: override opcional em localStorage; default: idioma do navegador
+      function lang() {
+        try { return localStorage.getItem(LANG_KEY) || navigator.language || 'pt-BR'; }
+        catch (_) { return navigator.language || 'pt-BR'; }
+      }
+
+      // Transcrição → busca booleana: normaliza espaços, remove pontuação do
+      // reconhecedor e operadores duplicados/soltos, e une os termos com ' | '
+      // preservando a ordem falada. Ex.: "abacaxi banana maçã morango" →
+      // "abacaxi | banana | maçã | morango".
+      function toBooleanQuery(raw) {
+        const clean = String(raw || '')
+          .replace(/[.,;:!?]+/g, ' ')      // pontuação inserida pelo reconhecedor
+          .replace(/\|+/g, ' ')            // pipes falados/duplicados viram separador
+          .replace(/\s+/g, ' ')            // espaços extras
+          .trim();
+        if (!clean) return '';
+        const terms = clean.split(' ').filter(t => t && t !== '-');
+        return terms.join(' | ');
+      }
+
+      function _btn() { return document.getElementById('voice-btn'); }
+
+      function _setUI(on) {
+        listening = on;
+        const b = _btn();
+        if (b) {
+          b.classList.toggle('listening', on);
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+          b.title = on ? 'Stop voice search' : 'Search by voice';
+        }
+      }
+
+      function toggle() {
+        if (!SR) return;
+        if (listening) { stop(); return; }
+        rec = new SR();
+        rec.lang = lang();
+        rec.interimResults = false;
+        rec.maxAlternatives = 1;
+        rec.continuous = false;          // uma frase por toque
+        rec.onresult = (e) => {
+          const t = (e.results && e.results[0] && e.results[0][0])
+            ? e.results[0][0].transcript : '';
+          const q = toBooleanQuery(t);
+          if (!q) return;
+          const input = document.getElementById('search-input');
+          if (input) {
+            input.value = q;
+            onSearch();                  // caminho existente do teclado
+          }
+        };
+        rec.onerror = (e) => {
+          _setUI(false);
+          if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+            toast('🎤 Microphone unavailable — search by typing');
+          } else if (e.error === 'no-speech') {
+            toast('🎤 No speech detected');
+          }
+          // demais erros (aborted, network): silêncio — campo segue normal
+        };
+        rec.onend = () => _setUI(false); // cobre fim natural e stop()
+        try {
+          rec.start();
+          _setUI(true);
+        } catch (_) {
+          _setUI(false);
+        }
+      }
+
+      function stop() {
+        try { if (rec) rec.stop(); } catch (_) { }
+        _setUI(false);
+      }
+
+      function init() {
+        const b = _btn();
+        if (!b) return;
+        if (!SR) { b.style.display = 'none'; return; } // sem suporte: some, sem ruído
+        b.addEventListener('click', (e) => { e.stopPropagation(); toggle(); });
+      }
+
+      return {
+        init,
+        toBooleanQuery,                              // exposto para testes
+        setLang(v) { try { localStorage.setItem(LANG_KEY, v); } catch (_) { } },
+      };
+    })();
 
     function clearSearch() {
       document.getElementById('search-input').value = '';
@@ -8166,8 +8331,10 @@
       }
     })();
 
-    // ── Origem dos dados no boot ────────────────────────────────────────────
-    // Perfil vinculado (syncFileId) → Estado A cloud-first, com guard armado
+    // Busca por voz: liga o botão de microfone (ou o oculta sem suporte)
+    VoiceSearch.init();
+
+    // ── Origem dos dados no boot ────────────────────────────────────────────    // Perfil vinculado (syncFileId) → Estado A cloud-first, com guard armado
     // até o primeiro sync OK da sessão. Sem vínculo → Local database (Estado B).
     (function bootDataOrigin() {
       let _meta = {};
