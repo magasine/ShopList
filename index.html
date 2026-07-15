@@ -2086,6 +2086,35 @@
       box-shadow: 0 2px 8px rgba(0, 121, 107, 0.18);
     }
 
+    /* FOOTER RESPONSIVO — rede de segurança contra overflow horizontal.
+       Mesmo com Export/Import agrupados no menu Data, "Add + Inventory"
+       com rótulos completos não cabe ≤430px. Os rótulos ficam em <span>
+       e somem por largura; o `title` de cada botão permanece como tooltip. */
+    @media (max-width: 430px) {
+
+      #inventory-btn>span,
+      #share-btn>span {
+        display: none;
+      }
+
+      #inventory-btn,
+      #share-btn {
+        gap: 0;
+        padding: 8px 12px;
+      }
+    }
+
+    @media (max-width: 370px) {
+      #add-btn>span {
+        display: none;
+      }
+
+      #add-btn {
+        gap: 0;
+        padding: 8px 12px;
+      }
+    }
+
     #add-btn:active {
       transform: scale(0.93);
     }
@@ -4456,21 +4485,12 @@
           </svg>
         </div>
 
-        <!-- Exportar dados -->
-        <div class="fbtn" title="Export data (.json)" onclick="exportData()">
+        <!-- Dados: Export/Import agrupados num menu (libera 1 slot no footer) -->
+        <div class="fbtn" id="footer-data-btn" title="Backup data (.json)" onclick="openDataMenu(this)">
           <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-        </div>
-
-        <!-- Importar dados -->
-        <div class="fbtn" title="Import data (.json)" onclick="triggerImport()">
-          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
+            <ellipse cx="12" cy="5" rx="9" ry="3" />
+            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
           </svg>
         </div>
 
@@ -4507,7 +4527,7 @@
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
-        Add
+        <span>Add</span>
       </div>
 
       <!-- Inventário — visível apenas na aba Stock: retrato do estoque
@@ -4518,7 +4538,7 @@
           <rect x="1" y="3" width="22" height="5" />
           <line x1="10" y1="12" x2="14" y2="12" />
         </svg>
-        Inventory
+        <span>Inventory</span>
       </div>
 
       <!-- Compartilhar — visível apenas na aba Refill -->
@@ -4530,7 +4550,7 @@
           <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
           <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
         </svg>
-        Share
+        <span>Share</span>
       </div>
 
     </div>
@@ -4590,7 +4610,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260715-single-file-sync.r33-stock-inventory-share';
+    const APP_BUILD = '20260715-single-file-sync.r34-footer-data-menu';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -7009,6 +7029,32 @@
       if (_secMenuEl && !_secMenuEl.contains(e.target)) {
         closeSectionMenu(); // já remove os próprios listeners
       }
+    }
+
+    // ── Menu Data (footer): Export/Import agrupados ─────────────────────────
+    // Reutiliza integralmente a infra de _showSectionMenu: posicionamento com
+    // flip automático (o footer fica na base, então o menu abre PARA CIMA),
+    // clique-fora, tema e animação — zero CSS novo. Agrupar as duas operações
+    // raras de backup em 1 slot liberou 38px no footer.
+    function openDataMenu(triggerEl) {
+      _showSectionMenu(triggerEl, `
+        <div class="sec-action-header">Data · backup (.json)</div>
+        <div class="sec-action-item" data-action="data-export">
+          <span class="sec-action-icon">⬇️</span> Export data
+        </div>
+        <div class="sec-action-item" data-action="data-import">
+          <span class="sec-action-icon">⬆️</span> Import data
+        </div>
+      `);
+
+      _secMenuEl.addEventListener('click', e => {
+        const item = e.target.closest('[data-action]');
+        if (!item) return;
+        const action = item.dataset.action;
+        closeSectionMenu();
+        if (action === 'data-export') exportData();
+        if (action === 'data-import') triggerImport();
+      });
     }
 
     // ── Builder unificado de menu de ações em lote ──────────────────────────
