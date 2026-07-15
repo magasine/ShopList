@@ -417,7 +417,7 @@
 
     #app-title {
       font-size: var(--fs-md);
-      font-weight: 600;
+      font-weight: 800;
       letter-spacing: -0.3px;
       display: flex;
       align-items: baseline;
@@ -2246,6 +2246,20 @@
       transition: border-color var(--transition), box-shadow var(--transition);
     }
 
+    /* Variante textarea: conteúdo longo QUEBRA linha em vez de rolar
+       horizontalmente — no mobile, arrastar dentro de um input seleciona
+       texto (não rola), então a rolagem horizontal era inavegável.
+       field-sizing: content (Chrome/Edge 123+) auto-expande; fallback JS
+       em openModal para navegadores sem suporte. */
+    textarea.modal-input-big {
+      resize: none;
+      overflow: hidden;
+      field-sizing: content;
+      line-height: 1.35;
+      display: block;
+      overflow-wrap: break-word;
+    }
+
     .modal-input-big:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 3px rgba(0, 121, 107, 0.12);
@@ -2622,6 +2636,16 @@
       align-items: center;
       gap: 6px;
       padding: 8px 0 4px;
+      /* Trilho rolável (r30): em viewports estreitos os chips excedentes
+         rolam horizontalmente em vez de ocultar — o chip parcialmente
+         visível na borda é a affordance do padrão. Scrollbar oculta. */
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    #search-chips::-webkit-scrollbar {
+      display: none;
     }
 
     #search-bar.open #search-chips {
@@ -2647,6 +2671,8 @@
         border-color var(--transition);
       -webkit-tap-highlight-color: transparent;
       white-space: nowrap;
+      /* Nunca comprimir: no trilho rolável, excedente rola em vez de espremer */
+      flex-shrink: 0;
     }
 
     .sch-chip:active {
@@ -2683,6 +2709,40 @@
       text-transform: uppercase;
       padding-left: 2px;
       flex-shrink: 0;
+    }
+
+    /* Chips numéricos — inserem sintaxe na query; separador sutil à esquerda */
+    .sch-chip--num {
+      margin-left: 4px;
+      border-style: dashed;
+    }
+
+    /* Chips icon-only (✓/○): compensa a largura do glifo único para manter
+       alvo de toque adequado (~40px) e centraliza o símbolo */
+    .sch-chip--ico {
+      min-width: 40px;
+      justify-content: center;
+      padding: 4px 8px;
+      flex-shrink: 0;
+    }
+
+    /* Ocultação individual de chip (ex.: ✓/○ na aba Stock, onde inStock/_done
+       não se aplicam — os numéricos permanecem em todas as abas) */
+    .sch-chip.chip-hidden {
+      display: none !important;
+    }
+
+    /* Ativo = termo exato presente na query (fonte única de verdade) */
+    .sch-chip.active-num {
+      background: var(--accent-light);
+      border-color: var(--accent);
+      border-style: solid;
+      color: var(--accent);
+    }
+
+    [data-theme="dark"] .sch-chip.active-num {
+      background: var(--filter-ok-bg);
+      border-color: var(--accent);
     }
 
     /* chips só relevantes nas abas All e Refill — JS esconde na aba Stock */
@@ -3637,6 +3697,45 @@
       color: var(--text2);
     }
 
+    /* Seções colapsáveis do Help & Tips (details/summary nativo) */
+    .help-sec {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-top: 10px;
+      background: var(--surface2);
+    }
+
+    .help-sec summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--text);
+      font-size: var(--fs-sm);
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .help-sec[open] summary {
+      margin-bottom: 2px;
+    }
+
+    .help-sec .modal-pwa-block {
+      margin-top: 8px;
+      font-size: var(--fs-xs);
+    }
+
+    .help-sec code {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.95em;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 1px 5px;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
     /* modal-label que antecede o segundo input (desc) — adiciona margem superior */
     .input-desc-label {
       margin-top: 12px;
@@ -4251,8 +4350,9 @@
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
-          <input id="search-input" type="text" placeholder="name · #cat @ctx &amp;rel $val · -not · a|b · A*…"
-            oninput="onSearch()" autocomplete="off" onkeydown="acOnKeydown(event)" onblur="setTimeout(acClose,150)" />
+          <input id="search-input" type="text"
+            placeholder="name · #cat @ctx &amp;rel $val · min:&lt;n · -not · a|b · A*…" oninput="onSearch()"
+            autocomplete="off" onkeydown="acOnKeydown(event)" onblur="setTimeout(acClose,150)" />
 
           <span id="voice-btn" role="button" aria-label="Search by voice" aria-pressed="false" title="Search by voice">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -4267,10 +4367,24 @@
         <!-- Chips de filtro por checkbox — visíveis em All e Refill -->
         <div id="search-chips">
           <span class="sch-chip-label">filter:</span>
-          <div class="sch-chip" id="chip-checked" onclick="toggleChipFilter('checked')" title="Show only checked items">
-            ✓ Checked</div>
-          <div class="sch-chip" id="chip-unchecked" onclick="toggleChipFilter('unchecked')"
-            title="Show only unchecked items">○ Unchecked</div>
+          <!-- ✓/○ icon-only: os glifos espelham os próprios checkboxes das linhas
+               (correspondência visual direta, não abreviação); title preserva o nome -->
+          <div class="sch-chip sch-chip--ico" id="chip-checked" onclick="toggleChipFilter('checked')"
+            title="Checked — show only checked items">✓</div>
+          <div class="sch-chip sch-chip--ico" id="chip-unchecked" onclick="toggleChipFilter('unchecked')"
+            title="Unchecked — show only unchecked items">○</div>
+          <!-- Chips numéricos: inserem sintaxe no #search-input (não são modo oculto).
+               Vocabulário da UI (current = stepper label · refill = aba), não o interno.
+               Ordem espelha a leitura da UI: min. → current (steppers da Stock) → refill (aba). -->
+          <!-- Chip-andaime: insere só o prefixo 'min:' (termo incompleto = neutro,
+               r27) e foca o campo para o usuário completar operador e valor.
+               As reticências são a convenção de "requer entrada" — não são inseridas. -->
+          <div class="sch-chip sch-chip--num" id="chip-num-min" onclick="insertSearchPrefix('min')"
+            title="Insert min: — type an operator and value (e.g. min:>=5); tap again to remove">min:…</div>
+          <div class="sch-chip sch-chip--num" id="chip-num-zero" onclick="insertSearchTerm('current:0')"
+            title="Insert current:0 — items with zero stock (tap again to remove)">current:0</div>
+          <div class="sch-chip sch-chip--num" id="chip-num-def" onclick="insertSearchTerm('refill:>0')"
+            title="Insert refill:>0 — items below minimum (tap again to remove)">refill:&gt;0</div>
         </div>
       </div>
 
@@ -4320,6 +4434,15 @@
 
       <!-- Grupo de ícones esquerdo -->
       <div id="footer-left">
+
+        <!-- Ajuda & dicas -->
+        <div class="fbtn" id="footer-help-btn" title="Help &amp; tips" onclick="showHelp('search')">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </div>
 
         <!-- Alternar tema -->
         <div class="fbtn" id="footer-theme-btn" title="Toggle theme" onclick="toggleTheme()">
@@ -4451,7 +4574,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260703-single-file-sync.r26-voice-search';
+    const APP_BUILD = '20260715-single-file-sync.r32-chip-order-ui-mirror';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4537,7 +4660,7 @@
       if (profiles.length > 0) return; // já migrado
 
       // Copia dados legados para as novas chaves com slug 'default'
-      const LEGACY_DATA_KEY = 'Shop_List_v20260703';
+      const LEGACY_DATA_KEY = 'Shop_List_v20260715';
       const LEGACY_UI_KEY = 'Shop_List_ui';
       const LEGACY_SYNC_KEY = 'ShopList_driveSync';
       const slug = 'default';
@@ -5080,16 +5203,16 @@
       // IDs fixos e determinísticos — NÃO usar uid() aqui.
       // Critério de detecção: items.every(i => i.id.startsWith(MODEL_ID_PREFIX))
       return [
-        { id: 'model-001', name: 'Sugar', desc: 'kg #grains', inStock: true, min: 2, qty: 4, fav: false },
-        { id: 'model-002', name: 'White rice', desc: 'kg #grains', inStock: true, min: 3, qty: 1, fav: false },
-        { id: 'model-003', name: 'Olive oil', desc: '500ml #condiments', inStock: false, min: 1, qty: 0, fav: false },
-        { id: 'model-004', name: 'Wheat flour', desc: 'kg #grains', inStock: true, min: 2, qty: 2, fav: false },
-        { id: 'model-005', name: 'Black beans', desc: 'kg #grains', inStock: false, min: 2, qty: 0, fav: false },
-        { id: 'model-006', name: 'Whole milk', desc: 'Lt #dairy', inStock: true, min: 4, qty: 5, fav: false },
-        { id: 'model-007', name: 'Butter', desc: '200g #dairy', inStock: true, min: 1, qty: 3, fav: false },
-        { id: 'model-008', name: 'Soybean oil', desc: '900ml #condiments', inStock: true, min: 2, qty: 2, fav: false },
-        { id: 'model-009', name: 'Table salt', desc: '200g #spices', inStock: true, min: 1, qty: 3, fav: false },
-        { id: 'model-010', name: 'Ground coffee', desc: '500g #beverages', inStock: true, min: 2, qty: 1, fav: false },
+        { id: 'model-001', name: 'Sugar', desc: '1-kg #grains', inStock: true, min: 2, qty: 4, fav: false },
+        { id: 'model-002', name: 'White rice', desc: '5-kg #grains', inStock: true, min: 3, qty: 1, fav: false },
+        { id: 'model-003', name: 'Olive oil', desc: '500-ml #condiments', inStock: false, min: 1, qty: 0, fav: false },
+        { id: 'model-004', name: 'Wheat flour', desc: '1-kg #grains', inStock: true, min: 2, qty: 2, fav: false },
+        { id: 'model-005', name: 'Black beans', desc: '1-kg #grains', inStock: false, min: 2, qty: 0, fav: false },
+        { id: 'model-006', name: 'Whole milk', desc: '1-Lt #dairy', inStock: true, min: 4, qty: 5, fav: false },
+        { id: 'model-007', name: 'Butter', desc: '200-g #dairy', inStock: true, min: 1, qty: 3, fav: false },
+        { id: 'model-008', name: 'Soybean oil', desc: '900-ml #condiments', inStock: true, min: 2, qty: 2, fav: false },
+        { id: 'model-009', name: 'Table salt', desc: '200-g #spices', inStock: true, min: 1, qty: 3, fav: false },
+        { id: 'model-010', name: 'Ground coffee', desc: '500-g #beverages', inStock: true, min: 2, qty: 1, fav: false },
       ];
     }
 
@@ -5164,6 +5287,40 @@
         return rx.test(norm(item.name)) || rx.test(norm(item.desc || ''));
       }
 
+      // ── Busca numérica: current(qty) / min / refill(def) ───────────────────
+      // Vocabulário da UI como forma canônica — 'current' e 'refill' são os
+      // nomes que o usuário vê (stepper label e aba); 'qty' e 'def' seguem
+      // aceitos como atalhos de digitação. 'refill'/'def' = min − qty.
+      // Gramática: campo[:=]  +  (>|>=|<|<=)N  ou  N  ou  N-M (intervalo inclusivo).
+      // Compõe de graça com a gramática existente: '-refill:>0' exclui,
+      // '#limpeza current:<2' conjuga, 'qty:0 | def:2-4' entra no OR.
+      // Inteiros por ora — se qty aceitar fracionário um dia, trocar \d+ por
+      // \d+(?:[.,]\d+)? e normalizar vírgula antes do Number().
+      const nm = term.match(/^(qty|current|min|def|refill)[:=](>=|<=|>|<)?(\d+)(?:-(\d+))?$/i);
+      if (nm) {
+        const raw = nm[1].toLowerCase();
+        const field = raw === 'current' ? 'qty' : raw === 'refill' ? 'def' : raw;
+        const val = field === 'qty' ? (item.qty ?? 0)
+          : field === 'min' ? (item.min ?? 0)
+            : (item.min ?? 0) - (item.qty ?? 0);   // def/refill
+        const a = +nm[3];
+        if (nm[4] !== undefined) {
+          // Intervalo: normaliza min/max — 'qty:5-2' perdoa a inversão
+          const lo = Math.min(a, +nm[4]), hi = Math.max(a, +nm[4]);
+          return val >= lo && val <= hi;
+        }
+        switch (nm[2]) {
+          case '>': return val > a;
+          case '>=': return val >= a;
+          case '<': return val < a;
+          case '<=': return val <= a;
+          default: return val === a;
+        }
+      }
+      // Termo numérico incompleto ('current:', 'def:>') é neutro — mesma filosofia
+      // do '-#' no parseSearchTerms: a lista não esvazia no meio da digitação.
+      if (/^(qty|current|min|def|refill)[:=](>=|<=|>|<)?$/i.test(term)) return true;
+
       // ── Busca por #categoria ───────────────────────────────────────────────
       if (term.startsWith('#')) {
         return norm(item.desc || '').includes(norm(term.slice(1)));
@@ -5175,7 +5332,7 @@
     }
 
     // Decide o match da query completa.
-    // Gramática (v20260703): OR de menor precedência — a query é dividida por '|'
+    // Gramática: OR de menor precedência — a query é dividida por '|'
     // em grupos; cada grupo é uma conjunção de termos com exclusões ('-termo').
     // O item casa se QUALQUER grupo casar:
     //   "#bebidas @casa | #limpeza -#pesado" = (bebidas E casa) OU (limpeza E não-pesado)
@@ -5212,7 +5369,9 @@
       if (q) result = result.filter(it => simpleMatch(it, q));
 
       // filtro de checkbox — All (tab 0): inStock · Refill (tab 2): _done.
-      // Stock (tab 1) não aplica: chips ocultos lá (syncChips), sem filtro fantasma.
+      // Stock (tab 1) não aplica: os chips ✓/○ somem lá individualmente
+      // (chip-hidden via syncChips) — sem filtro fantasma. Os chips numéricos
+      // seguem visíveis em todas as abas, pois atuam via searchQuery.
       // checkFilter persiste entre All ↔ Refill — o chip filtra sempre "o estado
       // do checkbox do painel ativo", modelo mental único para as duas abas.
       if (checkFilter) {
@@ -5237,12 +5396,19 @@
       const cc = document.getElementById('chip-checked');
       const cu = document.getElementById('chip-unchecked');
 
-      if (cc) cc.className = 'sch-chip' + (checkFilter === 'checked' ? ' active-checked' : '');
-      if (cu) cu.className = 'sch-chip' + (checkFilter === 'unchecked' ? ' active-unchecked' : '');
+      if (cc) cc.className = 'sch-chip sch-chip--ico' + (checkFilter === 'checked' ? ' active-checked' : '');
+      if (cu) cu.className = 'sch-chip sch-chip--ico' + (checkFilter === 'unchecked' ? ' active-unchecked' : '');
 
-      // Chips visíveis em All (filtra inStock) e Refill (filtra _done) — ocultos em Stock.
-      // Alinha o JS à intenção original documentada no CSS (#search-chips.hidden).
-      chips.classList.toggle('hidden', currentTab === 1);
+      // Granularidade por chip (r28): os chips de checkbox (✓/○) filtram
+      // inStock/_done e não se aplicam à Stock — somem só ELES na aba 1.
+      // Os chips numéricos (qty:/def:) permanecem em TODAS as abas: a Stock
+      // é justamente onde min/qty estão visíveis e editáveis.
+      // O container #search-chips fica sempre visível com o search-bar aberto
+      // (a regra CSS #search-chips.hidden segue existindo para uso futuro).
+      const onStock = currentTab === 1;
+      if (cc) cc.classList.toggle('chip-hidden', onStock);
+      if (cu) cu.classList.toggle('chip-hidden', onStock);
+      chips.classList.remove('hidden');
     }
 
     function stockItems() { return filteredItems().filter(it => it.inStock); }
@@ -6290,7 +6456,66 @@
       searchQuery = input.value;
       // Autocomplete de categoria no campo de busca
       acOnInputSearch(input);
+      syncNumChips();
       render();
+    }
+
+    // ── Chips numéricos: inseridores de sintaxe, não modo ───────────────────
+    // Padrão não-invasivo (mesmo do VoiceSearch): o chip apenas escreve o termo
+    // no #search-input e delega ao onSearch() — o usuário vê a query, pode
+    // editá-la (ex.: trocar def:>0 por def:>2) e aprende a gramática pelo uso.
+    // Toque repetido remove o termo exato (toggle transparente).
+    function insertSearchTerm(term) {
+      const input = document.getElementById('search-input');
+      const terms = input.value.trim() ? input.value.trim().split(/\s+/) : [];
+      // Toggle por equivalência canônica: se 'qty:0' foi digitado à mão,
+      // o toque no chip 'current:0' remove-o em vez de duplicar o filtro.
+      const canon = _canonNumTerm(term);
+      const idx = terms.findIndex(t => _canonNumTerm(t) === canon);
+      if (idx >= 0) terms.splice(idx, 1); else terms.push(term);
+      input.value = terms.join(' ');
+      input.focus();
+      onSearch();   // mesmo caminho do teclado, lógica intocada
+    }
+
+    // Chip-andaime: insere apenas o prefixo de campo ('min:') e deixa o caret
+    // no fim para o usuário completar operador+valor — apoiado na neutralidade
+    // do termo incompleto (r27): a lista não esvazia durante a digitação.
+    // Toggle-off: se QUALQUER termo do campo existe (min:>=5, min=2-4…),
+    // o toque o remove — o chip aceso indica "há um filtro deste campo ativo".
+    function insertSearchPrefix(field) {
+      const input = document.getElementById('search-input');
+      const terms = input.value.trim() ? input.value.trim().split(/\s+/) : [];
+      const rx = new RegExp('^-?' + field + '[:=]', 'i');
+      const idx = terms.findIndex(t => rx.test(_canonNumTerm(t)));
+      if (idx >= 0) terms.splice(idx, 1); else terms.push(field + ':');
+      input.value = terms.join(' ');
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+      onSearch();   // mesmo caminho do teclado, lógica intocada
+    }
+
+    // Estado visual dos chips numéricos = presença do termo (ou de seu alias)
+    // na query. Canonicaliza current→qty e refill→def antes de comparar, para
+    // que digitar o atalho à mão ('qty:0') acenda o chip 'current:0' também.
+    // Sem estado paralelo: a query é a única fonte de verdade.
+    function _canonNumTerm(t) {
+      return t.toLowerCase().replace(/^current(?=[:=])/, 'qty').replace(/^refill(?=[:=])/, 'def');
+    }
+
+    function syncNumChips() {
+      const terms = (searchQuery || '').trim().split(/\s+/).map(_canonNumTerm);
+      // Presets casam por termo exato; o andaime 'min' acende para qualquer
+      // termo do campo (inclusive incompleto — feedback imediato ao toque).
+      const map = {
+        'chip-num-zero': t => t === 'qty:0',
+        'chip-num-def': t => t === 'def:>0',
+        'chip-num-min': t => /^-?min[:=]/.test(t),
+      };
+      for (const [id, match] of Object.entries(map)) {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('active-num', terms.some(match));
+      }
     }
 
     // ── VoiceSearch: busca por voz → conversão booleana OR ──────────────────
@@ -6399,6 +6624,7 @@
       searchQuery = '';
       checkFilter = '';
       syncChips();
+      syncNumChips();
       // clearSearch não redefine mais o filtro fav — o botão agora está sempre
       // visível no filter-badge-group e opera independente do search bar.
       render();
@@ -6622,9 +6848,9 @@
         <div class="modal-header"><div class="modal-title">New item</div></div>
         <div class="modal-body">
           <label class="modal-label">Item name</label>
-          <input class="modal-input-big input-name" id="add-name" type="text" placeholder="e.g.: Butter" autofocus />
+          <textarea class="modal-input-big input-name" id="add-name" rows="1" placeholder="e.g.: Butter" autofocus></textarea>
           <label class="modal-label input-desc-label">Description (Unit/#Category)</label>
-          <input class="modal-input-big input-desc" id="add-desc" type="text" placeholder="e.g.: 500g - #dairy" />
+          <textarea class="modal-input-big input-desc" id="add-desc" rows="1" placeholder="e.g.: 500g - #dairy"></textarea>
         </div>
         <div class="modal-foot">
           <div class="modal-btn cancel" onclick="closeModal()">Cancel</div>
@@ -6634,8 +6860,9 @@
     }
 
     function confirmAdd() {
-      const name = (document.getElementById('add-name').value || '').trim();
-      const desc = (document.getElementById('add-desc').value || '').trim();
+      // \n achatado também aqui (defesa em profundidade — o listener de input já o faz)
+      const name = (document.getElementById('add-name').value || '').replace(/\s*\n+\s*/g, ' ').trim();
+      const desc = (document.getElementById('add-desc').value || '').replace(/\s*\n+\s*/g, ' ').trim();
       if (!name) return;
       items.push({ id: uid(), name, desc, inStock: false, min: 1, qty: 0, fav: false });
       closeModal();
@@ -6651,9 +6878,9 @@
         <div class="modal-header"><div class="modal-title">Edit item</div></div>
         <div class="modal-body">
           <label class="modal-label">Item name</label>
-          <input class="modal-input-big input-name" id="edit-name" type="text" value="${esc(it.name)}" />
+          <textarea class="modal-input-big input-name" id="edit-name" rows="1">${esc(it.name)}</textarea>
           <label class="modal-label input-desc-label">Description</label>
-          <input class="modal-input-big input-desc" id="edit-desc" type="text" value="${esc(it.desc)}" />
+          <textarea class="modal-input-big input-desc" id="edit-desc" rows="1">${esc(it.desc)}</textarea>
         </div>
         <div class="modal-foot">
           <div class="modal-btn cancel" onclick="closeModal()">Cancel</div>
@@ -6663,8 +6890,9 @@
     }
 
     function confirmEdit(id) {
-      const name = (document.getElementById('edit-name').value || '').trim();
-      const desc = (document.getElementById('edit-desc').value || '').trim();
+      // \n achatado também aqui (defesa em profundidade — o listener de input já o faz)
+      const name = (document.getElementById('edit-name').value || '').replace(/\s*\n+\s*/g, ' ').trim();
+      const desc = (document.getElementById('edit-desc').value || '').replace(/\s*\n+\s*/g, ' ').trim();
       if (!name) return;
       const it = items.find(i => i.id === id);
       if (it) {
@@ -7310,27 +7538,108 @@
 
     function openConfig() { closeModal(); }
 
-    function showPWAInstructions() {
+    // ── Help & Tips ──────────────────────────────────────────────────────────
+    // Hierarquia invertida em relação ao antigo "Install App": ajuda de busca
+    // é consulta RECORRENTE; instalação é tarefa de uma vez por dispositivo —
+    // então Install vira a última seção de um modal de ajuda geral.
+    // showHelp(section) abre com a seção indicada já expandida:
+    // 'search' | 'tokens' | 'sorting' | 'sync' | 'install'
+    function showHelp(section = 'search') {
+      const open = s => section === s ? ' open' : '';
       openModal(`
-        <div class="modal-header"><div class="modal-title">Install App</div></div>
+        <div class="modal-header"><div class="modal-title">Help &amp; Tips</div></div>
         <div class="modal-body modal-body--pwa">
-          <p class="modal-body-hint">To use as an app with <strong>offline</strong> access:</p>
-          <div class="modal-pwa-block">
-            <strong>On iPhone (Safari):</strong><br>
-            1. Tap the <strong>Share</strong> icon (square with arrow)<br>
-            2. Scroll and tap <strong>"Add to Home Screen"</strong>.
-          </div>
-          <div class="modal-pwa-block">
-            <strong>On Android (Chrome):</strong><br>
-            1. Tap the <strong>three-dot menu</strong> in the top corner<br>
-            2. Tap <strong>"Install app"</strong> or "Add to home screen".
-          </div>
+
+          <details class="help-sec"${open('search')}>
+            <summary>🔎 Search &amp; filters</summary>
+            <div class="modal-pwa-block">
+              Type any text to match item <strong>names</strong> and <strong>descriptions</strong>
+              (accent-insensitive). Multiple words = ALL must match.<br><br>
+              <strong>Operators:</strong><br>
+              <code>-term</code> — exclude (e.g. <code>-#dairy</code>)<br>
+              <code>a | b</code> — OR between groups<br>
+              <code>A*</code> — items starting with a letter<br>
+              <code>*milk*</code> — free wildcard pattern
+            </div>
+            <div class="modal-pwa-block">
+              <strong>Numeric search</strong> — filter by the quantities you see on each item:<br>
+              <code>current:</code> stock now (the "current" stepper) ·
+              <code>min:</code> minimum level ·
+              <code>refill:</code> how many are missing (<strong>min − current</strong>, the Refill amount)<br><br>
+              <code>current:0</code> — exactly 0 in stock<br>
+              <code>current:&gt;3</code> <code>current:&gt;=3</code> <code>current:&lt;5</code> <code>current:&lt;=5</code> — comparisons<br>
+              <code>min:2-5</code> — inclusive range (2 to 5)<br>
+              <code>refill:&gt;0</code> — anything below its minimum<br><br>
+              Shortcuts: <code>qty:</code> = <code>current:</code> and <code>def:</code> = <code>refill:</code>.
+              No spaces inside the term (<code>current:&gt;3</code>, not <code>current: &gt; 3</code>).
+              Combines freely: <code>#cleaning current:&lt;2</code>, <code>-refill:&gt;0</code>,
+              <code>current:0 | refill:2-4</code>. The dashed chips under the search bar
+              insert these terms for you — tap again to remove. The <code>min:…</code>
+              chip inserts just the prefix, ready for you to type an operator and value.
+            </div>
+          </details>
+
+          <details class="help-sec"${open('tokens')}>
+            <summary>🔖 Tokens in descriptions</summary>
+            <div class="modal-pwa-block">
+              Add tokens anywhere in an item's description to organize and filter:<br>
+              <code>#category</code> (e.g. <code>#dairy</code>) ·
+              <code>@context</code> (e.g. <code>@home</code>) ·
+              <code>&amp;relationship</code> (e.g. <code>&amp;monica</code>) ·
+              <code>&#36;budget</code> (reserved)<br><br>
+              Tokens get autocomplete while typing, power the sort groupings,
+              and can be bulk-renamed from section menus.
+            </div>
+          </details>
+
+          <details class="help-sec"${open('sorting')}>
+            <summary>↕️ Sorting</summary>
+            <div class="modal-pwa-block">
+              Tap the sort button to cycle modes: <strong>A·Z</strong> (name),
+              <strong>#·Z</strong> (category), <strong>★↕</strong> (favorites),
+              <strong>@·Z</strong> (context), <strong>&amp;·Z</strong> (relationship).<br>
+              <strong>Long-press</strong> it to open the mode menu directly.
+            </div>
+          </details>
+
+          <details class="help-sec"${open('sync')}>
+            <summary>☁️ Sync &amp; profiles</summary>
+            <div class="modal-pwa-block">
+              Connect Google Drive (cloud button in the footer) to sync across
+              devices. The 🛒 button switches between lists/profiles — each keeps
+              its own Drive file, which can be shared with other people for a
+              collaborative list.
+            </div>
+          </details>
+
+          <details class="help-sec"${open('install')}>
+            <summary>📲 Install app</summary>
+            <div class="modal-pwa-block">
+              To use as an app with <strong>offline</strong> access:
+            </div>
+            <div class="modal-pwa-block">
+              <strong>On iPhone (Safari):</strong><br>
+              1. Tap the <strong>Share</strong> icon (square with arrow)<br>
+              2. Scroll and tap <strong>"Add to Home Screen"</strong>.
+            </div>
+            <div class="modal-pwa-block">
+              <strong>On Android (Chrome):</strong><br>
+              1. Tap the <strong>three-dot menu</strong> in the top corner<br>
+              2. Tap <strong>"Install app"</strong> or "Add to home screen".
+            </div>
+          </details>
+
         </div>
         <div class="modal-foot">
           <div class="modal-btn confirm" onclick="openConfig()">Back</div>
         </div>
       `);
     }
+
+    // Wrapper de compatibilidade — pontos de entrada existentes (fallback do
+    // triggerInstall, ds-pwa-strip do painel Drive) continuam funcionando,
+    // agora abrindo o Help já na seção de instalação.
+    function showPWAInstructions() { showHelp('install'); }
 
     function exportData() {
       exportDataSilent();
@@ -7615,6 +7924,40 @@
             el.addEventListener('keydown', acOnKeydown);
             el.addEventListener('blur', () => setTimeout(acClose, 150));
             el._acBound = true;
+          }
+        });
+
+        // Textareas dos modais (name/desc): Enter confirma em vez de inserir
+        // newline, e colagens multi-linha são achatadas em uma linha lógica.
+        // IMPORTANTE: vinculado APÓS o autocomplete — se acOnKeydown já
+        // consumiu o Enter (e.defaultPrevented) para escolher sugestão,
+        // a guarda não dispara o confirm.
+        const noFieldSizing = !(window.CSS && CSS.supports && CSS.supports('field-sizing', 'content'));
+        box.querySelectorAll('textarea.modal-input-big').forEach(el => {
+          if (el._taBound) return;
+          el._taBound = true;
+
+          el.addEventListener('keydown', e => {
+            if (e.key !== 'Enter') return;
+            if (e.defaultPrevented) return;   // autocomplete escolheu sugestão
+            e.preventDefault();               // nunca insere newline
+            box.querySelector('.modal-btn.confirm')?.click();
+          });
+
+          // Colagem: \n → espaço (uma linha lógica; a quebra visual é do wrap)
+          el.addEventListener('input', () => {
+            if (el.value.includes('\n')) {
+              const pos = el.selectionStart;
+              el.value = el.value.replace(/\s*\n+\s*/g, ' ');
+              el.setSelectionRange(pos, pos);
+            }
+          });
+
+          // Fallback de auto-expansão para navegadores sem field-sizing
+          if (noFieldSizing) {
+            const fit = () => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
+            el.addEventListener('input', fit);
+            requestAnimationFrame(fit);
           }
         });
       });
@@ -9259,7 +9602,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260703');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260715');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -9300,7 +9643,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260703', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260715', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
