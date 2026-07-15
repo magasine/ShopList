@@ -7864,12 +7864,12 @@
       let lines = [];
 
       // Título do app — fora das fences
-      lines.push('*SHOP LIST・SEMAPHORE*');
-      lines.push('🛒 Shopping list — Refill tab');   // distinção explícita de escopo (par do Inventory)
+      lines.push('*Shop List・Semaphore*');
+      lines.push(`${[listName, datestamp].filter(Boolean).join(' - ')}`);
+      lines.push('Share — Refill tab');   // distinção explícita de escopo (par do Inventory)
 
       // Nome da lista + timestamp — dentro de fence (wrap)
       // lines.push('```');
-      lines.push(`${[listName, datestamp].filter(Boolean).join(' - ')}`);
 
       // Meta (filtro + count + sort) — fora das fences
       // lines.push('```');
