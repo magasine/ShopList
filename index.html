@@ -2087,16 +2087,20 @@
     }
 
     /* FOOTER RESPONSIVO — rede de segurança contra overflow horizontal.
-       Mesmo com Export/Import agrupados no menu Data, "Add + Inventory"
-       com rótulos completos não cabe ≤430px. Os rótulos ficam em <span>
-       e somem por largura; o `title` de cada botão permanece como tooltip. */
+       Estratégia: em telas estreitas os RÓTULOS permanecem e os ÍCONES somem
+       (texto comunica mais que os pictogramas de Inventory/Share; "Add" textual
+       equivale ao "+"). Atenção: em ≤480px o app sobe --fs-sm para 14px, então
+       o texto é mais largo que o estimado no desktop — daí o 2º tier comprimir
+       paddings para fechar a conta em 360px (~353px totais na aba Stock). */
     @media (max-width: 430px) {
 
-      #inventory-btn>span,
-      #share-btn>span {
+      #add-btn>svg,
+      #inventory-btn>svg,
+      #share-btn>svg {
         display: none;
       }
 
+      #add-btn,
       #inventory-btn,
       #share-btn {
         gap: 0;
@@ -2105,13 +2109,15 @@
     }
 
     @media (max-width: 370px) {
-      #add-btn>span {
-        display: none;
+      #footer {
+        padding-left: 8px;
+        padding-right: 8px;
       }
 
-      #add-btn {
-        gap: 0;
-        padding: 8px 12px;
+      #add-btn,
+      #inventory-btn,
+      #share-btn {
+        padding: 8px 10px;
       }
     }
 
@@ -4610,7 +4616,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260715-single-file-sync.r34-footer-data-menu';
+    const APP_BUILD = '20260715-single-file-sync.r35-footer-labels-over-icons';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
