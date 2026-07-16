@@ -2163,8 +2163,11 @@
       padding-top: 16px;
     }
 
-    /* Modal do painel Drive: conteúdo longo — ancora próximo ao topo */
-    #overlay.has-drive-panel {
+    /* Modais de conteúdo longo (painel Drive, Help & Tips): ancorados
+       próximo ao topo — o padding padrão min(18vh,80px) desperdiçaria
+       altura útil e deixaria conteúdo fora da tela */
+    #overlay.has-drive-panel,
+    #overlay.has-help {
       padding-top: 12px;
     }
 
@@ -3776,6 +3779,32 @@
       white-space: nowrap;
     }
 
+    /* ── Legibilidade do Help & Tips ────────────────────────────────────────
+       Escopado via .modal-body--help: tipografia AMPLIADA em relação aos
+       demais modais — summaries e corpo sobem para --fs-base (16px mobile;
+       antes o corpo usava --fs-xs = 12px), line-height 1.6. O <code> herda
+       0.95em e escala junto. Combina com #overlay.has-help (âncora no topo):
+       o .modal-body herda overflow-y:auto do modal genérico, então o
+       conteúdo maior rola normalmente sob header e footer fixos. */
+    .modal-body--help {
+      font-size: var(--fs-base);
+      line-height: 1.6;
+    }
+
+    .modal-body--help .help-sec {
+      padding: 12px 14px;
+    }
+
+    .modal-body--help .help-sec summary {
+      font-size: var(--fs-base);
+      line-height: 1.5;
+    }
+
+    .modal-body--help .help-sec .modal-pwa-block {
+      font-size: var(--fs-base);
+      line-height: 1.6;
+    }
+
     /* modal-label que antecede o segundo input (desc) — adiciona margem superior */
     .input-desc-label {
       margin-top: 12px;
@@ -4616,7 +4645,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260715-single-file-sync.r35-footer-labels-over-icons';
+    const APP_BUILD = '20260715-single-file-sync.r36-help-legibility';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -7619,7 +7648,7 @@
       const open = s => section === s ? ' open' : '';
       openModal(`
         <div class="modal-header"><div class="modal-title">Help &amp; Tips</div></div>
-        <div class="modal-body modal-body--pwa">
+        <div class="modal-body modal-body--pwa modal-body--help">
 
           <details class="help-sec"${open('search')}>
             <summary>🔎 Search &amp; filters</summary>
@@ -7719,6 +7748,14 @@
           <div class="modal-btn confirm" onclick="openConfig()">Back</div>
         </div>
       `);
+
+      // Ancora o modal no topo do viewport (mesmo padrão do painel Drive):
+      // conteúdo de referência longo + tipografia ampliada — o padding padrão
+      // min(18vh,80px) reduziria a altura útil do body scrollável.
+      requestAnimationFrame(() => {
+        const ov = document.getElementById('overlay');
+        if (ov) ov.classList.add('has-help');
+      });
     }
 
     // Wrapper de compatibilidade — pontos de entrada existentes (fallback do
@@ -8184,6 +8221,7 @@
       overlay.classList.remove('open');
       overlay.classList.remove('has-input');
       overlay.classList.remove('has-drive-panel');
+      overlay.classList.remove('has-help');
       pendingDoneId = null;
     }
 
