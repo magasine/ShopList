@@ -4645,7 +4645,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260715-single-file-sync.r36-help-legibility';
+    const APP_BUILD = '20260716-single-file-sync.r37-multi-token-grouping';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4731,7 +4731,7 @@
       if (profiles.length > 0) return; // já migrado
 
       // Copia dados legados para as novas chaves com slug 'default'
-      const LEGACY_DATA_KEY = 'Shop_List_v20260715';
+      const LEGACY_DATA_KEY = 'Shop_List_v20260716';
       const LEGACY_UI_KEY = 'Shop_List_ui';
       const LEGACY_SYNC_KEY = 'ShopList_driveSync';
       const slug = 'default';
@@ -5498,6 +5498,22 @@
     // Caso particular histórico (#) — mantém os callers existentes intactos
     function getCategoryOf(it) { return getTokenOf(it, '#'); }
 
+    // Extrai TODOS os tokens de um prefixo do desc (dedup, minúsculas).
+    // Base da MULTI-ASSOCIAÇÃO no agrupamento: um item com @a @b pertence aos
+    // dois grupos. Mesmo padrão de exclusão do getTokenOf (espaço, ·, vírgula,
+    // ';' e o próprio prefixo). Retorna ['—'] quando não há token do prefixo.
+    function getTokensOf(it, prefix) {
+      if (!it.desc) return ['—'];
+      const re = new RegExp(`\\${prefix}([^\\s·,;\\${prefix}]+)`, 'g');
+      const out = [];
+      let m;
+      while ((m = re.exec(it.desc)) !== null) {
+        const t = m[1].toLowerCase();
+        if (!out.includes(t)) out.push(t);
+      }
+      return out.length ? out : ['—'];
+    }
+
     // Ordena conforme o modo atual
     function sorted(arr) {
       const collator = new Intl.Collator('en', { sensitivity: 'base' });
@@ -5506,14 +5522,27 @@
       }
       const _tp = _sortTokenPrefix();
       if (_tp) {
-        // Modos por token (cat/#, tok:@, tok:&): agrupa pelo 1º token do prefixo.
-        // Itens sem token ('—') sempre por último — consistente entre os modos.
-        return [...arr].sort((a, b) => {
-          const ta = getTokenOf(a, _tp), tb = getTokenOf(b, _tp);
-          if (ta !== tb) {
-            if (ta === '—') return 1;
-            if (tb === '—') return -1;
-            return collator.compare(ta, tb);
+        // Modos por token (cat/#, tok:@, tok:&) — MULTI-ASSOCIAÇÃO: cada item
+        // vira UMA ENTRADA POR TOKEN do prefixo ativo, via proxy
+        // Object.create(item) carregando _secTok próprio. Um item com
+        // "@r-antepasto @r-salada-caprese" aparece nos DOIS grupos.
+        // Proxies são visões de LEITURA para renderização: toda mutação flui
+        // por lookup canônico (items.find por id) + re-render completo, e a
+        // persistência serializa apenas `items` — _secTok nunca vaza para o
+        // storage/Drive. Itens sem token ('—') sempre por último.
+        const expanded = [];
+        for (const it of arr) {
+          for (const tok of getTokensOf(it, _tp)) {
+            const view = Object.create(it);
+            view._secTok = tok;
+            expanded.push(view);
+          }
+        }
+        return expanded.sort((a, b) => {
+          if (a._secTok !== b._secTok) {
+            if (a._secTok === '—') return 1;
+            if (b._secTok === '—') return -1;
+            return collator.compare(a._secTok, b._secTok);
           }
           return collator.compare(a.name, b.name);
         });
@@ -5536,7 +5565,9 @@
       }
       const _tp = _sortTokenPrefix();
       if (_tp) {
-        const tok = getTokenOf(it, _tp);
+        // Entradas expandidas por sorted() carregam _secTok (multi-associação);
+        // fallback getTokenOf cobre chamadas com o item canônico (fora do render)
+        const tok = it._secTok !== undefined ? it._secTok : getTokenOf(it, _tp);
         return tok === '—' ? '—' : _tp + tok;
       }
       // Modo fav: duas seções — favoritos e o resto
@@ -7106,7 +7137,12 @@
     //                    GLOBAL (todos os itens), distinto do rename em lote
     function openBulkSectionMenu(triggerEl, opts) {
       if (_needsEditGuard()) return openEditGuardModal(() => openBulkSectionMenu(triggerEl, opts));
-      const { label, list, renameShortcut } = opts;
+      const { label, renameShortcut } = opts;
+      // Dedupe por id: sorted() em modo token expande itens multi-token em
+      // várias entradas (uma por grupo) — o LOTE opera sobre itens distintos.
+      // Cobre os 3 chamadores (cat, genérico, busca) num único ponto.
+      const _seenIds = new Set();
+      const list = opts.list.filter(i => !_seenIds.has(i.id) && _seenIds.add(i.id));
       const count = list.length;
       const key = _registerBulk(list.map(i => i.id));
 
@@ -7186,7 +7222,9 @@
     // apagava itens fora do filtro visível.) O rename da categoria permanece
     // global via atalho, pois renomear um token é operação de identidade.
     function openCatSectionMenu(triggerEl, cat, scope) {
-      const list = sorted(_scopedItems(scope)).filter(i => getCategoryOf(i) === cat);
+      // sectionKeyOf (não getCategoryOf): com multi-associação, um item
+      // "#a #b" pertence à seção #b mesmo tendo 'a' como primeiro token
+      const list = sorted(_scopedItems(scope)).filter(i => sectionKeyOf(i) === '#' + cat);
       openBulkSectionMenu(triggerEl, {
         label: '#' + cat,
         list,
@@ -7946,7 +7984,7 @@
         az: 'A–Z', cat: 'by category', fav: 'favorites first',
         'tok:@': 'by context', 'tok:&': 'by relationship',
       }[sortMode] || sortMode;
-      const metaParts = [filterLabel, searchLabel, chipLabel, `${list.length} item${list.length !== 1 ? 's' : ''}`, sortLabel].filter(Boolean);
+      const metaParts = [filterLabel, searchLabel, chipLabel, (n => `${n} item${n !== 1 ? 's' : ''}`)(new Set(list.map(i => i.id)).size), sortLabel].filter(Boolean);
       const metaLine = metaParts.join(' - ');
 
       // ── Monta o output ────────────────────────────────────────────────────
@@ -8094,11 +8132,19 @@
         'tok:@': 'by context', 'tok:&': 'by relationship',
       }[sortMode] || sortMode;
       const metaParts = [filterLabel, searchLabel,
-        `${list.length} item${list.length !== 1 ? 's' : ''}`, sortLabel].filter(Boolean);
+        (n => `${n} item${n !== 1 ? 's' : ''}`)(new Set(list.map(i => i.id)).size), sortLabel].filter(Boolean);
 
-      // Resumo do semáforo: retrato instantâneo da saúde do estoque
+      // Resumo do semáforo: retrato instantâneo da saúde do estoque.
+      // Dedup por id — em modo token a lista expandida repete itens
+      // multi-associados (um por grupo); o semáforo conta itens DISTINTOS.
       const counts = { ok: 0, warn: 0, crit: 0 };
-      list.forEach(it => { const s = getStatus(it); if (s in counts) counts[s]++; });
+      const _semSeen = new Set();
+      list.forEach(it => {
+        if (_semSeen.has(it.id)) return;
+        _semSeen.add(it.id);
+        const s = getStatus(it);
+        if (s in counts) counts[s]++;
+      });
       const semaphoreLine = `🟢 ${counts.ok} · 🟡 ${counts.warn} · 🔴 ${counts.crit}`;
 
       let lines = [];
@@ -9856,7 +9902,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260715');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260716');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -9897,7 +9943,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260715', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260716', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
