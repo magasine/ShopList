@@ -4645,7 +4645,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260716-single-file-sync.r37-multi-token-grouping';
+    const APP_BUILD = '20260716-single-file-sync.r38-search-section-headers';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -5893,13 +5893,16 @@
       // ── sec-label de busca textual ─────────────────────────────────────────
       if (searchQuery.trim()) {
         const q = searchQuery.trim();
+        // Contagem DISTINTA: em modo token a lista expandida repete itens
+        // multi-associados — o total da busca conta itens, não entradas
+        const distinct = new Set(list.map(i => i.id)).size;
         const label = createElement('div', 'sec-label sec-search');
         label.innerHTML = `
           <span class="sec-label-text">
             🔍 "${esc(q)}"
           </span>
-          <span class="sec-label-count">${list.length}</span>
-          <div class="sec-menu-btn" title="Actions for this search" onclick="openSearchSectionMenu(this,'${esc(q).replace(/'/g, "\\'")}',${list.length})">···</div>
+          <span class="sec-label-count">${distinct}</span>
+          <div class="sec-menu-btn" title="Actions for this search" onclick="openSearchSectionMenu(this,'${esc(q).replace(/'/g, "\\'")}',${distinct})">···</div>
         `;
         fragment.appendChild(label);
       }
@@ -5916,9 +5919,13 @@
       for (const it of list) {
         const section = sectionKeyOf(it);
 
-        // Emite sec-label somente quando a seção muda
-        // (suprimido se já emitimos o search-label acima e não há agrupamento real)
-        if (section !== lastSection && !searchQuery.trim()) {
+        // Emite sec-label quando a seção muda. Com busca ativa, os cabeçalhos
+        // são emitidos NOS MODOS POR TOKEN (cat/#, tok:@, tok:&) — consistente
+        // com p1/p2, que sempre os emitem. Com multi-associação, a entrada
+        // duplicada de um item multi-token fica autoexplicativa: cada ocorrência
+        // aparece sob o cabeçalho do seu grupo. Em az/fav a busca permanece
+        // plana (o search-label basta; cabeçalhos de letra seriam ruído).
+        if (section !== lastSection && (!searchQuery.trim() || _sortTokenPrefix())) {
           const isCat = sortMode === 'cat';
           const rawCat = isCat ? getCategoryOf(it) : null;
 
@@ -5942,8 +5949,8 @@
 
           fragment.appendChild(label);
           lastSection = section;
-        } else if (section !== lastSection && searchQuery.trim()) {
-          // Com busca ativa não repetimos cabeçalhos, já temos o search-label
+        } else if (section !== lastSection) {
+          // az/fav com busca ativa: lista plana — só rastreia a mudança
           lastSection = section;
         }
 
@@ -5951,8 +5958,10 @@
         const rowClass = !it.inStock ? 'row-off' : s === 'ok' ? 'row-ok' : s === 'warn' ? 'row-warn' : 'row-crit';
         const favClass = it.fav ? 'fav-on' : '';
 
-        // Wrapper de swipe — marcado com data-sec-key para toggle de seção (unificado entre abas)
-        const secGroupKey = !searchQuery.trim() ? (sortMode + '||' + section) : '';
+        // Wrapper de swipe — marcado com data-sec-key para toggle de seção (unificado entre abas).
+        // Em modos por token a marcação vale TAMBÉM durante a busca (cabeçalhos visíveis
+        // → collapse operante, como em p1/p2); az/fav com busca segue sem marcação (lista plana).
+        const secGroupKey = (!searchQuery.trim() || _sortTokenPrefix()) ? (sortMode + '||' + section) : '';
         const wrap = createElement('div', `swipe-wrap sec-group-item${_collapsedSections.has(secGroupKey) ? ' sec-group-hidden' : ''}`);
         if (secGroupKey) wrap.dataset.secKey = secGroupKey;
 
