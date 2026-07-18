@@ -4645,7 +4645,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260718-single-file-sync.r39-contextual-section-actions';
+    const APP_BUILD = '20260718-single-file-sync.r40-cat-menu-section-source';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -5927,7 +5927,10 @@
         // plana (o search-label basta; cabeçalhos de letra seriam ruído).
         if (section !== lastSection && (!searchQuery.trim() || _sortTokenPrefix())) {
           const isCat = sortMode === 'cat';
-          const rawCat = isCat ? getCategoryOf(it) : null;
+          // Deriva da SEÇÃO (fonte autoritativa via sectionKeyOf/_secTok), não do
+          // item: com multi-associação, getCategoryOf(it) devolve o 1º token do
+          // desc — num item '#a #b' sob a seção #b, o menu abriria para #a.
+          const rawCat = isCat ? (section === '—' ? '—' : section.slice(1)) : null;
 
           let menuOnclick = '';
           if (isCat && rawCat && rawCat !== '—') {
@@ -6096,7 +6099,10 @@
         const section = sectionKeyOf(it);
         if (section !== lastSection) {
           const isCat = sortMode === 'cat';
-          const rawCat = isCat ? getCategoryOf(it) : null;
+          // Deriva da SEÇÃO (fonte autoritativa via sectionKeyOf/_secTok), não do
+          // item: com multi-associação, getCategoryOf(it) devolve o 1º token do
+          // desc — num item '#a #b' sob a seção #b, o menu abriria para #a.
+          const rawCat = isCat ? (section === '—' ? '—' : section.slice(1)) : null;
 
           let menuOnclick = '';
           if (isCat && rawCat && rawCat !== '—') {
@@ -6271,7 +6277,10 @@
         const section = sectionKeyOf(it);
         if (section !== lastSection) {
           const isCat = sortMode === 'cat';
-          const rawCat = isCat ? getCategoryOf(it) : null;
+          // Deriva da SEÇÃO (fonte autoritativa via sectionKeyOf/_secTok), não do
+          // item: com multi-associação, getCategoryOf(it) devolve o 1º token do
+          // desc — num item '#a #b' sob a seção #b, o menu abriria para #a.
+          const rawCat = isCat ? (section === '—' ? '—' : section.slice(1)) : null;
 
           let menuOnclick = '';
           if (isCat && rawCat && rawCat !== '—') {
