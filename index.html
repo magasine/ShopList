@@ -4645,7 +4645,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260716-single-file-sync.r38-search-section-headers';
+    const APP_BUILD = '20260718-single-file-sync.r39-contextual-section-actions';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4731,7 +4731,7 @@
       if (profiles.length > 0) return; // já migrado
 
       // Copia dados legados para as novas chaves com slug 'default'
-      const LEGACY_DATA_KEY = 'Shop_List_v20260716';
+      const LEGACY_DATA_KEY = 'Shop_List_v20260718';
       const LEGACY_UI_KEY = 'Shop_List_ui';
       const LEGACY_SYNC_KEY = 'ShopList_driveSync';
       const slug = 'default';
@@ -7144,9 +7144,13 @@
     //   deleteLabel    — opcional; sobrepõe label no confirm de delete
     //   renameShortcut — opcional { prefix, token, global } → atalho de rename
     //                    GLOBAL (todos os itens), distinto do rename em lote
+    //   sectionToken   — opcional { prefix, token } → CONTEXTO da seção: quando
+    //                    presente, Remove vira ação de 1 clique e Rename pula
+    //                    direto para "novo nome" (etapa 2), sem redigitar o
+    //                    token que já está no .sec-label-text
     function openBulkSectionMenu(triggerEl, opts) {
       if (_needsEditGuard()) return openEditGuardModal(() => openBulkSectionMenu(triggerEl, opts));
-      const { label, renameShortcut } = opts;
+      const { label, renameShortcut, sectionToken } = opts;
       // Dedupe por id: sorted() em modo token expande itens multi-token em
       // várias entradas (uma por grupo) — o LOTE opera sobre itens distintos.
       // Cobre os 3 chamadores (cat, genérico, busca) num único ponto.
@@ -7176,18 +7180,33 @@
           <span class="sec-action-icon">✏️</span> Rename ${esc(renameShortcut.prefix + renameShortcut.token)} everywhere
         </div>` : '';
 
+      // Linhas de token: CONTEXTUAIS quando a seção é um token (o alvo já é
+      // conhecido — zero digitação no remove, só o nome novo no rename) ou
+      // GENÉRICAS com input (seções sem token: letras A-Z, fav, '—', buscas
+      // compostas). O caminho para editar um token ALHEIO à seção continua
+      // existindo via busca: pesquise o token desejado e use o menu da busca.
+      const stLabel = sectionToken ? sectionToken.prefix + sectionToken.token : '';
+      const tokenRows = sectionToken ? `
+        <div class="sec-action-item" data-action="ctx-exclude">
+          <span class="sec-action-icon">➖</span> Remove ${esc(stLabel)} here
+        </div>
+        <div class="sec-action-item" data-action="ctx-rename">
+          <span class="sec-action-icon">✏️</span> Rename ${esc(stLabel)} here
+        </div>` : `
+        <div class="sec-action-item" data-action="open-exclude">
+          <span class="sec-action-icon">➖</span> Remove token
+        </div>
+        <div class="sec-action-item" data-action="open-rename">
+          <span class="sec-action-icon">✏️</span> Rename token here
+        </div>`;
+
       _showSectionMenu(triggerEl, `
         <div class="sec-action-header">${esc(label)} · ${count} item${count !== 1 ? 's' : ''}</div>
         ${favRows}
         <div class="sec-action-item" data-action="open-include">
           <span class="sec-action-icon">➕</span> Add token (# @ &amp; $)
         </div>
-        <div class="sec-action-item" data-action="open-exclude">
-          <span class="sec-action-icon">➖</span> Remove token
-        </div>
-        <div class="sec-action-item" data-action="open-rename">
-          <span class="sec-action-icon">✏️</span> Rename token here
-        </div>
+        ${tokenRows}
         ${shortcutRow}
         <div class="sec-action-item danger" data-action="bulk-delete">
           <span class="sec-action-icon">🗑️</span> Delete ${count} item${count !== 1 ? 's' : ''}
@@ -7216,6 +7235,18 @@
           else startTokenRename(renameShortcut.prefix, renameShortcut.token);
           return;
         }
+        // Ações CONTEXTUAIS — o alvo vem do sectionToken via closure (sem
+        // interpolação em datasets, seguindo o padrão do listener)
+        if (action === 'ctx-exclude') {
+          closeSectionMenu();
+          _bulkExcludeToken(key, sectionToken.prefix, sectionToken.token);
+          return;
+        }
+        if (action === 'ctx-rename') {
+          // Pula a etapa 1 (token atual já conhecido) — só pede o nome novo
+          _showTokenInputRow(item, key, 'rename', sectionToken);
+          return;
+        }
         // Ações de token: substituem o próprio item por um input inline,
         // sem fechar o menu (evita re-abrir o dropdown do zero)
         if (action === 'open-include') _showTokenInputRow(item, key, 'include');
@@ -7238,6 +7269,7 @@
         label: '#' + cat,
         list,
         renameShortcut: { prefix: '#', token: cat, global: true },
+        sectionToken: cat !== '—' ? { prefix: '#', token: cat } : null,
       });
     }
 
@@ -7252,10 +7284,16 @@
     }
 
     // ── Menu genérico (sortMode A-Z, fav 'Other', tok:@/&) ─────────────────
-    // Uniformizado: mesmas ações do modo favoritos (fav toggle, tokens, delete)
+    // Uniformizado: mesmas ações do modo favoritos (fav toggle, tokens, delete).
+    // Em modo token, deriva sectionToken do próprio sectionKey — o menu de
+    // @r-antepasto já sabe que o alvo é @r-antepasto (paridade com o modo cat).
     function openGenericSectionMenu(triggerEl, sectionKey, scope) {
       const list = sorted(_scopedItems(scope)).filter(i => sectionKeyOf(i) === sectionKey);
-      openBulkSectionMenu(triggerEl, { label: sectionKey, list });
+      const _tp = _sortTokenPrefix();
+      const sectionToken = (_tp && sectionKey !== '—' && sectionKey.startsWith(_tp))
+        ? { prefix: _tp, token: sectionKey.slice(1) }
+        : null;
+      openBulkSectionMenu(triggerEl, { label: sectionKey, list, sectionToken });
     }
 
     // ── Menu para a seção de Favoritos (sortMode === 'fav') ────────────────
@@ -7283,13 +7321,18 @@
 
     // ── Substitui um .sec-action-item por uma linha de input inline ────────
     // mode: 'include' | 'exclude' | 'rename'
-    function _showTokenInputRow(itemEl, bulkKey, mode) {
+    // preset: opcional { prefix, token } — rename CONTEXTUAL: o token atual já
+    // é conhecido (vem do sec-label), então o fluxo inicia direto na etapa 2
+    // ("novo nome"), o único input irredutível da operação.
+    function _showTokenInputRow(itemEl, bulkKey, mode, preset = null) {
       const icons = { include: '➕', exclude: '➖', rename: '✏️' };
       // Placeholders minimalistas — aceita os 4 prefixos (# @ & $)
       const placeholders = {
         include: '#cat @ctx &rel $val — e.g. &promo',
         exclude: 'token to remove — e.g. @mercado',
-        rename: 'current token — e.g. #hortifruti',
+        rename: preset
+          ? `new name for ${PREFIX_META[preset.prefix].noun} ${preset.prefix}${preset.token} (no prefix)`
+          : 'current token — e.g. #hortifruti',
       };
 
       const row = document.createElement('div');
@@ -7321,8 +7364,9 @@
 
       // Para 'rename', o fluxo tem 2 etapas: token atual → novo token.
       // Reaproveita a mesma linha, troca o placeholder na 2ª etapa.
-      let renameStage = 1;
-      let renameFrom = '';
+      // Com preset (rename contextual), inicia já na etapa 2.
+      let renameStage = (mode === 'rename' && preset) ? 2 : 1;
+      let renameFrom = (mode === 'rename' && preset) ? preset : '';
 
       function parseToken(raw) {
         const m = raw.trim().match(/^([#@&$])([^\s·,;#@&$]+)$/i);
@@ -7442,13 +7486,18 @@
     function openSearchSectionMenu(triggerEl, query, count) {
       const list = sorted(filteredItems());
       const tokenMatch = query.match(/^([#@&$])([^\s·,;#@&$]+)$/);
+      const tok = tokenMatch
+        ? { prefix: tokenMatch[1], token: tokenMatch[2].toLowerCase() }
+        : null;
       openBulkSectionMenu(triggerEl, {
         label: `🔍 "${query}"`,
         deleteLabel: `search results for "${query}"`,
         list,
-        renameShortcut: tokenMatch
-          ? { prefix: tokenMatch[1], token: tokenMatch[2].toLowerCase() }
-          : null,
+        renameShortcut: tok,
+        // Query de token PURO define também o contexto: Remove/Rename já
+        // operam sobre o próprio token buscado, sem redigitação — vale para
+        // os 4 prefixos (# @ & $)
+        sectionToken: tok,
       });
     }
 
@@ -9911,7 +9960,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260716');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260718');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -9952,7 +10001,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260716', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260718', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
