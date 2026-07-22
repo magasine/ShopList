@@ -2936,6 +2936,70 @@
       color: var(--accent);
     }
 
+    /* UNIT SWEEP BANNER (legacy normalization) — mesmo padrão do install-banner */
+    #unit-sweep-banner {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: var(--accent-light);
+      border-bottom: 1px solid var(--row-ok-border);
+      padding: 10px 16px;
+      font-size: var(--fs-xs);
+      color: var(--accent);
+      font-weight: 500;
+      cursor: pointer;
+      transition: background var(--transition);
+    }
+
+    #unit-sweep-banner.visible {
+      display: flex;
+    }
+
+    #unit-sweep-banner:hover {
+      background: var(--filter-ok-hover, #c8dfc9);
+    }
+
+    #unit-sweep-banner .banner-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    #unit-sweep-banner .banner-text {
+      flex: 1;
+      line-height: 1.4;
+    }
+
+    #unit-sweep-banner .banner-text strong {
+      display: block;
+      font-size: var(--fs-sm);
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    #unit-sweep-banner .unit-sweep-cta {
+      background: var(--accent);
+      color: #fff;
+      border-radius: 7px;
+      padding: 5px 12px;
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    #unit-sweep-banner .banner-close {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+      color: var(--accent);
+    }
+
     /* SW update banner */
     #update-banner {
       display: none;
@@ -4487,6 +4551,17 @@
       <span class="banner-close" onclick="dismissInstallBanner(event)">✕</span>
     </div>
 
+    <!-- Unit/module legacy normalization — contextual, non-recurring -->
+    <div id="unit-sweep-banner" onclick="runLegacyUnitSweep()">
+      <span class="banner-icon">📐</span>
+      <span class="banner-text">
+        <strong>Tidy up units</strong>
+        <span id="unit-sweep-count">Some items use a legacy unit format</span>
+      </span>
+      <span class="unit-sweep-cta" onclick="event.stopPropagation(); runLegacyUnitSweep()">Normalize</span>
+      <span class="banner-close" onclick="dismissUnitSweepBanner(event)">✕</span>
+    </div>
+
     <div id="update-banner">
       <span class="banner-icon">🔄</span>
       <span class="banner-text">New version available!</span>
@@ -4645,7 +4720,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260718-single-file-sync.r40-cat-menu-section-source';
+    const APP_BUILD = '20260721-single-file-sync.r42-unit-onsave-contextual-sweep';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4731,7 +4806,7 @@
       if (profiles.length > 0) return; // já migrado
 
       // Copia dados legados para as novas chaves com slug 'default'
-      const LEGACY_DATA_KEY = 'Shop_List_v20260718';
+      const LEGACY_DATA_KEY = 'Shop_List_v20260721';
       const LEGACY_UI_KEY = 'Shop_List_ui';
       const LEGACY_SYNC_KEY = 'ShopList_driveSync';
       const slug = 'default';
@@ -6985,8 +7060,9 @@
     function confirmAdd() {
       // \n achatado também aqui (defesa em profundidade — o listener de input já o faz)
       const name = (document.getElementById('add-name').value || '').replace(/\s*\n+\s*/g, ' ').trim();
-      const desc = (document.getElementById('add-desc').value || '').replace(/\s*\n+\s*/g, ' ').trim();
+      const descRaw = (document.getElementById('add-desc').value || '').replace(/\s*\n+\s*/g, ' ').trim();
       if (!name) return;
+      const desc = normalizeUnitModule(descRaw); // on-save: harmoniza "NNN-unidade"
       items.push({ id: uid(), name, desc, inStock: false, min: 1, qty: 0, fav: false });
       closeModal();
       saveAndRender();
@@ -7015,12 +7091,12 @@
     function confirmEdit(id) {
       // \n achatado também aqui (defesa em profundidade — o listener de input já o faz)
       const name = (document.getElementById('edit-name').value || '').replace(/\s*\n+\s*/g, ' ').trim();
-      const desc = (document.getElementById('edit-desc').value || '').replace(/\s*\n+\s*/g, ' ').trim();
+      const descRaw = (document.getElementById('edit-desc').value || '').replace(/\s*\n+\s*/g, ' ').trim();
       if (!name) return;
       const it = items.find(i => i.id === id);
       if (it) {
         it.name = name;
-        it.desc = desc;
+        it.desc = normalizeUnitModule(descRaw); // on-save: harmoniza "NNN-unidade"
       }
       closeModal();
       saveAndRender();
@@ -8457,9 +8533,9 @@
       const usedSet = new Set();
       items.forEach(it => {
         if (!it.desc) return;
-        const m = it.desc.match(/\d+\s*([a-zA-Záàãéíóú]+)/g);
+        const m = it.desc.match(/\d+(?:[.,]\d+)?[\s-]*([a-zA-Záàãéíóú]+)/g);
         if (m) m.forEach(tok => {
-          const unit = tok.replace(/\d+\s*/, '').toLowerCase();
+          const unit = tok.replace(/\d+(?:[.,]\d+)?[\s-]*/, '').toLowerCase();
           if (unit && unit.length <= 5) usedSet.add(unit);
         });
       });
@@ -8468,6 +8544,100 @@
         .map(u => ({ label: u, icon: '📐', desc: 'used before' }));
       return [...defaults, ...extra];
     }
+
+    // ── Normalização de unidade/módulo legado → formato canônico "NNN-unidade" ──
+    // Função PURA (sem efeitos colaterais). Ainda NÃO disparada automaticamente:
+    // pode ser plugada no save de item (on-save) e/ou numa varredura em lote
+    // quando a política de migração for decidida.
+    //
+    // Regras:
+    // • Reconhece numeral inteiro ou decimal (vírgula/ponto), preservando o
+    //   separador decimal exatamente como digitado.
+    // • Reconhece unidade colada ("500g"), separada por espaço ("500 g") ou já
+    //   hifenizada ("500-g"), e recompõe sempre como "NNN-unidade".
+    // • Só toca segmentos numéricos seguidos de letras (unidade) — preserva
+    //   #cat, @context, &rel, $budget e texto livre não-quantitativo.
+    // • Idempotente: "500-g" permanece "500-g".
+    // • Unidade limitada a letras (com acentos PT-BR), até 5 chars, evitando
+    //   colar-se a palavras longas do texto livre por engano.
+    function normalizeUnitModule(desc) {
+      if (!desc) return desc;
+      // NNN[dec] + (espaço/hífen opcional) + unidade(letras 1–5)
+      // \b antes do número evita capturar sufixos de tokens (ex.: v6, r40).
+      return desc.replace(
+        /\b(\d+(?:[.,]\d+)?)[\s-]*([a-zA-Záàãéíóúêôç]{1,5})\b/g,
+        (full, num, unit) => `${num}-${unit}`
+      );
+    }
+    // Exposto p/ testes / uso futuro no save
+    window.normalizeUnitModule = normalizeUnitModule;
+
+    // ── Detecção de legado ──────────────────────────────────────────────────
+    // Retorna a contagem de itens cujo desc MUDARIA sob normalizeUnitModule,
+    // i.e. que ainda carregam módulo/unidade fora do formato canônico "NNN-un".
+    // Puro e barato: só compara strings, não muta nada.
+    function countLegacyUnitItems() {
+      let n = 0;
+      for (const it of items) {
+        const d = it.desc || '';
+        if (d && normalizeUnitModule(d) !== d) n++;
+      }
+      return n;
+    }
+
+    // ── Varredura em lote (opt-in, não-recorrente) ──────────────────────────
+    // Normaliza o desc de todos os itens legados de uma vez. Respeita o guard
+    // de edição/sync (mesma proteção do add/edit). Persiste e re-renderiza.
+    // Idempotente: reexecutar não gera novas mudanças.
+    function runLegacyUnitSweep() {
+      if (_needsEditGuard()) {
+        return openEditGuardModal(() => runLegacyUnitSweep());
+      }
+      let touched = 0;
+      for (const it of items) {
+        const before = it.desc || '';
+        if (!before) continue;
+        const after = normalizeUnitModule(before);
+        if (after !== before) { it.desc = after; touched++; }
+      }
+      dismissUnitSweepBanner();          // fecha e marca como resolvido
+      if (touched) {
+        saveAndRender();
+        toast(`✓ ${touched} item${touched !== 1 ? 's' : ''} normalized to NNN-unit`);
+      } else {
+        toast('Nothing to normalize');
+      }
+    }
+    window.runLegacyUnitSweep = runLegacyUnitSweep;
+
+    // Chave de "já resolvido" — impede reoferecer o banner após aplicar/dispensar.
+    const UNIT_SWEEP_DONE_KEY = 'shopListUnitSweepResolved';
+
+    // Mostra o banner contextual SOMENTE se: (a) nunca resolvido antes e
+    // (b) há realmente itens legados. Chamado no fim do boot/load.
+    function maybeOfferUnitSweep() {
+      try {
+        if (localStorage.getItem(UNIT_SWEEP_DONE_KEY)) return; // já tratado
+      } catch (_) { }
+      const n = countLegacyUnitItems();
+      if (!n) return;
+      const banner = document.getElementById('unit-sweep-banner');
+      if (!banner) return;
+      const txt = banner.querySelector('#unit-sweep-count');
+      if (txt) {
+        txt.textContent = `${n} item${n !== 1 ? 's' : ''} use${n === 1 ? 's' : ''} a legacy unit format`;
+      }
+      banner.classList.add('visible');
+    }
+
+    // Fecha o banner e marca como resolvido (aplicar OU dispensar = definitivo).
+    function dismissUnitSweepBanner(event) {
+      if (event) event.stopPropagation();
+      const banner = document.getElementById('unit-sweep-banner');
+      if (banner) banner.classList.remove('visible');
+      try { localStorage.setItem(UNIT_SWEEP_DONE_KEY, '1'); } catch (_) { }
+    }
+    window.dismissUnitSweepBanner = dismissUnitSweepBanner;
 
     function acPositionBelow(input) {
       const rect = input.getBoundingClientRect();
@@ -8554,8 +8724,13 @@
         searchQuery = acTarget.value;
         render();
       } else if (acMode === 'unit') {
-        // Substitui "NNN " pelo "NNN sugestão"
-        acTarget.value = val.replace(/(\d+)\s*$/, '$1') + sugs[idx].label;
+        // Composição canônica "NNN-unidade": absorve o gatilho já digitado
+        // (espaço, hífen ou parcial de unidade) e recompõe com hífen único.
+        // Decimais (vírgula/ponto) preservados; idempotente (não gera "--").
+        acTarget.value = val.replace(
+          /(\d+(?:[.,]\d+)?)[\s-]*[^\s#@&$]*$/,
+          `$1-${sugs[idx].label}`
+        );
       }
 
       acClose();
@@ -8588,8 +8763,11 @@
         }
       }
 
-      // --- MODO UNIDADE: disparado por "NNN " (número seguido de espaço) ---
-      const unitMatch = val.match(/(\d+)\s(\S*)$/);
+      // --- MODO UNIDADE: disparado por numeral seguido de espaço OU hífen ───
+      // Numeral aceita decimal (vírgula ou ponto, preservado como digitado).
+      // Gatilhos: "NNN " (espaço) ou "NNN-" (hífen). O trecho já digitado após
+      // o gatilho é o filtro parcial da unidade/módulo.
+      const unitMatch = val.match(/(\d+(?:[.,]\d+)?)[\s-]([^\s#@&$]*)$/);
       if (unitMatch) {
         const typed = unitMatch[2] || '';
         const units = getUnitSuggestions(typed);
@@ -9030,6 +9208,11 @@
     render();
     _syncProfileBtn(); // dot indicador no botão de perfil
 
+    // Oferta contextual de normalização de unidades legadas. Atrasada para não
+    // competir com o cloud-first dialog no boot; se dados da nuvem chegarem,
+    // _applyItems reavalia. Só aparece se houver legado E nunca resolvido antes.
+    setTimeout(() => { try { maybeOfferUnitSweep(); } catch (_) { } }, 1200);
+
     // Sincroniza ícone do tema no rodapé com o tema carregado
     (function syncThemeIcon() {
       const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -9219,6 +9402,8 @@
       items = newData;           // reassign da binding local — render() vai ler este array
       render();                  // redesenha todos os painéis com os dados novos
       updateBadges();            // atualiza contadores das abas
+      // Dados frescos (nuvem) → reavalia legado uma única vez (respeita a flag).
+      try { maybeOfferUnitSweep(); } catch (_) { }
     };
 
     // Exporta critério de detecção de dados modelo para uso no módulo DriveSync
@@ -9969,7 +10154,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260718');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260721');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -10010,7 +10195,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260718', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260721', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
