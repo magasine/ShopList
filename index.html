@@ -547,17 +547,6 @@
       transform: scale(0.90);
     }
 
-    /* Prefixo de identidade do editor: trunca com ellipsis sem quebrar a linha */
-    #sync-editing-badge .badge-editor {
-      display: inline-block;
-      max-width: 9ch;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      vertical-align: bottom;
-      text-transform: none;
-    }
-
     /* ─── Grupo de controles na linha 1 (sort · traffic · search · close) ─── */
     .header-controls {
       display: flex;
@@ -4731,7 +4720,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260729-single-file-sync.r44-unit-onsave-contextual-sweep';
+    const APP_BUILD = '20260721-single-file-sync.r45-unit-onsave-contextual-sweep';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -4817,7 +4806,7 @@
       if (profiles.length > 0) return; // já migrado
 
       // Copia dados legados para as novas chaves com slug 'default'
-      const LEGACY_DATA_KEY = 'Shop_List_v20260729';
+      const LEGACY_DATA_KEY = 'Shop_List_v20260721';
       const LEGACY_UI_KEY = 'Shop_List_ui';
       const LEGACY_SYNC_KEY = 'ShopList_driveSync';
       const slug = 'default';
@@ -6569,17 +6558,8 @@
             const _expTime = new Date(_activeLock.expiresAt).toLocaleTimeString(
               'pt-BR', { hour: '2-digit', minute: '2-digit' }
             );
-            const _editor = _activeLock.editor || '';
-            const _who = _editor || (isShared ? 'Owner' : 'Another session');
-            el2.textContent = '';
-            if (_editor) {
-              const who = document.createElement('span');
-              who.className = 'badge-editor';
-              who.textContent = _editor;              // textContent: seguro p/ Trusted Types
-              el2.append('✏ ', who, ' · editing');
-            } else {
-              el2.textContent = '✏ editing';
-            }
+            const _who = isShared ? 'Owner' : 'Another session';
+            el2.textContent = '✏ editing';
             el2.style.display = 'inline-flex';
             el2.title = `${_who} is editing · lock expires at ${_expTime} — tap for details`;
           } else {
@@ -9478,12 +9458,6 @@
       // Identificador único desta sessão de browser — gerado uma vez, persiste
       // enquanto a aba estiver aberta. Permite distinguir lock próprio de lock externo.
       const _mySessionId = 'sess-' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36);
-      // Rótulo de identidade do editor (local-part do e-mail ou displayName) — buscado
-      // uma vez em Auth.fetchIdentity() após o connect e embutido no sessionLock, para
-      // que outros dispositivos exibam "usuario1 · editing" em vez de "Another session".
-      let _myEditor = null;
-      // Chave do apelido local do dispositivo — per-device, não entra no payload de sync.
-      const DEVICE_LABEL_KEY = 'ShopList_deviceLabel';
       // TTL do lock: 2× o intervalo de sync periódico → expira naturalmente se a aba
       // travar ou fechar sem disparar pagehide/visibilitychange.
       const LOCK_TTL_MS = 2 * SYNC_INTERVAL_MS; // 10 minutos
@@ -9573,23 +9547,8 @@
 
         /** Garante token válido — usa cache ou solicita novo */
         async ensureToken() {
-          const tk = Auth.isValid() ? _token.access_token : await Auth.requestToken();
-          if (!_myEditor) Auth.fetchIdentity(); // leitura local síncrona — sem rede
-          return tk;
-        },
-
-        /** Resolve o rótulo de identidade do editor a partir de um apelido local,
-         *  definido pelo usuário e persistido por dispositivo (não sincroniza).
-         *  Escopo drive.file não permite ler o e-mail — o apelido substitui isso e,
-         *  para dispositivos do mesmo OWNER, desambigua melhor que o e-mail (idêntico).
-         *  Sem chamada de rede. Vazio → lock cai no fallback ('editing' sem nome). */
-        fetchIdentity() {
-          if (_myEditor) return _myEditor;
-          try {
-            const raw = (localStorage.getItem(DEVICE_LABEL_KEY) || '').trim();
-            _myEditor = raw || null;
-          } catch (_) { _myEditor = null; }
-          return _myEditor;
+          if (Auth.isValid()) return _token.access_token;
+          return Auth.requestToken();
         },
 
         revoke() {
@@ -9861,7 +9820,7 @@
             const lock = parsed && parsed.sessionLock;
             if (!lock || !lock.sessionId) return null;             // lock ausente ou liberado
             if (lock.expiresAt && new Date(lock.expiresAt) <= new Date()) return null; // expirado
-            return { sessionId: lock.sessionId, editor: lock.editor || null, lockedAt: lock.lockedAt, expiresAt: lock.expiresAt };
+            return { sessionId: lock.sessionId, lockedAt: lock.lockedAt, expiresAt: lock.expiresAt };
           } catch { return null; }
         },
 
@@ -9878,7 +9837,6 @@
             parsed.sessionLock = {
               sessionId: _mySessionId,
               slug: typeof _currentSlug !== 'undefined' ? _currentSlug : 'default',
-              editor: _myEditor || null, // identidade do editor (null se ainda não resolvida)
               lockedAt: now.toISOString(),
               expiresAt: new Date(now.getTime() + LOCK_TTL_MS).toISOString(),
             };
@@ -10196,7 +10154,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260729');
+            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260721');
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -10237,7 +10195,7 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260729', JSON.stringify(payload));
+            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260721', JSON.stringify(payload));
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
@@ -11015,7 +10973,7 @@
                 if (!_lock || !_lock.sessionId || !_lock.expiresAt) return '';
                 if (new Date(_lock.expiresAt) <= new Date()) return '';
                 const _expFmt = new Date(_lock.expiresAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                const _who = _lock.editor || ((meta.pickedManually === true || meta.folderOwnedByMe === false) ? 'Owner' : 'Another session');
+                const _who = (meta.pickedManually === true || meta.folderOwnedByMe === false) ? 'Owner' : 'Another session';
                 return `
               <div class="ds-parity__sep"></div>
               <div class="ds-parity__row ds-parity__row--lock">
@@ -11115,23 +11073,6 @@
         resetFolderCache() {
           _folderId = null;
           console.log('[DriveSync] folder cache invalidated (profile switch)');
-        },
-
-        /** Getter/setter do apelido local do dispositivo, usado como identidade do
-         *  editor no sessionLock. Passar string vazia/null limpa o apelido.
-         *  Retorna o valor efetivo após a operação. Não sincroniza (per-device). */
-        deviceLabel(value) {
-          if (arguments.length > 0) {
-            const v = (value == null ? '' : String(value)).trim().slice(0, 24);
-            try {
-              if (v) localStorage.setItem(DEVICE_LABEL_KEY, v);
-              else localStorage.removeItem(DEVICE_LABEL_KEY);
-            } catch (_) { }
-            _myEditor = v || null;
-            if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
-            console.log('[DriveSync] device label set to:', _myEditor);
-          }
-          return _myEditor;
         },
 
         /** Lê a meta de sync de um slug arbitrário sem alterar o estado do módulo.
