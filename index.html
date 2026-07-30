@@ -4731,7 +4731,7 @@
     // ==================== CONSTANTES E VARIÁVEIS ====================
     // Marcador de build — incrementar a cada release junto com CACHE_VERSION no sw.js.
     // Permite confirmar no console qual versão está realmente rodando (detecta cache antigo).
-    const APP_BUILD = '20260729-single-file-sync.r43-unit-onsave-contextual-sweep';
+    const APP_BUILD = '20260729-single-file-sync.r44-unit-onsave-contextual-sweep';
     console.log('%c[Shop List] build ' + APP_BUILD, 'color:#00796B;font-weight:bold');
     console.log('[Shop List] sync mode: SINGLE FIXED FILE (Shop-List-Sync.json) — no versioned uploads');
 
@@ -9461,7 +9461,7 @@
       // drive.file — escrita e leitura de arquivos criados ou abertos pelo app.
       // O usuário Shared usa o Picker para selecionar o arquivo fixo diretamente,
       // introduzindo-o ao escopo sem necessidade de drive.readonly.
-      const DRIVE_SCOPE = 'openid email https://www.googleapis.com/auth/drive.file';
+      const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
       const FOLDER_NAME = '_ShopList_Sync';
       const SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
       const SYNC_KEY = 'ShopList_driveSync';    // localStorage para meta
@@ -9482,6 +9482,8 @@
       // uma vez em Auth.fetchIdentity() após o connect e embutido no sessionLock, para
       // que outros dispositivos exibam "usuario1 · editing" em vez de "Another session".
       let _myEditor = null;
+      // Chave do apelido local do dispositivo — per-device, não entra no payload de sync.
+      const DEVICE_LABEL_KEY = 'ShopList_deviceLabel';
       // TTL do lock: 2× o intervalo de sync periódico → expira naturalmente se a aba
       // travar ou fechar sem disparar pagehide/visibilitychange.
       const LOCK_TTL_MS = 2 * SYNC_INTERVAL_MS; // 10 minutos
@@ -9572,37 +9574,22 @@
         /** Garante token válido — usa cache ou solicita novo */
         async ensureToken() {
           const tk = Auth.isValid() ? _token.access_token : await Auth.requestToken();
-          // Aguarda a identidade uma única vez para que o PRIMEIRO lock já a embuta.
-          // Timeout curto evita travar o sync se o UserInfo demorar/falhar.
-          if (!_myEditor) {
-            try {
-              await Promise.race([
-                Auth.fetchIdentity(),
-                new Promise((res) => setTimeout(res, 2500)),
-              ]);
-            } catch (_) { /* non-fatal */ }
-          }
+          if (!_myEditor) Auth.fetchIdentity(); // leitura local síncrona — sem rede
           return tk;
         },
 
-        /** Busca a identidade do usuário via endpoint OpenID UserInfo.
-         *  O escopo 'openid email' autoriza este endpoint — ao contrário de /about
-         *  do Drive, que o escopo drive.file não permite ler.
-         *  Deriva o local-part do e-mail. Cacheado em _myEditor por sessão.
-         *  Falhas são silenciosas — o lock cai no fallback ('editing' sem nome). */
-        async fetchIdentity() {
-          if (_myEditor || !Auth.isValid()) return _myEditor;
+        /** Resolve o rótulo de identidade do editor a partir de um apelido local,
+         *  definido pelo usuário e persistido por dispositivo (não sincroniza).
+         *  Escopo drive.file não permite ler o e-mail — o apelido substitui isso e,
+         *  para dispositivos do mesmo OWNER, desambigua melhor que o e-mail (idêntico).
+         *  Sem chamada de rede. Vazio → lock cai no fallback ('editing' sem nome). */
+        fetchIdentity() {
+          if (_myEditor) return _myEditor;
           try {
-            const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-              headers: { 'Authorization': 'Bearer ' + _token.access_token },
-            });
-            if (!r.ok) return null;
-            const u = await r.json();
-            const email = u.email || '';
-            const local = email.includes('@') ? email.split('@')[0] : '';
-            _myEditor = (local || '').trim() || null;
-            return _myEditor;
-          } catch (_) { return null; }
+            const raw = (localStorage.getItem(DEVICE_LABEL_KEY) || '').trim();
+            _myEditor = raw || null;
+          } catch (_) { _myEditor = null; }
+          return _myEditor;
         },
 
         revoke() {
@@ -11128,6 +11115,23 @@
         resetFolderCache() {
           _folderId = null;
           console.log('[DriveSync] folder cache invalidated (profile switch)');
+        },
+
+        /** Getter/setter do apelido local do dispositivo, usado como identidade do
+         *  editor no sessionLock. Passar string vazia/null limpa o apelido.
+         *  Retorna o valor efetivo após a operação. Não sincroniza (per-device). */
+        deviceLabel(value) {
+          if (arguments.length > 0) {
+            const v = (value == null ? '' : String(value)).trim().slice(0, 24);
+            try {
+              if (v) localStorage.setItem(DEVICE_LABEL_KEY, v);
+              else localStorage.removeItem(DEVICE_LABEL_KEY);
+            } catch (_) { }
+            _myEditor = v || null;
+            if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
+            console.log('[DriveSync] device label set to:', _myEditor);
+          }
+          return _myEditor;
         },
 
         /** Lê a meta de sync de um slug arbitrário sem alterar o estado do módulo.
