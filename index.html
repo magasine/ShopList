@@ -529,6 +529,13 @@
       color: var(--warn);
     }
 
+    /* Acesso ao Drive expirado numa lista vinculada — toque reconecta */
+    #sync-locality.loc-reconnect {
+      background: var(--warn-light);
+      border-color: var(--warn);
+      color: var(--warn);
+    }
+
     @keyframes loc-editing-pulse {
 
       0%,
@@ -4514,7 +4521,7 @@
             title="Credits: @magasine"><span class="title-main">Shop List</span><span class="title-suffix">
               Semaphore</span></a>
           <span id="title-sub"></span><span id="sync-badges"><span id="sync-locality" style="display:none"
-              onclick="openProfileModal()" title="Switch list / manage profiles"></span><span id="sync-editing-badge"
+              onclick="syncLocalityClick()" title="Switch list / manage profiles"></span><span id="sync-editing-badge"
               style="display:none" onclick="DriveSync.openPanel()" title=""></span></span>
         </div>
 
@@ -4953,6 +4960,10 @@
       if (window.DriveSync && typeof window.DriveSync.resetFolderCache === 'function') {
         window.DriveSync.resetFolderCache();
       }
+      // Diálogo de boot ("Cloud sync" / "Local database") descreve a lista anterior:
+      // fecha — a lista nova tem o edit guard e o sync disparado abaixo.
+      if (document.querySelector('#overlay.open [data-boot-dialog]')) closeModal();
+
       // Reinicia estado em memória
       items = [];
       sortMode = 'az';
@@ -5222,7 +5233,7 @@
         : 'No local data yet';
 
       openModal(`
-        <div class="modal-header">
+        <div class="modal-header" data-boot-dialog>
           <div class="modal-title">Cloud sync</div>
           <div class="modal-sub">📋 ${esc(_label)}</div>
         </div>
@@ -5249,6 +5260,11 @@
       const iv = setInterval(() => {
         const el = document.getElementById('cf-num');
         if (!el) { clearInterval(iv); return; }   // modal fechado por qualquer via
+        // Pausa enquanto outra camada cobre o diálogo ("Select list" no boot com
+        // 2+ listas, ou o manual): antes a contagem corria escondida e conectava
+        // sozinha — abrindo a janela do Google sem toque, que o navegador bloqueia.
+        if (document.getElementById('profile-modal').classList.contains('open') ||
+          document.getElementById('manual-overlay')) return;
         n--;
         el.textContent = n;
         if (n <= 0) {
@@ -5324,7 +5340,7 @@
       const ageIcon = diffD < 7 ? '🟢' : diffD < 30 ? '🟡' : '🔴';
 
       openModal(`
-        <div class="modal-header">
+        <div class="modal-header" data-boot-dialog>
           <div class="modal-title">Local database</div>
           <div class="modal-sub">📋 ${_profileLabel}${_sharedSetup ? ' · shared' : ''}</div>
         </div>
@@ -6667,7 +6683,16 @@
         // Sem token ou alvo de sync → ambos ocultos
         const hasSyncTarget = meta.syncFileId || meta.folderId;
         if (!connected || !hasSyncTarget) {
-          el.style.display = 'none';
+          // Exceção: lista vinculada cujo acesso expirou (o usuário não desconectou).
+          // Antes o selo só sumia e as edições ficavam locais sem nenhum aviso.
+          if (!connected && hasSyncTarget && localStorage.getItem('ShopList_driveWanted') === '1') {
+            el.innerHTML = '⚠ reconnect';
+            el.className = 'loc-reconnect';
+            el.title = 'Google Drive access expired — changes stay on this device until you reconnect. Tap to reconnect';
+            el.style.display = 'inline-flex';
+          } else {
+            el.style.display = 'none';
+          }
           if (el2) el2.style.display = 'none';
           return;
         }
@@ -6738,6 +6763,19 @@
         if (el2) el2.style.display = 'none';
       }
     }
+
+    // Selo de sincronização: no estado "reconnect" renova o acesso (o toque é o
+    // gesto que o navegador exige para abrir a janela do Google); senão, listas.
+    function syncLocalityClick() {
+      const el = document.getElementById('sync-locality');
+      if (el && el.classList.contains('loc-reconnect')) DriveSync.connect();
+      else openProfileModal();
+    }
+
+    // Ao voltar ao app (timers atrasam em segundo plano), reavalia a validade do acesso
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) updateSyncBadge();
+    });
 
     function updateFooter() {
       const addBtn = document.getElementById('add-btn');
@@ -9705,6 +9743,9 @@
       // E-mail da conta conectada — enviado como login_hint para pular o seletor
       // de contas nas renovações. Sobrevive à expiração do token; só sai no revoke.
       const HINT_KEY = 'ShopList_driveHint';
+      // '1' enquanto o usuário quer sincronizar (conectou e não desconectou) —
+      // distingue "acesso expirou" (mostra reconnect) de "desconectado de propósito"
+      const WANTED_KEY = 'ShopList_driveWanted';
 
       // ─── ESTADO INTERNO ────────────────────────────────────────────────────────
       let _token = null;   // { access_token, expires_at }
@@ -9716,6 +9757,8 @@
       // ler o slug ativo a cada passo gravava os dados/meta da lista A na lista B
       // ou subia a B para o arquivo da A. Ver _syncSlug().
       let _runSlug = null;
+      let _expiryTimer = null;      // dispara o aviso de acesso expirado (Auth._armExpiryNotice)
+      let _unsyncedNoticeAt = 0;    // último aviso "salvo só neste aparelho" (afterSave)
       let _btnEl = null;
 
       // ─── SESSION LOCK ───────────────────────────────────────────────────────────
@@ -9763,12 +9806,16 @@
           try {
             const raw = localStorage.getItem(TOKEN_KEY);
             if (!raw) return false;
+            // Havia token (válido ou vencido) → o usuário conectou e não desconectou.
+            // Cobre quem conectou antes de WANTED_KEY existir.
+            try { localStorage.setItem(WANTED_KEY, '1'); } catch (_) { }
             const t = JSON.parse(raw);
             if (!t || !t.access_token || Date.now() >= t.expires_at) {
               localStorage.removeItem(TOKEN_KEY);
               return false;
             }
             _token = t;
+            Auth._armExpiryNotice();
             return true;
           } catch { return false; }
         },
@@ -9781,7 +9828,28 @@
             scope: tokenResponse.scope || '',
           };
           _token = t;
-          try { localStorage.setItem(TOKEN_KEY, JSON.stringify(t)); } catch (_) { }
+          try {
+            localStorage.setItem(TOKEN_KEY, JSON.stringify(t));
+            localStorage.setItem(WANTED_KEY, '1');
+          } catch (_) { }
+          Auth._armExpiryNotice();
+          if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
+        },
+
+        /** Avisa no instante em que o acesso vence: antes o selo só sumia e os syncs
+         *  automáticos paravam em silêncio (Auth.isValid() falso) */
+        _armExpiryNotice() {
+          clearTimeout(_expiryTimer);
+          if (!_token) return;
+          const ms = _token.expires_at - Date.now();
+          if (ms <= 0) return;
+          _expiryTimer = setTimeout(() => {
+            if (Auth.isValid()) return;
+            if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
+            const meta = _loadMeta();
+            if (meta.syncFileId || meta.folderId)
+              _setStatus('error', '⚠️ Drive access expired — tap "reconnect" to keep syncing');
+          }, ms + 500);
         },
 
 
@@ -9844,8 +9912,12 @@
           _folderId = null;
           localStorage.removeItem(TOKEN_KEY);
           localStorage.removeItem(HINT_KEY);
+          localStorage.removeItem(WANTED_KEY);
+          clearTimeout(_expiryTimer);
           _saveMeta({ folderId: null });
           _setStatus('', 'Google Drive sync (desconectado)');
+          // Tira o selo "reconnect": desconectar foi escolha do usuário
+          if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
           if (typeof toast === 'function') toast('🔌 Google Drive disconnected');
         }
       };
@@ -10620,13 +10692,24 @@
                   if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
                   return;   // mantém syncFileId gravado — basta o owner compartilhar e re-sincronizar
                 }
+                // Erro de autenticação/servidor (401, 5xx…) não diz nada sobre o
+                // arquivo: antes a resposta de erro (sem id) caía no reset abaixo,
+                // desvinculava a lista e o sync seguia criando um arquivo NOVO.
+                if (!r.ok) {
+                  const err = new Error(`files.get failed (${r.status})`);
+                  err.abortSync = true;
+                  throw err;
+                }
                 const d = await r.json();
                 if (!d.id) {
                   console.warn('[DriveSync] syncFileId sem id na resposta — resetando', syncFileId);
                   syncFileId = null;
                   _saveMeta({ syncFileId: null, cloudModifiedAt: null });
                 }
-              } catch (e) { console.warn('[DriveSync] existence check failed', e); }
+              } catch (e) {
+                if (e.abortSync) throw e;   // vai para o catch do Sync.run (status de erro)
+                console.warn('[DriveSync] existence check failed', e);
+              }
             }
 
             // ── Resolve cloudDate pelo savedAt DENTRO do arquivo (não pelo modifiedTime) ──
@@ -10991,6 +11074,9 @@
           } catch (_) { }
 
           const hasToken = Auth.load();
+          // Auth.load pode ter marcado WANTED_KEY (token vencido de sessão anterior):
+          // redesenha o selo, que o render do boot já desenhou sem essa informação
+          if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
           if (hasToken) {
             _setStatus('connected', '☁️ Drive connected');
             _startTimer();
@@ -11047,7 +11133,17 @@
           return () => {
             clearTimeout(t);
             t = setTimeout(() => {
-              if (Auth.isValid()) Sync.run('after-save');
+              if (Auth.isValid()) { Sync.run('after-save'); return; }
+              // Lista vinculada sem acesso válido: a edição fica só no aparelho.
+              // Avisa no máximo a cada 10 min para não poluir cada toque.
+              const meta = _loadMeta();
+              if ((meta.syncFileId || meta.folderId) &&
+                localStorage.getItem(WANTED_KEY) === '1' &&
+                Date.now() - _unsyncedNoticeAt > 10 * 60 * 1000) {
+                _unsyncedNoticeAt = Date.now();
+                if (typeof toast === 'function') toast('Saved on this device only — tap "reconnect" to sync');
+                if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
+              }
             }, 2000);
           };
         })(),
