@@ -381,8 +381,8 @@
     }
 
     #app {
-      /* Fora do modo cartão (desktop/tablet) o app é full-bleed: sem max-width,
-         para não deixar faixas do body visíveis nas laterais */
+      /* Full-bleed em qualquer tela: sem max-width nem margens. Em telas largas
+         só o conteúdo é limitado (ver --content-max) */
       width: 100%;
       /* Altura fixa = viewport: header e footer ficam fixos, apenas #panels rola */
       height: 100%;
@@ -395,7 +395,6 @@
       -webkit-flex-direction: column;
       flex-direction: column;
       position: relative;
-      box-shadow: 0 0 60px rgba(13, 27, 42, 0.12);
       overflow: hidden;
       /* Respiro nas zonas curvas de telas edge-to-edge (ex: Motorola Edge 50) —
          evita que a border-left de status (.row-ok/.row-warn/.row-crit) caia
@@ -3168,36 +3167,30 @@
       font-style: italic;
     }
 
-    /* Modo cartão: só quando sobra espaço nos dois eixos. O min-height evita que
-       celulares em paisagem (largos, mas baixos) virem um cartão encolhido e
-       rolável — neles o app continua ocupando a viewport inteira. */
-    @media (min-width: 520px) and (min-height: 600px) {
-      body {
-        padding: 24px 0;
-        background: linear-gradient(160deg, #D4E8ED 0%, #E8EEF5 50%, #D8E4F0 100%);
-        /* No desktop o body pode rolar se a janela for menor que o app */
-        overflow: auto;
-        height: auto;
-        min-height: 100%;
+    /* Telas largas (desktop / tablet em paisagem): o app segue full-bleed — header,
+       footer e área de rolagem ocupam a janela inteira —, mas o CONTEÚDO fica numa
+       coluna legível de até --content-max, centralizada. As faixas laterais têm a
+       mesma cor de cada barra, então não leem como margem. Substitui o antigo
+       "modo cartão" (480px, 90vh, padding 24px), que encolhia a UI no desktop. */
+    @media (min-width: 1024px) {
+      :root {
+        --content-max: 960px;
       }
 
-      [data-theme="dark"] body {
-        background: linear-gradient(160deg, #070E18 0%, #0B1520 50%, #070D18 100%);
+      #header {
+        padding-left: max(16px, calc((100% - var(--content-max)) / 2));
+        padding-right: max(16px, calc((100% - var(--content-max)) / 2));
       }
 
-      #app {
-        max-width: 480px;
-        /* margin auto centraliza na vertical sem cortar o topo se a janela encolher */
-        margin: auto 0;
-        border-radius: 24px;
-        /* No desktop: altura máxima de 90vh, centralizado verticalmente */
-        height: min(90vh, 800px);
-        height: min(90dvh, 800px);
-        box-shadow: 0 24px 80px rgba(13, 27, 42, 0.20);
+      #footer {
+        padding-left: max(12px, calc((100% - var(--content-max)) / 2));
+        padding-right: max(12px, calc((100% - var(--content-max)) / 2));
       }
 
-      [data-theme="dark"] #app {
-        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.50);
+      /* padding no próprio #panels: a scrollbar continua na borda da janela */
+      #panels {
+        padding-left: calc((100% - var(--content-max)) / 2);
+        padding-right: calc((100% - var(--content-max)) / 2);
       }
     }
 
