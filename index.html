@@ -23,6 +23,18 @@
       var _t = localStorage.getItem('Shop_List_theme');
       if (_t) document.documentElement.setAttribute('data-theme', _t);
     } catch (e) { }
+    // theme-color segue o tema DO APP. As metas com media= seguiam o tema do
+    // sistema: com sistema escuro e app claro (ou vice-versa), o Chrome pintava
+    // as barras do sistema com cor e contraste de ícones trocados.
+    function syncThemeColor(theme) {
+      var color = theme === 'dark' ? '#0E1621' : '#00796B';
+      var metas = document.querySelectorAll('meta[name="theme-color"]');
+      for (var i = 0; i < metas.length; i++) {
+        metas[i].removeAttribute('media');
+        metas[i].setAttribute('content', color);
+      }
+    }
+    syncThemeColor(document.documentElement.getAttribute('data-theme') || 'light');
   </script>
   <!-- Google Identity Services (OAuth 2.0 implicit flow) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -340,6 +352,17 @@
       overflow-x: hidden;
       /* Garante que html ocupa exatamente o viewport — base para o #app fixo */
       height: 100%;
+      /* Informa ao navegador o esquema do tema DO APP (não o do sistema): o Chrome
+         usa isso para escolher ícones claros/escuros nas barras do sistema */
+      color-scheme: light;
+      /* Canvas com a cor base do rodapé: o que aparecer atrás da barra de
+         navegação (edge-to-edge, overscroll) não fica branco */
+      background: #E2EBF5;
+    }
+
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      background: #0E1620;
     }
 
     body {
@@ -358,8 +381,9 @@
     }
 
     #app {
+      /* Fora do modo cartão (desktop/tablet) o app é full-bleed: sem max-width,
+         para não deixar faixas do body visíveis nas laterais */
       width: 100%;
-      max-width: 480px;
       /* Altura fixa = viewport: header e footer ficam fixos, apenas #panels rola */
       height: 100%;
       height: -webkit-fill-available;
@@ -645,8 +669,20 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    .filter-btn:hover {
-      background: var(--border);
+    /* Hover só com ponteiro real: no touch o :hover "gruda" após o toque e o
+       botão parecia continuar pressionado/ativo depois de desligado */
+    @media (hover: hover) {
+      .filter-btn:hover {
+        background: var(--border);
+        transform: scale(0.95);
+      }
+
+      .filter-btn[data-active="true"]:hover {
+        background: var(--border);
+      }
+    }
+
+    .filter-btn:active {
       transform: scale(0.95);
     }
 
@@ -659,10 +695,6 @@
 
     [data-theme="dark"] .filter-btn[data-active="true"] {
       box-shadow: 0 0 0 2px rgba(38, 198, 186, 0.18);
-    }
-
-    .filter-btn[data-active="true"]:hover {
-      background: var(--border);
     }
 
     /* Fav filter button — agora no filter-badge-group como .filter-btn */
@@ -3136,13 +3168,17 @@
       font-style: italic;
     }
 
-    @media (min-width: 520px) {
+    /* Modo cartão: só quando sobra espaço nos dois eixos. O min-height evita que
+       celulares em paisagem (largos, mas baixos) virem um cartão encolhido e
+       rolável — neles o app continua ocupando a viewport inteira. */
+    @media (min-width: 520px) and (min-height: 600px) {
       body {
         padding: 24px 0;
         background: linear-gradient(160deg, #D4E8ED 0%, #E8EEF5 50%, #D8E4F0 100%);
         /* No desktop o body pode rolar se a janela for menor que o app */
         overflow: auto;
         height: auto;
+        min-height: 100%;
       }
 
       [data-theme="dark"] body {
@@ -3150,6 +3186,9 @@
       }
 
       #app {
+        max-width: 480px;
+        /* margin auto centraliza na vertical sem cortar o topo se a janela encolher */
+        margin: auto 0;
         border-radius: 24px;
         /* No desktop: altura máxima de 90vh, centralizado verticalmente */
         height: min(90vh, 800px);
@@ -4890,7 +4929,9 @@
       _syncSortBtnVisual(); // FIX pré-existente: load() restaura o sortMode do perfil, mas o ícone ficava obsoleto
       render();
       updateSyncBadge();
-      syncFavBtn();
+      // load() restaura o activeQuickFilter do novo perfil — sem isto o botão do
+      // perfil anterior seguia aceso e o próximo clique ativava em vez de desligar
+      syncQuickFilterBtns();
       _syncProfileBtn();
       // Aciona sync explícito ao trocar de perfil — necessário para que um perfil
       // novo (sem dados locais, sem syncFileId) crie seu arquivo no Drive imediatamente.
@@ -5050,6 +5091,7 @@
       try {
         const savedTheme = localStorage.getItem(THEME_KEY) || 'light';
         document.documentElement.setAttribute('data-theme', savedTheme);
+        syncThemeColor(savedTheme);
       } catch (e) {
         console.warn('Erro ao carregar tema:', e);
       }
@@ -6630,8 +6672,7 @@
       // Segue o padrão dos demais botões: o grupo fecha = estado neutro
       if (!open && activeQuickFilter !== '') {
         activeQuickFilter = '';
-        document.querySelectorAll('.filter-btn').forEach(b => b.removeAttribute('data-active'));
-        syncFavBtn();   // reseta o visual do botão fav para estado default
+        syncQuickFilterBtns();   // reseta status + fav para o estado neutro
         saveUI();
         render();
       }
@@ -6856,10 +6897,32 @@
       btn.title = titles[state];
     }
 
-    function applyQuickFilter(type) {
-      // Limpa estado ativo de todos os botões de status
-      document.querySelectorAll('.filter-btn').forEach(b => b.removeAttribute('data-active'));
+    // Fonte única do visual do filter-badge-group: deriva tudo de activeQuickFilter.
+    // Usada no boot, na troca de perfil e a cada clique — antes cada caminho
+    // ajustava o DOM por conta própria e o visual divergia do estado real.
+    function syncQuickFilterBtns() {
+      document.querySelectorAll('.filter-btn').forEach(b => {
+        const on = b.dataset.filter !== 'fav' && b.dataset.filter === activeQuickFilter;
+        if (on) b.setAttribute('data-active', 'true');
+        else b.removeAttribute('data-active');
+        // Limpa estilos inline legados do restore de boot (nunca eram removidos)
+        b.style.boxShadow = '';
+        b.style.transform = '';
+      });
+      syncFavBtn();
 
+      // Com filtro ativo, a barra precisa estar visível para o usuário poder desligá-lo
+      if (activeQuickFilter) {
+        const fb = document.getElementById('filter-bar');
+        const tb = document.getElementById('btn-traffic');
+        if (fb && !fb.classList.contains('open')) {
+          fb.classList.add('open');
+          if (tb) { tb.classList.add('active'); tb.textContent = '🚥'; }
+        }
+      }
+    }
+
+    function applyQuickFilter(type) {
       if (type === 'fav') {
         // Ciclo de 3 estados: default → fav-on → fav-off → default
         if (activeQuickFilter === '') {
@@ -6879,24 +6942,10 @@
         }
       } else {
         // Filtros de status (crit/warn/ok) — comportamento original toggle on/off
-        const wasActive = activeQuickFilter === type;
-        if (wasActive) {
-          activeQuickFilter = '';
-        } else {
-          // Garante que o filter-bar esteja visível ao ativar um filtro de status
-          const fb = document.getElementById('filter-bar');
-          const tb = document.getElementById('btn-traffic');
-          if (fb && !fb.classList.contains('open')) {
-            fb.classList.add('open');
-            if (tb) { tb.classList.add('active'); tb.textContent = '🚥'; }
-          }
-          activeQuickFilter = type;
-          const btn = document.querySelector(`.filter-btn[data-filter="${type}"]`);
-          if (btn) btn.setAttribute('data-active', 'true');
-        }
+        activeQuickFilter = activeQuickFilter === type ? '' : type;
       }
 
-      syncFavBtn();
+      syncQuickFilterBtns();
       saveUI();
       render();
     }
@@ -7805,6 +7854,7 @@
       const current = document.documentElement.getAttribute('data-theme');
       const next = current === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
+      syncThemeColor(next);
       localStorage.setItem(THEME_KEY, next);
       // Atualiza ícone do botão no rodapé
       const btn = document.getElementById('footer-theme-btn');
@@ -9181,20 +9231,8 @@
       requestAnimationFrame(() => openProfileModal());
     }
 
-    // Restaura visual do filtro ativo persistido
-    if (activeQuickFilter) {
-      const btn = document.querySelector(`.filter-btn[data-filter="${activeQuickFilter}"]`);
-      if (btn) {
-        btn.setAttribute('data-active', 'true');
-        if (activeQuickFilter !== 'fav') {
-          btn.style.boxShadow = '0 0 0 2px var(--accent)';
-          btn.style.transform = 'scale(0.95)';
-        }
-      }
-    }
-
-    // Restaura estado inicial do #search-fav-btn
-    syncFavBtn();
+    // Restaura visual do filtro ativo persistido (status + fav)
+    syncQuickFilterBtns();
 
     // Restaura visual do botão de ordenação persistido — visual only (render acontece
     // logo abaixo no fluxo de init); SORT_MODES é a fonte única do glyph/classe.
@@ -9446,6 +9484,9 @@
       const SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
       const SYNC_KEY = 'ShopList_driveSync';    // localStorage para meta
       const TOKEN_KEY = 'ShopList_driveToken';   // localStorage para token
+      // E-mail da conta conectada — enviado como login_hint para pular o seletor
+      // de contas nas renovações. Sobrevive à expiração do token; só sai no revoke.
+      const HINT_KEY = 'ShopList_driveHint';
 
       // ─── ESTADO INTERNO ────────────────────────────────────────────────────────
       let _token = null;   // { access_token, expires_at }
@@ -9532,17 +9573,36 @@
               reject(new Error('Google Identity Services não carregado'));
               return;
             }
+            let hint = '';
+            try { hint = localStorage.getItem(HINT_KEY) || ''; } catch (_) { }
             const client = google.accounts.oauth2.initTokenClient({
               client_id: DRIVE_CLIENT_ID,
               scope: DRIVE_SCOPE,
+              // login_hint: com a conta conhecida, o GIS pula o seletor de contas
+              ...(hint ? { login_hint: hint } : {}),
               callback: (resp) => {
                 if (resp.error) { reject(new Error(resp.error)); return; }
                 Auth.save(resp);
+                if (!hint) Auth._rememberAccount();
                 resolve(resp.access_token);
               },
+              error_callback: (err) => reject(new Error(err && err.type || 'oauth-popup-error')),
             });
-            client.requestAccessToken({ prompt: 'consent' });
+            // prompt '' → a tela de consentimento só aparece na 1ª concessão (ou se o
+            // usuário revogou o acesso). Renovações viram um popup que fecha sozinho.
+            // 'consent' forçava a tela completa a cada renovação horária do token.
+            client.requestAccessToken({ prompt: '' });
           });
+        },
+
+        /** Grava o e-mail da conta (about.get aceita o escopo drive.file) — best effort */
+        async _rememberAccount() {
+          try {
+            const r = await Drive._api('/about?fields=user(emailAddress)');
+            if (!r.ok) return;
+            const email = (await r.json())?.user?.emailAddress;
+            if (email) localStorage.setItem(HINT_KEY, email);
+          } catch (_) { }
         },
 
         /** Garante token válido — usa cache ou solicita novo */
@@ -9560,6 +9620,7 @@
           _token = null;
           _folderId = null;
           localStorage.removeItem(TOKEN_KEY);
+          localStorage.removeItem(HINT_KEY);
           _saveMeta({ folderId: null });
           _setStatus('', 'Google Drive sync (desconectado)');
           if (typeof toast === 'function') toast('🔌 Google Drive disconnected');
