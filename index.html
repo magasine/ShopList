@@ -7523,7 +7523,8 @@
     // clique-fora, tema e animação — zero CSS novo. Agrupar as duas operações
     // raras de backup em 1 slot liberou 38px no footer.
     // Menu ⋯ do cabeçalho (substitui o ✕): reúne funções pouco usadas que ocupavam
-    // o rodapé — tema no topo, manual, backup — e o "Close app" que era o ✕.
+    // o rodapé — tema no topo, manual e backup. Sem "Close app": o navegador
+    // bloqueia window.close() em abas comuns; fechar/minimizar a aba já cobre isso.
     function openMoreMenu(triggerEl) {
       const dark = document.documentElement.getAttribute('data-theme') === 'dark';
       _showSectionMenu(triggerEl, `
@@ -7544,10 +7545,6 @@
         <div class="sec-action-item" data-action="data-undo-import">
           <span class="sec-action-icon">↩️</span> Undo last import
         </div>` : ''}
-        <div class="sec-action-header">App</div>
-        <div class="sec-action-item" data-action="close">
-          <span class="sec-action-icon">✕</span> Close app
-        </div>
       `);
 
       _secMenuEl.addEventListener('click', e => {
@@ -7557,7 +7554,6 @@
         closeSectionMenu();
         if (action === 'theme') toggleTheme();
         if (action === 'manual') openManual();
-        if (action === 'close') closeApp();
         if (action === 'data-export') exportData();
         if (action === 'data-import') triggerImport();
         if (action === 'data-undo-import') undoLastImport();
@@ -8855,11 +8851,6 @@
 
     function overlayClick(e) {
       if (e.target === document.getElementById('overlay')) closeModal();
-    }
-
-    function closeApp() {
-      if (window.history.length > 1) window.history.back();
-      else window.close();
     }
 
     // ── Autocomplete do campo de busca (#search-input) ─────────────────────
