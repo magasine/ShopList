@@ -4436,6 +4436,7 @@
     }
 
     /* ── Botão de refresh no header do modal de perfis ── */
+    #profile-help-btn,
     #profile-sync-btn {
       width: 28px;
       height: 28px;
@@ -4454,11 +4455,13 @@
       line-height: 1;
     }
 
+    #profile-help-btn:hover,
     #profile-sync-btn:hover {
       background: var(--border);
       color: var(--accent);
     }
 
+    #profile-help-btn:active,
     #profile-sync-btn:active {
       transform: scale(0.88);
     }
@@ -4485,6 +4488,8 @@
           <h2>🛒 Select list</h2>
           <p>Choose which list to open</p>
         </div>
+        <!-- O modal cobre o rodapé (e o chip "?"): acesso ao manual também daqui -->
+        <div id="profile-help-btn" onclick="openManual()" title="User manual" aria-label="User manual">?</div>
         <div id="profile-sync-btn" onclick="profileModalSync()" title="Refresh lists from Drive">⟳</div>
         <div id="profile-close-btn" onclick="closeProfileModal()" title="Close" aria-label="Close">✕</div>
       </div>
