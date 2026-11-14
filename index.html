@@ -4972,8 +4972,17 @@
       if (_sbt) _sbt.classList.remove('active');
 
       load();
+      // Edit guard por lista: o boot só armava a lista inicial. Lista vinculada ao
+      // Drive → arma até o primeiro sync OK dela (o sync abaixo desarma); o
+      // "Edit anyway" aceito em outra lista não vale para esta.
+      try {
+        const _m = JSON.parse(localStorage.getItem(_syncMetaKey(slug)) || '{}');
+        window._cloudStale = !!_m.syncFileId;
+        window._editAnywayAck = false;
+      } catch (_) { }
       _syncSortBtnVisual(); // FIX pré-existente: load() restaura o sortMode do perfil, mas o ícone ficava obsoleto
       render();
+      _maybeShowCorruptDialog();   // load() pode ter achado a lista nova ilegível
       updateSyncBadge();
       // load() restaura o activeQuickFilter do novo perfil — sem isto o botão do
       // perfil anterior seguia aceso e o próximo clique ativava em vez de desligar
@@ -5022,7 +5031,7 @@
         const profiles = _profilesLoad().filter(p => p.slug !== slug);
         _profilesSave(profiles);
         // limpa dados órfãos
-        [_storageKey(slug), _uiKey(slug), _syncMetaKey(slug)].forEach(k => {
+        [_storageKey(slug), `${_storageKey(slug)}__before_import`, _uiKey(slug), _syncMetaKey(slug)].forEach(k => {
           try { localStorage.removeItem(k); } catch (_) { }
         });
         // Invalida cache do índice — força pushIndex na próxima sync
@@ -5128,9 +5137,19 @@
         }
       } catch (e) {
         console.error('Erro ao carregar dados do localStorage:', e);
-        toast('Corrupted data. Starting with default values.');
+        // Antes: removia a chave — perda irreversível. Agora guarda o conteúdo
+        // original numa chave de quarentena e oferece baixá-lo (showCorruptDialog).
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            const qKey = `${STORAGE_KEY}__unreadable_${Date.now()}`;
+            localStorage.setItem(qKey, raw);   // se falhar (cota), a original fica intacta
+            window._corruptDataKey = qKey;
+            localStorage.removeItem(STORAGE_KEY);
+          }
+        } catch (_) { }
         items = defaultItems();
-        try { localStorage.removeItem(STORAGE_KEY); } catch (_) { }
+        toast('Saved list could not be read — a copy was kept');
       }
 
       // Carregar tema
@@ -5397,6 +5416,55 @@
       changeCounter = 0;
       // Reativa o banner após 5 minutos (300 000 ms)
       setTimeout(() => { bannerDismissed = false; }, 5 * 60 * 1000);
+    }
+
+    // Baixa texto como arquivo — sem tocar no storage (exportDataSilent regrava o savedAt)
+    function _downloadText(text, filename) {
+      const blob = new Blob([text], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function _fileStamp(d = new Date()) {
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.${pad(d.getHours())}${pad(d.getMinutes())}`;
+    }
+
+    // Lista salva ilegível (ver load()): explica e oferece baixar a cópia guardada.
+    // Retorna true se exibiu — o chamador pula os demais diálogos de boot.
+    function _maybeShowCorruptDialog() {
+      const qKey = window._corruptDataKey;
+      if (!qKey) return false;
+      window._corruptDataKey = null;
+      openModal(`
+        <div class="modal-header">
+          <div class="modal-title">Saved list could not be read</div>
+          <div class="modal-sub">📋 ${esc(Profiles.labelOf(_currentSlug))}</div>
+        </div>
+        <div class="modal-body">
+          <div class="guard-banner">
+            <b>⚠️ The app started with sample items</b>
+            The original data was kept on this device. Download it to keep a copy,
+            then restore the list from a backup (Data › Import data) or from Drive.
+          </div>
+        </div>
+        <div class="modal-foot modal-foot--col">
+          <div class="modal-btn confirm" id="corrupt-download">⬇️ Download unreadable data</div>
+          <div class="modal-btn cancel" onclick="closeModal()">Close</div>
+        </div>
+      `);
+      const b = document.getElementById('corrupt-download');
+      if (b) b.onclick = () => {
+        try {
+          _downloadText(localStorage.getItem(qKey) || '', `${_fileStamp()}-Shop-List-unreadable.json`);
+          toast('Unreadable data downloaded');
+        } catch (_) { toast('Could not download the data'); }
+      };
+      return true;
     }
 
     function exportDataSilent() {
@@ -6321,7 +6389,17 @@
           input.min = '0';
           input.value = initialVal;
           input.inputMode = 'numeric';
-          input.onchange = (e) => onChange(e.target.value);
+          input.onchange = (e) => {
+            // Edit guard também na digitação direta (os botões ± já passam por
+            // attachStepperPress). render() devolve o campo ao valor salvo enquanto
+            // o usuário decide; "Edit anyway" reaplica o valor digitado.
+            if (_needsEditGuard()) {
+              const typed = e.target.value;
+              render();
+              return openEditGuardModal(() => onChange(typed));
+            }
+            onChange(e.target.value);
+          };
 
           stepperEl.appendChild(btnMinus);
           stepperEl.appendChild(input);
@@ -7008,6 +7086,7 @@
     }
 
     function toggleFav(id) {
+      if (_needsEditGuard()) return openEditGuardModal(() => toggleFav(id));
       const it = items.find(i => i.id === id);
       if (!it) return;
       it.fav = !it.fav;
@@ -7198,6 +7277,7 @@
     }
 
     function confirmDelete(id) {
+      if (_needsEditGuard()) return openEditGuardModal(() => confirmDelete(id));
       const it = items.find(i => i.id === id);
       if (!it) return;
       openModal(`
@@ -7300,6 +7380,10 @@
         <div class="sec-action-item" data-action="data-import">
           <span class="sec-action-icon">⬆️</span> Import data
         </div>
+        ${localStorage.getItem(_preImportKey()) ? `
+        <div class="sec-action-item" data-action="data-undo-import">
+          <span class="sec-action-icon">↩️</span> Undo last import
+        </div>` : ''}
       `);
 
       _secMenuEl.addEventListener('click', e => {
@@ -7309,6 +7393,7 @@
         closeSectionMenu();
         if (action === 'data-export') exportData();
         if (action === 'data-import') triggerImport();
+        if (action === 'data-undo-import') undoLastImport();
       });
     }
 
@@ -8111,39 +8196,9 @@
             return;
           }
 
-          // Atualiza os itens
-          items = data;
-          const toSave = items.map(({ _done, _doneAdd, ...rest }) => rest);
-
-          // CARIMBA COM O MOMENTO DO IMPORT, não com o savedAt antigo do arquivo.
-          // A intenção do import é "estes dados passam a valer agora" — então
-          // devem ser a versão mais recente no próximo sync, vencendo o conflito.
-          // (O nome versionado do arquivo, se houver, é ignorado: só o conteúdo importa.)
-          const importNow = new Date().toISOString();
-          const payload = { savedAt: importNow, data: toSave };
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-          changeCounter = 0;
-
-          console.log('[Import] file savedAt was', originalSavedAt,
-            '→ re-stamped as', importNow, '(import = newest)');
-
-          closeModal();
-          render();
-          updateBadges();
-
-          // Avisa o usuário sobre a próxima sincronização se o Drive estiver conectado
-          const driveConnected = (() => {
-            try {
-              const t = JSON.parse(localStorage.getItem('ShopList_driveToken') || 'null');
-              return t && t.access_token && Date.now() < t.expires_at;
-            } catch { return false; }
-          })();
-
-          if (driveConnected) {
-            toast('Data imported — will overwrite the Drive copy on next sync');
-          } else {
-            toast('Data imported successfully');
-          }
+          // Confirma antes de substituir — antes o import aplicava direto, sem
+          // aviso nem volta (e, com Drive, sobrescrevia a nuvem no próximo sync)
+          _confirmImport(data, originalSavedAt);
 
         } catch (err) {
           toast('Error: invalid file');
@@ -8152,6 +8207,95 @@
         e.target.value = '';
       };
       reader.readAsText(file);
+    }
+
+    // Cópia da lista anterior ao último import — permite "Undo last import"
+    function _preImportKey() { return `${STORAGE_KEY}__before_import`; }
+
+    function _driveTokenValid() {
+      try {
+        const t = JSON.parse(localStorage.getItem('ShopList_driveToken') || 'null');
+        return !!(t && t.access_token && Date.now() < t.expires_at);
+      } catch { return false; }
+    }
+
+    function _confirmImport(data, originalSavedAt) {
+      const cur = isModelData(items) ? 0 : items.length;
+      const fileDate = originalSavedAt ? formatSavedAt(originalSavedAt).label : 'unknown date';
+      openModal(`
+        <div class="modal-header">
+          <div class="modal-title">Replace list?</div>
+          <div class="modal-sub">📋 ${esc(Profiles.labelOf(_currentSlug))}</div>
+        </div>
+        <div class="modal-body">
+          <div class="modal-metrics">
+            <div class="modal-metric">
+              <div class="modal-metric__value">${cur}</div>
+              <div class="modal-metric__label">items now</div>
+            </div>
+            <div class="modal-metric modal-metric--accent">
+              <div class="modal-metric__value">${data.length}</div>
+              <div class="modal-metric__label">in the file</div>
+            </div>
+          </div>
+          <div class="modal-body-hint">
+            Backup saved ${esc(fileDate)}. The current list is kept on this device —
+            restore it with Data › Undo last import.${_driveTokenValid()
+              ? ' The Drive copy will be replaced on the next sync.' : ''}
+          </div>
+        </div>
+        <div class="modal-foot">
+          <div class="modal-btn cancel" onclick="closeModal()">Cancel</div>
+          <div class="modal-btn danger-btn" id="import-confirm">Replace</div>
+        </div>
+      `);
+      const b = document.getElementById('import-confirm');
+      if (b) b.onclick = () => _applyImport(data, originalSavedAt);
+    }
+
+    function _applyImport(data, originalSavedAt) {
+      // Guarda a lista atual (se não for só amostra) para o "Undo last import"
+      try {
+        const prev = localStorage.getItem(STORAGE_KEY);
+        if (prev && !isModelData(items)) localStorage.setItem(_preImportKey(), prev);
+      } catch (_) { /* sem espaço: segue sem cópia */ }
+
+      items = data;
+      const toSave = items.map(({ _done, _doneAdd, ...rest }) => rest);
+
+      // CARIMBA COM O MOMENTO DO IMPORT, não com o savedAt antigo do arquivo.
+      // A intenção do import é "estes dados passam a valer agora" — então
+      // devem ser a versão mais recente no próximo sync, vencendo o conflito.
+      // (O nome versionado do arquivo, se houver, é ignorado: só o conteúdo importa.)
+      const importNow = new Date().toISOString();
+      const payload = { savedAt: importNow, data: toSave };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      changeCounter = 0;
+
+      console.log('[Import] file savedAt was', originalSavedAt,
+        '→ re-stamped as', importNow, '(import = newest)');
+
+      closeModal();
+      render();
+      updateBadges();
+
+      toast(_driveTokenValid()
+        ? 'Data imported — will overwrite the Drive copy on next sync'
+        : 'Data imported successfully');
+    }
+
+    function undoLastImport() {
+      let prev = null;
+      try { prev = JSON.parse(localStorage.getItem(_preImportKey()) || 'null'); } catch (_) { }
+      const data = prev && (Array.isArray(prev) ? prev : prev.data);
+      if (!Array.isArray(data)) { toast('Nothing to undo'); return; }
+      items = data;
+      // Carimbo novo: a lista restaurada passa a ser a versão mais recente (vence o sync)
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ savedAt: new Date().toISOString(), data }));
+      try { localStorage.removeItem(_preImportKey()); } catch (_) { }
+      render();
+      updateBadges();
+      toast('Previous list restored');
     }
 
     function copyBuyList() {
@@ -9345,8 +9489,10 @@
         const _p = typeof _currentSlug !== 'undefined' ? _currentSlug : 'default';
         _meta = JSON.parse(localStorage.getItem(_syncMetaKey(_p)) || '{}');
       } catch (_) { }
+      if (_meta.syncFileId) window._cloudStale = true;   // desarmado no fim do Sync.run bem-sucedido
+      // Lista ilegível tem prioridade sobre os demais diálogos de boot
+      if (_maybeShowCorruptDialog()) return;
       if (_meta.syncFileId) {
-        window._cloudStale = true;   // desarmado no fim do Sync.run bem-sucedido
         showCloudFirstDialog();
       } else {
         showStartupDialog();
@@ -9565,6 +9711,11 @@
       let _folderId = null;   // ID da pasta _ShopList_Sync
       let _syncTimer = null;
       let _syncing = false;
+      // Lista fixada durante um Sync.run. A sincronização tem várias esperas de
+      // rede; se o usuário trocar de lista no meio (ex.: "Select list" no boot),
+      // ler o slug ativo a cada passo gravava os dados/meta da lista A na lista B
+      // ou subia a B para o arquivo da A. Ver _syncSlug().
+      let _runSlug = null;
       let _btnEl = null;
 
       // ─── SESSION LOCK ───────────────────────────────────────────────────────────
@@ -9923,7 +10074,7 @@
         // Nome do arquivo de sync — dinâmico por perfil (opção B: mesma pasta, arquivos distintos).
         // Para o perfil 'default' mantém o nome legado para não quebrar sincronizações existentes.
         get SYNC_FILENAME() {
-          const slug = typeof _currentSlug !== 'undefined' ? _currentSlug : 'default';
+          const slug = _syncSlug();
           return slug === 'default'
             ? 'Shop-List-Sync.json'
             : `Shop-List-Sync-${slug}.json`;
@@ -9969,7 +10120,7 @@
             const now = new Date();
             parsed.sessionLock = {
               sessionId: _mySessionId,
-              slug: typeof _currentSlug !== 'undefined' ? _currentSlug : 'default',
+              slug: _syncSlug(),
               lockedAt: now.toISOString(),
               expiresAt: new Date(now.getTime() + LOCK_TTL_MS).toISOString(),
             };
@@ -10287,7 +10438,7 @@
          */
         _localPayload() {
           try {
-            const raw = localStorage.getItem(window.STORAGE_KEY || 'Shop_List_v20260721');
+            const raw = localStorage.getItem(_storageKey(_syncSlug()));
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed.savedAt) return null;
@@ -10328,7 +10479,15 @@
               return;
             }
             const payload = { savedAt, data };
-            localStorage.setItem(window.STORAGE_KEY || 'Shop_List_v20260721', JSON.stringify(payload));
+            localStorage.setItem(_storageKey(_syncSlug()), JSON.stringify(payload));
+
+            // Usuário trocou de lista durante o sync: o dado foi gravado na lista
+            // certa (a fixada), mas a tela mostra outra — não substitui `items`.
+            if (_syncSlug() !== _currentSlug) {
+              console.log('[DriveSync] _applyCloud: saved to "' + _syncSlug() +
+                '" (list switched during sync) — UI untouched');
+              return;
+            }
 
             // Atualiza o array `items` em memória do script 1.
             // `let items` não é propriedade de window, mas window.items foi exportado
@@ -10351,6 +10510,7 @@
         async run(trigger = 'manual') {
           if (_syncing) return;
           _syncing = true;
+          _runSlug = _currentSlug;   // fixa a lista até o fim (ver _syncSlug)
           _setStatus('syncing', 'Syncing with Google Drive…');
           console.log('[DriveSync] sync triggered by:', trigger);
 
@@ -10635,7 +10795,8 @@
 
             // Sync concluído sem exceções (qualquer branch) → sessão em dia com
             // a nuvem: desarma o edit guard até o próximo boot/troca de perfil.
-            if (window._disarmEditGuard) window._disarmEditGuard();
+            // Só se a lista sincronizada ainda for a ativa — senão a atual não foi.
+            if (window._disarmEditGuard && _runSlug === _currentSlug) window._disarmEditGuard();
 
           } catch (e) {
             console.error('[DriveSync] sync error:', e);
@@ -10647,8 +10808,13 @@
               _setStatus('error', '⚠️ Drive sync failed: ' + (e.message || 'unknown error'));
             }
           } finally {
+            const switched = _runSlug !== _currentSlug;
+            _runSlug = null;
             _syncing = false;
             if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge();
+            // O sync pedido pelo switchProfile foi ignorado (_syncing) — roda agora
+            // para a lista que o usuário escolheu.
+            if (switched && Auth.isValid()) setTimeout(() => Sync.run('list-switched'), 0);
           }
         },
       };
@@ -10770,8 +10936,13 @@
       };
 
       // SYNC_KEY é dinâmico: aponta para o meta do perfil ativo via _syncMetaKey()
-      // Getter lazy — sempre reflete _currentSlug atual, inclusive após switchProfile()
-      function _getSyncKey() { return _syncMetaKey(_currentSlug); }
+      // Lista alvo do sync: a fixada em Sync.run enquanto ele roda; fora dele, a ativa
+      function _syncSlug() {
+        return _runSlug || (typeof _currentSlug !== 'undefined' ? _currentSlug : 'default');
+      }
+
+      // Getter lazy — reflete a lista do sync em curso, ou a ativa (após switchProfile())
+      function _getSyncKey() { return _syncMetaKey(_syncSlug()); }
 
       /** Lê a meta de sync de qualquer slug sem alterar o estado do módulo.
        *  Usado por profileAddNew para herdar folderId do perfil anterior ao criar um novo. */
