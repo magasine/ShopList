@@ -432,7 +432,12 @@
 
     /* HEADER */
     #header {
-      padding: 12px 16px 0;
+      /* Laterais de 20px (antes 16): afasta o título das bordas arredondadas e
+         alinha título, status, filtros e abas pela mesma margem.
+         Topo: respeita a barra de status/notch no app instalado (viewport-fit=cover
+         + status bar translúcida no iOS) — antes o título podia ficar sob o relógio */
+      padding: 12px 20px 0;
+      padding-top: max(12px, env(safe-area-inset-top, 0px));
       background: var(--header-bg);
       border-bottom: 1px solid var(--header-border);
       /* flex-shrink:0 garante que o header nunca encolhe — ocupa sempre seu espaço natural */
@@ -462,7 +467,7 @@
     /* "Shop List" — nome principal: um passo acima do antigo --fs-md, agora que
        divide a linha só com os botões */
     .title-main {
-      font-size: 20px;
+      font-size: 24px;
       font-weight: 800;
       letter-spacing: -0.3px;
       line-height: 1.15;
@@ -470,7 +475,7 @@
 
     /* "Semaphore" — sozinho na 2ª linha, menor e discreto */
     .title-suffix {
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 500;
       letter-spacing: 0.02em;
       line-height: 1.2;
@@ -2030,7 +2035,7 @@
       flex-shrink: 0;
       background: var(--footer-bg);
       border-top: 1px solid var(--header-border);
-      padding: 8px 16px;
+      padding: 8px 20px;   /* mesmas laterais do #header */
       padding-bottom: max(8px, calc(8px + env(safe-area-inset-bottom, 0px)));
       display: flex;
       align-items: center;
@@ -2191,10 +2196,8 @@
     }
 
     @media (max-width: 370px) {
-      #footer {
-        padding-left: 8px;
-        padding-right: 8px;
-      }
+      /* #footer mantém as laterais de 20px (alinhado ao #header): com só 2 ícones
+         à esquerda já não é preciso comprimir */
 
       #add-btn,
       #inventory-btn,
@@ -3158,7 +3161,17 @@
       }
     }
 
+    /* Itens rolam sob o cabeçalho fixo; a altura máxima vem de acPositionBelow */
+    .ac-list {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+
     .ac-header {
+      flex-shrink: 0;
       font-size: 10px;
       font-family: 'DM Mono', monospace;
       font-weight: 700;
@@ -9061,11 +9074,30 @@
     window.dismissUnitSweepBanner = dismissUnitSweepBanner;
 
     function acPositionBelow(input) {
-      const rect = input.getBoundingClientRect();
+      // Na busca, ancora na caixa inteira (#search-wrap): o <input> interno é
+      // mais baixo e começa depois da lupa — a lista sobrepunha a borda da caixa
+      const wrap = input.closest('#search-wrap');
+      const rect = (wrap || input).getBoundingClientRect();
       const drop = document.getElementById('ac-dropdown');
-      drop.style.top = (rect.bottom + 4) + 'px';
+      const top = rect.bottom + 4;
+      drop.style.top = top + 'px';
       drop.style.left = rect.left + 'px';
       drop.style.width = rect.width + 'px';
+      drop.style.maxWidth = wrap ? rect.width + 'px' : '';
+      // Altura máxima: 95% da área visível (visualViewport desconta o teclado do
+      // celular), sem passar da borda de baixo — o excedente rola em .ac-list.
+      // Antes não havia limite e o overflow:hidden cortava os itens finais.
+      const vv = window.visualViewport;
+      const viewH = vv ? vv.height + vv.offsetTop : window.innerHeight;
+      drop.style.maxHeight = Math.max(120, Math.min(viewH * 0.95, viewH - top - 8)) + 'px';
+    }
+
+    // Teclado do celular abrindo/fechando muda a área visível: reajusta a altura
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => {
+        const drop = document.getElementById('ac-dropdown');
+        if (drop && drop.classList.contains('open') && acTarget) acPositionBelow(acTarget);
+      });
     }
 
     function acOpen(input, mode, suggestions, headerLabel) {
@@ -9087,7 +9119,8 @@
         </div>`;
       }).join('');
 
-      drop.innerHTML = `<div class="ac-header">${headerLabel}</div>${itemsHtml}`;
+      // Cabeçalho fixo + lista rolável (.ac-list) dentro do max-height de acPositionBelow
+      drop.innerHTML = `<div class="ac-header">${headerLabel}</div><div class="ac-list">${itemsHtml}</div>`;
       acPositionBelow(input);
       drop.classList.add('open');
 
@@ -9107,9 +9140,11 @@
 
     function acHover(idx) {
       acFocusIdx = idx;
-      document.querySelectorAll('#ac-dropdown .ac-item').forEach((el, i) =>
-        el.classList.toggle('focused', i === idx)
-      );
+      document.querySelectorAll('#ac-dropdown .ac-item').forEach((el, i) => {
+        el.classList.toggle('focused', i === idx);
+        // Setas ↑/↓ do teclado: mantém o item focado visível na lista rolável
+        if (i === idx) el.scrollIntoView({ block: 'nearest' });
+      });
     }
 
     function acPick(idx) {
