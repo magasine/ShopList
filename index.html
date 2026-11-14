@@ -4839,7 +4839,7 @@
     function _uiKey(slug) { return `Shop_List_ui_${slug}`; }
     function _syncMetaKey(slug) { return `ShopList_driveSync_${slug}`; }
 
-    // ── Edit guard (last-write-wins) ─────────────────────────────────────────
+    // ── Edit guard (sync antes de editar — reduz conflitos no mesmo campo) ────
     // Sessão vinculada ao Drive porém ainda não sincronizada: editar agora pode
     // sobrescrever dados mais novos vindos de outro dispositivo. O guard
     // intercepta o PRIMEIRO gesto mutante e oferece sync antes.
@@ -4868,9 +4868,9 @@
         <div class="modal-body">
           <div class="guard-banner">
             <b>⚠️ Cloud may have newer data</b>
-            This list is linked but not synced in this session. Under
-            last-write-wins, editing now can overwrite newer changes
-            from other devices.
+            This list is linked but not synced in this session. Changes
+            from both devices are merged, but if the same field was edited
+            on both, the most recent save wins — syncing first avoids that.
           </div>
         </div>
         <div class="modal-foot modal-foot--col">
@@ -5042,7 +5042,8 @@
         const profiles = _profilesLoad().filter(p => p.slug !== slug);
         _profilesSave(profiles);
         // limpa dados órfãos
-        [_storageKey(slug), `${_storageKey(slug)}__before_import`, _uiKey(slug), _syncMetaKey(slug)].forEach(k => {
+        [_storageKey(slug), `${_storageKey(slug)}__before_import`, _uiKey(slug), _syncMetaKey(slug),
+          `ShopList_syncBase_${slug}`].forEach(k => {
           try { localStorage.removeItem(k); } catch (_) { }
         });
         // Invalida cache do índice — força pushIndex na próxima sync
@@ -5219,7 +5220,7 @@
     }
 
     // Estado A — perfil vinculado ao Drive (meta.syncFileId presente).
-    // Substitui o "Local database" no boot: prioriza a nuvem sob last-write-wins.
+    // Substitui o "Local database" no boot: prioriza a nuvem antes da primeira edição.
     // Countdown de 5s dispara DriveSync.connect() sozinho (token silencioso via
     // GIS quando já autorizado); cancelável, com saída explícita para local.
     function showCloudFirstDialog() {
@@ -5246,7 +5247,7 @@
           </div>
           <div class="modal-body-hint">
             Sync brings the latest shared changes before you edit —
-            recommended under last-write-wins.
+            recommended, so you edit the current version.
           </div>
         </div>
         <div class="modal-foot modal-foot--col">
@@ -5489,16 +5490,15 @@
       const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}.${pad(now.getHours())}${pad(now.getMinutes())}`;
       const filename = `${ts}-Shop-List.json`;
 
-      // Regrava no storage com savedAt = momento exato do export.
-      // Isso garante que o arquivo baixado, o storage e o badge fiquem 100% sincronizados.
+      // NÃO regrava o storage: antes o export carimbava savedAt = agora, a cópia
+      // local parecia mais nova e a próxima sync a subia por cima da nuvem.
+      // O arquivo leva o savedAt da última edição real (+ exportedAt informativo).
       const toSave = items.map(({ _done, _doneAdd, ...rest }) => rest);
-      const exportedAt = now.toISOString();
-      const freshPayload = { savedAt: exportedAt, data: toSave };
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(freshPayload));
-      } catch (_) { /* storage cheio: continua e exporta mesmo assim */ }
-
-      const exportPayload = JSON.stringify(freshPayload, null, 2);
+      const exportPayload = JSON.stringify({
+        savedAt: readSavedAt() || now.toISOString(),
+        exportedAt: now.toISOString(),
+        data: toSave,
+      }, null, 2);
 
       const blob = new Blob([exportPayload], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -8250,6 +8250,18 @@
     // Cópia da lista anterior ao último import — permite "Undo last import"
     function _preImportKey() { return `${STORAGE_KEY}__before_import`; }
 
+    // Import / Undo import substituem a lista de propósito: a próxima sync envia
+    // sem mesclar (a mesclagem traria de volta os itens que o import removeu)
+    function _markForceUpload() {
+      try {
+        const k = _syncMetaKey(_currentSlug);
+        const m = JSON.parse(localStorage.getItem(k) || '{}');
+        if (!m.syncFileId) return;
+        localStorage.setItem(k, JSON.stringify({ ...m, forceUpload: true }));
+        if (window.DriveSync && typeof window.DriveSync.afterSave === 'function') window.DriveSync.afterSave();
+      } catch (_) { }
+    }
+
     function _driveTokenValid() {
       try {
         const t = JSON.parse(localStorage.getItem('ShopList_driveToken') || 'null');
@@ -8312,6 +8324,7 @@
 
       console.log('[Import] file savedAt was', originalSavedAt,
         '→ re-stamped as', importNow, '(import = newest)');
+      _markForceUpload();
 
       closeModal();
       render();
@@ -8331,6 +8344,7 @@
       // Carimbo novo: a lista restaurada passa a ser a versão mais recente (vence o sync)
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ savedAt: new Date().toISOString(), data }));
       try { localStorage.removeItem(_preImportKey()); } catch (_) { }
+      _markForceUpload();
       render();
       updateBadges();
       toast('Previous list restored');
@@ -9693,6 +9707,13 @@
     // e forçar render imediato — necessário porque `let items` não é propriedade
     // de window e não pode ser reatribuído de fora do closure do script 1.
     window._applyItems = function (newData) {
+      // Preserva as marcas de sessão do Refill ("comprado") dos itens que continuam
+      // na lista — antes um sync/mesclagem durante as compras apagava os checks
+      const prev = new Map(items.map(i => [i.id, i]));
+      newData.forEach(it => {
+        const p = prev.get(it.id);
+        if (p && p._done) { it._done = true; it._doneAdd = p._doneAdd; }
+      });
       items = newData;           // reassign da binding local — render() vai ler este array
       render();                  // redesenha todos os painéis com os dados novos
       updateBadges();            // atualiza contadores das abas
@@ -9759,6 +9780,8 @@
       let _runSlug = null;
       let _expiryTimer = null;      // dispara o aviso de acesso expirado (Auth._armExpiryNotice)
       let _unsyncedNoticeAt = 0;    // último aviso "salvo só neste aparelho" (afterSave)
+      let _rerunAfterSync = false;  // outro aparelho gravou junto: mesclar de novo ao terminar
+      let _verifyRetries = 0;       // limita essas novas tentativas (evita laço)
       let _btnEl = null;
 
       // ─── SESSION LOCK ───────────────────────────────────────────────────────────
@@ -10529,7 +10552,7 @@
         },
 
         /** Importa payload JSON recebido do Drive para o localStorage e re-renderiza */
-        _applyCloud(jsonText) {
+        _applyCloud(jsonText, { silent = false } = {}) {
           try {
             const parsed = JSON.parse(jsonText);
             let data, savedAt;
@@ -10573,7 +10596,7 @@
               if (typeof window.render === 'function') window.render();
               if (typeof window.updateBadges === 'function') window.updateBadges();
             }
-            if (typeof toast === 'function') toast('☁️ Data updated from Drive');
+            if (!silent && typeof toast === 'function') toast('☁️ Data updated from Drive');
           } catch (e) {
             console.error('[DriveSync] applyCloud error:', e);
           }
@@ -10754,9 +10777,9 @@
               catch { return null; }
             })() : null;
 
+            // Datas só desempatam campos alterados dos dois lados (_mergeLists)
             const localMs = localDate ? localDate.getTime() : 0;
             const cloudMs = cloudDate ? cloudDate.getTime() : 0;
-            const EPSILON = 30_000;
 
             console.log(
               `[DriveSync] conflict | local=${localDate?.toISOString() ?? 'none'}` +
@@ -10769,6 +10792,7 @@
               if (syncFileId && cloudContent) {
                 // Caso 1: arquivo já existe no Drive → baixa e aplica
                 Sync._applyCloud(cloudContent);   // reutiliza o conteúdo já baixado
+                try { _saveBase(JSON.parse(cloudContent).data || []); } catch (_) { }
                 _saveMeta({
                   lastSync: new Date().toISOString(),
                   lastFile: Drive.SYNC_FILENAME,
@@ -10784,6 +10808,7 @@
                 // createSyncFile (abaixo) só é alcançado quando localRaw tem valor.
                 const emptyPayload = JSON.stringify({ savedAt: new Date().toISOString(), data: [] });
                 const created = await Drive.createSyncFile(folderId, emptyPayload);
+                _saveBase([]);
                 _saveMeta({
                   syncFileId: created.id,
                   lastSync: new Date().toISOString(),
@@ -10800,55 +10825,104 @@
               // SOMENTE OWNER: cria o arquivo na própria pasta.
               // Um SHARED nunca chega aqui (travado acima) — não deve criar arquivo próprio.
               const created = await Drive.createSyncFile(folderId, localRaw);
+              try { _saveBase(JSON.parse(localRaw).data || []); } catch (_) { }
               _saveMeta({
                 syncFileId: created.id,
                 lastSync: new Date().toISOString(),
                 lastFile: Drive.SYNC_FILENAME,
                 cloudModifiedAt: created.modifiedTime,   // confirmação do servidor
+                forceUpload: false,
               });
               _setStatus('connected', '☁️ Synced to Drive ✓');
               console.log('[DriveSync] sync file created & confirmed:', created.id, created.modifiedTime);
 
-            } else if (localMs > cloudMs + EPSILON) {
-              // Local mais recente → patch in-place.
-              // Grava cloudModifiedAt com o modifiedTime retornado pelo servidor —
-              // na próxima comparação, cloudMs virá deste valor (tempo do servidor,
-              // não do relógio do dispositivo), eliminando divergência de clock.
-              // Patch in-place. patchSyncFile lança erro se o servidor não confirmar (403).
-              // Grava cloudModifiedAt = savedAt LOCAL: como acabamos de subir o conteúdo
-              // local, o savedAt dentro do arquivo no Drive agora É o savedAt local.
-              // Assim a próxima comparação (cloud savedAt vs local savedAt) será igual.
-
-              // Adquire/renova lock desta sessão embutindo sessionLock no payload —
-              // sem chamada extra à API. O lock viaja junto com os dados e é visível
-              // para OWNER e SHARED ao lerem o cloudContent no próximo sync.
-              const _payloadWithLock = Drive.localPayloadWithLock() || localRaw;
-              await Drive.patchSyncFile(syncFileId, _payloadWithLock);
-              _saveMeta({
-                lastSync: new Date().toISOString(),
-                lastFile: Drive.SYNC_FILENAME,
-                cloudModifiedAt: localDate ? localDate.toISOString() : new Date().toISOString(),
-              });
-              _setStatus('connected', '☁️ Synced to Drive ✓');
-              console.log('[DriveSync] patch confirmed:', syncFileId, '| local savedAt now in cloud:', localDate?.toISOString());
-
-            } else if (cloudMs > localMs + EPSILON) {
-              // Drive mais recente → aplica o conteúdo já baixado (reusa cloudContent)
-              if (cloudContent) Sync._applyCloud(cloudContent);
-              _saveMeta({ lastSync: new Date().toISOString(), lastFile: Drive.SYNC_FILENAME, cloudModifiedAt: cloudDate?.toISOString() });
-              _setStatus('connected', '☁️ Data updated from Drive ✓');
-              console.log('[DriveSync] downloaded sync file:', syncFileId, '| cloud savedAt:', cloudDate?.toISOString());
-
             } else {
-              // Atualiza cloudModifiedAt mesmo em paridade — garante que o cache
-              // reflita o savedAt real do Drive, corrigindo valores obsoletos de
-              // syncs anteriores interrompidos que deixavam o painel mostrando divergência.
-              _saveMeta({
-                lastSync: new Date().toISOString(),
-                cloudModifiedAt: cloudDate ? cloudDate.toISOString() : (meta.cloudModifiedAt || null),
-              });
-              _setStatus('connected', '☁️ Already in sync');
-              console.log('[DriveSync] already in sync');
+              // ── Arquivo existe e há dados locais: mesclagem de três vias ────────
+              // Sem a cópia da nuvem não há como comparar: antes o sync subia o local
+              // por cima (cloudMs=0) — agora interrompe sem sobrescrever nada.
+              if (!cloudContent) throw new Error('could not read the Drive copy — nothing was overwritten');
+              const cloudParsed = JSON.parse(cloudContent);
+              if (!cloudParsed || !Array.isArray(cloudParsed.data)) throw new Error('unknown format in the Drive copy');
+
+              const localData = _cleanItems(JSON.parse(localRaw).data || []);
+              const cloudData = _cleanItems(cloudParsed.data);
+              const base = _loadBase();
+              // "Mudou" = conteúdo diferente da base (não datas): sem relógio, sem janela de 30 s
+              const localChanged = !base || !_sameList(localData, base);
+              const cloudChanged = !base || !_sameList(cloudData, base);
+              // Import / Undo import pedem substituição explícita da nuvem (sem mesclar,
+              // senão os itens removidos pelo import voltariam)
+              const force = meta.forceUpload === true;
+
+              let action;
+              if (force) action = 'upload';
+              else if (_sameList(localData, cloudData)) action = 'same';
+              else if (localChanged && !cloudChanged) action = 'upload';
+              else if (!localChanged && cloudChanged) action = 'download';
+              else action = 'merge';
+              console.log('[DriveSync] three-way:', action, '| localChanged', localChanged,
+                '| cloudChanged', cloudChanged, '| base', base ? base.length + ' items' : 'none', '| force', force);
+
+              if (action === 'same') {
+                _saveBase(localData);
+                _saveMeta({
+                  lastSync: new Date().toISOString(),
+                  cloudModifiedAt: cloudDate ? cloudDate.toISOString() : (meta.cloudModifiedAt || null),
+                });
+                _setStatus('connected', '☁️ Already in sync');
+
+              } else if (action === 'download') {
+                Sync._applyCloud(cloudContent);
+                _saveBase(cloudData);
+                _saveMeta({ lastSync: new Date().toISOString(), lastFile: Drive.SYNC_FILENAME, cloudModifiedAt: cloudDate?.toISOString() });
+                _setStatus('connected', '☁️ Data updated from Drive ✓');
+
+              } else {
+                // upload ou merge: o resultado vai para o aparelho e para a nuvem
+                let incoming = 0;
+                if (action === 'merge') {
+                  const merged = _mergeLists(base, localData, cloudData, localMs >= cloudMs);
+                  // Quantas alterações vieram do outro aparelho (para o aviso)
+                  const L = new Map(localData.map(i => [i.id, i]));
+                  const M = new Set(merged.map(i => i.id));
+                  incoming = merged.filter(i => !L.has(i.id) || !_sameItem(i, L.get(i.id))).length +
+                    localData.filter(i => !M.has(i.id)).length;
+                  Sync._applyCloud(JSON.stringify({ savedAt: new Date().toISOString(), data: merged }), { silent: true });
+                }
+
+                // Lock desta sessão viaja embutido no payload (visível para OWNER e SHARED)
+                const uploadRaw = Drive.localPayloadWithLock() || Sync._localPayload();
+                await Drive.patchSyncFile(syncFileId, uploadRaw);
+                const uploaded = JSON.parse(uploadRaw);
+
+                // Confere se a nuvem ficou com a NOSSA versão: dois aparelhos podem ter
+                // lido e gravado ao mesmo tempo. Se outro gravou por cima, a base não
+                // avança — o próximo sync vê os dois lados mudados e mescla de novo.
+                let confirmed = true;
+                try {
+                  const check = JSON.parse(await Drive.downloadFile(syncFileId));
+                  confirmed = !!check && check.savedAt === uploaded.savedAt;
+                } catch (_) { /* sem como conferir: segue como antes */ }
+                if (confirmed) {
+                  _saveBase(uploaded.data);
+                  _verifyRetries = 0;
+                } else if (_verifyRetries < 2) {
+                  _verifyRetries++;
+                  _rerunAfterSync = true;
+                  console.warn('[DriveSync] another device wrote at the same time — merging again');
+                }
+
+                _saveMeta({
+                  lastSync: new Date().toISOString(),
+                  lastFile: Drive.SYNC_FILENAME,
+                  cloudModifiedAt: uploaded.savedAt,
+                  forceUpload: false,
+                });
+                _setStatus('connected', action === 'merge' && incoming > 0
+                  ? `☁️ ${incoming} change${incoming !== 1 ? 's' : ''} from another device merged ✓`
+                  : '☁️ Synced to Drive ✓');
+              }
+              console.log('[DriveSync] three-way done:', action, '| file', syncFileId);
             }
 
             // ── Sincroniza índice de perfis (cross-device discovery) ────────────
@@ -10898,6 +10972,8 @@
             // O sync pedido pelo switchProfile foi ignorado (_syncing) — roda agora
             // para a lista que o usuário escolheu.
             if (switched && Auth.isValid()) setTimeout(() => Sync.run('list-switched'), 0);
+            else if (_rerunAfterSync && Auth.isValid()) setTimeout(() => Sync.run('verify-retry'), 1500);
+            _rerunAfterSync = false;
           }
         },
       };
@@ -11027,6 +11103,88 @@
       // Getter lazy — reflete a lista do sync em curso, ou a ativa (após switchProfile())
       function _getSyncKey() { return _syncMetaKey(_syncSlug()); }
 
+      // ─── MESCLAGEM DE TRÊS VIAS ─────────────────────────────────────────────────
+      // Antes: a lista inteira com savedAt mais recente vencia (tolerância de 30 s) —
+      // edições do outro aparelho sumiam, gravações próximas ficavam divergentes e o
+      // relógio de cada aparelho decidia. Agora cada lista guarda a "base" (última
+      // versão sincronizada) e o sync compara base × local × nuvem item a item.
+      // Regras (decididas com o usuário):
+      //   • mudou de um lado só → vale esse lado; item novo → entra;
+      //   • excluído de um lado e intocado no outro → sai; editado no outro → fica;
+      //   • qty mudou dos dois lados → soma as variações (compras + consumo);
+      //   • outro campo mudou dos dois lados → vence o lado gravado por último.
+      function _baseKey() { return 'ShopList_syncBase_' + _syncSlug(); }
+
+      function _loadBase() {
+        try {
+          const b = JSON.parse(localStorage.getItem(_baseKey()) || 'null');
+          return b && Array.isArray(b.data) ? b.data : null;
+        } catch { return null; }
+      }
+
+      function _saveBase(data) {
+        try { localStorage.setItem(_baseKey(), JSON.stringify({ data: _cleanItems(data) })); } catch (_) { }
+      }
+
+      // Campos de sessão (_done, _doneAdd…) nunca entram na comparação nem no arquivo
+      function _cleanItems(list) {
+        return (list || []).map(it => {
+          const o = {};
+          Object.keys(it).forEach(k => { if (k.charAt(0) !== '_') o[k] = it[k]; });
+          return o;
+        });
+      }
+
+      function _sameValue(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+
+      function _sameItem(a, b) {
+        const keys = new Set([...Object.keys(a), ...Object.keys(b)].filter(k => k.charAt(0) !== '_'));
+        for (const k of keys) if (!_sameValue(a[k], b[k])) return false;
+        return true;
+      }
+
+      // Mesmo conteúdo, ignorando a ordem dos itens
+      function _sameList(a, b) {
+        if (a.length !== b.length) return false;
+        const mb = new Map(b.map(i => [i.id, i]));
+        return a.every(i => mb.has(i.id) && _sameItem(i, mb.get(i.id)));
+      }
+
+      function _mergeItem(b, l, c, localNewer) {
+        const out = {};
+        const keys = new Set([...Object.keys(l), ...Object.keys(c)].filter(k => k.charAt(0) !== '_'));
+        keys.forEach(k => {
+          if (!b) { out[k] = (localNewer ? (k in l ? l[k] : c[k]) : (k in c ? c[k] : l[k])); return; }
+          const lc = !_sameValue(l[k], b[k]);
+          const cc = !_sameValue(c[k], b[k]);
+          if (k === 'qty' && lc && cc) {
+            const bv = Number(b.qty) || 0;
+            out[k] = Math.max(0, bv + ((Number(l.qty) || 0) - bv) + ((Number(c.qty) || 0) - bv));
+          } else if (lc && cc) out[k] = localNewer ? l[k] : c[k];
+          else if (lc) out[k] = l[k];
+          else out[k] = c[k];
+        });
+        return out;
+      }
+
+      /** base pode ser null (primeira sync após a atualização): tudo vira "novo" —
+       *  itens de um lado só entram e itens dos dois lados ficam com o mais recente.
+       *  Ordem: a da lista local, com os itens só da nuvem no fim. */
+      function _mergeLists(base, local, cloud, localNewer) {
+        const B = new Map(_cleanItems(base || []).map(i => [i.id, i]));
+        const L = new Map(_cleanItems(local).map(i => [i.id, i]));
+        const C = new Map(_cleanItems(cloud).map(i => [i.id, i]));
+        const ids = [...L.keys(), ...[...C.keys()].filter(id => !L.has(id))];
+        const out = [];
+        ids.forEach(id => {
+          const b = B.get(id), l = L.get(id), c = C.get(id);
+          if (l && c) out.push(_mergeItem(b || null, l, c, localNewer));
+          else if (l) { if (!b || !_sameItem(l, b)) out.push(l); }   // nuvem excluiu: mantém se editado aqui
+          else if (c) { if (!b || !_sameItem(c, b)) out.push(c); }   // aqui excluído: mantém se editado lá
+        });
+        return out;
+      }
+
       /** Lê a meta de sync de qualquer slug sem alterar o estado do módulo.
        *  Usado por profileAddNew para herdar folderId do perfil anterior ao criar um novo. */
       function _readMetaOf(slug) {
@@ -11057,6 +11215,7 @@
       // stub que o módulo real está disponível e chamadas podem ser despachadas.
       window.DriveSync = {
         _ready: true,
+        _mergeLists,   // exposto para testes da mesclagem (função pura)
         /** Inicializa o módulo — chamado ao carregar o app */
         async init() {
           // ── Migração defensiva: limpa vínculos a arquivos versionados antigos ──
@@ -11383,7 +11542,7 @@
                 </span>
               </div>
               <div class="ds-parity__lock-note">
-                You may continue editing. The next sync will ask you to confirm which version to keep.
+                You may continue editing. The next sync merges the changes from both devices; if the same field was edited on both, the most recent save wins.
               </div>`;
               })()}
               ${!localSavedAt && meta.syncFileId ? `

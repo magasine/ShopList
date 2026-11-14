@@ -1256,15 +1256,28 @@ Share — Refill tab
         <li>a cada 5 minutos, enquanto está aberto;</li>
         <li>quando a internet volta.</li>
       </ul>
-      <p>Em cada sincronização, o app compara a hora em que a cópia do aparelho e a do Drive foram salvas. <b>A mais recente vence</b> e substitui a outra inteira. Durante a sincronização aparece <b class="um-ui">🔄 Syncing with Google Drive…</b>; depois, uma destas mensagens:</p>
+      <p>Em cada sincronização, o app compara a lista do aparelho e a do Drive com a versão da última sincronização, item a item, e <b>junta as alterações dos dois lados</b>:</p>
       <ul>
-        <li><b class="um-ui">☁️ Synced to Drive ✓</b>: a cópia do aparelho foi enviada;</li>
-        <li><b class="um-ui">☁️ Data updated from Drive ✓</b>: a cópia do Drive era mais nova e foi trazida;</li>
+        <li>um item mudou só num lado: vale essa mudança;</li>
+        <li>um item novo, de qualquer lado, entra na lista;</li>
+        <li>um item excluído num lado sai da lista, a menos que tenha sido editado no outro (aí ele fica, com a edição);</li>
+        <li>a quantidade atual (<b class="um-ui">current</b>) mudou nos dois lados: as variações se somam. Exemplo: havia 3; num aparelho alguém comprou 2 (ficou 5) e no outro alguém usou 1 (ficou 2). O resultado é 4;</li>
+        <li>outro campo do mesmo item (nome, descrição, mínimo, favorito, estoque) mudou nos dois lados: vale o que foi salvo por último.</li>
+      </ul>
+      <p>Durante a sincronização aparece <b class="um-ui">🔄 Syncing with Google Drive…</b>; depois, uma destas mensagens:</p>
+      <ul>
+        <li><b class="um-ui">☁️ Synced to Drive ✓</b>: as alterações do aparelho foram enviadas;</li>
+        <li><b class="um-ui">☁️ Data updated from Drive ✓</b>: havia alterações só no Drive, e elas foram trazidas;</li>
+        <li><b class="um-ui">☁️ N changes from another device merged ✓</b>: os dois lados tinham alterações, e elas foram juntadas;</li>
         <li><b class="um-ui">☁️ Already in sync</b>: as duas já eram iguais.</li>
       </ul>
-      <div class="um-box um-warn">
-        <span class="um-box-title">⚠️ Atenção</span>
-        <p>O app não junta alterações. Se duas pessoas (ou dois aparelhos) mudarem a lista ao mesmo tempo, vale a versão salva por último, e as mudanças da outra se perdem. Sincronize antes de editar e evite editar em dois lugares ao mesmo tempo.</p>
+      <div class="um-box um-note">
+        <span class="um-box-title">📝 Observação</span>
+        <p>Se a cópia do Drive não puder ser lida (por exemplo, sem internet no meio da sincronização), o app não envia nada por cima e mostra <b class="um-ui">⚠️ Drive sync failed: could not read the Drive copy — nothing was overwritten</b>. A próxima sincronização tenta de novo.</p>
+      </div>
+      <div class="um-box um-tip">
+        <span class="um-box-title">💡 Dica</span>
+        <p>Para evitar que o mesmo campo seja mudado em dois lugares, sincronize antes de editar. Todos os aparelhos que usam a lista precisam estar com a versão atual do app: uma versão antiga ainda substitui a lista inteira pela mais recente.</p>
       </div>
 
       <h3 id="painel-google-drive-sync">O painel Google Drive Sync</h3>
@@ -1287,10 +1300,10 @@ Share — Refill tab
       <h3 id="renovar-o-acesso">Renovar o acesso</h3>
       <p>Por segurança, o acesso que o Google concede vence a cada hora, mais ou menos. Quando isso acontece:</p>
       <ul>
-        <li>o pontinho do ícone do Drive fica cinza e os selos do cabeçalho somem;</li>
-        <li>a sincronização automática para, mas você continua usando o app normalmente.</li>
+        <li>o selo do cabeçalho vira <b class="um-ui">⚠ reconnect</b> e aparece a faixa <b class="um-ui">⚠️ Drive access expired — tap "reconnect" to keep syncing</b>;</li>
+        <li>a sincronização automática para, mas você continua usando o app normalmente. Ao editar, aparece <b class="um-ui">Saved on this device only — tap "reconnect" to sync</b>: as alterações ficam no aparelho e vão para o Drive quando você reconectar.</li>
       </ul>
-      <p>Para renovar, basta um toque:</p>
+      <p>Para renovar, basta um toque no selo <b class="um-ui">⚠ reconnect</b>. Outra forma:</p>
       <ol>
         <li>Toque no ícone do Drive, no rodapé.</li>
         <li>Toque em <b class="um-ui">Connect Google Drive</b>.</li>
@@ -1379,11 +1392,17 @@ Share — Refill tab
         <li>Toque no ícone de cilindro e em <b class="um-ui">⬆️ Import data</b>.</li>
         <li>Escolha o arquivo <code>.json</code>.</li>
       </ol>
+      <p>Abre a janela <b class="um-ui">Replace list?</b>, que mostra quantos itens a lista tem agora (<b class="um-ui">items now</b>) e quantos há no arquivo (<b class="um-ui">in the file</b>), e a data do backup.</p>
+      <ol start="4">
+        <li>Toque em <b class="um-ui">Replace</b> para importar, ou em <b class="um-ui">Cancel</b> para desistir.</li>
+      </ol>
       <p>Aparece <b class="um-ui">Data imported successfully</b>. Com o Drive conectado, aparece <b class="um-ui">Data imported — will overwrite the Drive copy on next sync</b>.</p>
       <div class="um-box um-warn">
         <span class="um-box-title">⚠️ Atenção</span>
-        <p>Importar substitui todos os itens da lista aberta pelos do arquivo. Os dados importados passam a contar como os mais recentes: com o Drive conectado, eles substituem a cópia do Drive na próxima sincronização.</p>
+        <p>Importar substitui todos os itens da lista aberta pelos do arquivo. Com o Drive conectado, a lista importada substitui a cópia do Drive na próxima sincronização, sem juntar alterações.</p>
       </div>
+      <h4>Desfazer a importação</h4>
+      <p>A lista que existia antes da importação fica guardada no aparelho. Para voltar a ela, toque no ícone de cilindro e em <b class="um-ui">↩️ Undo last import</b> (a opção só aparece depois de uma importação). Aparece <b class="um-ui">Previous list restored</b>.</p>
       <h4>Lembrete de backup</h4>
       <p>Depois de 10 alterações, aparece a faixa <b class="um-ui">💾 Many changes made — save a backup now!</b> Toque nela para exportar na hora (<b class="um-ui">Backup saved successfully!</b>) ou no <b class="um-ui">✕</b> para dispensá-la por alguns minutos.</p>
       <a class="um-top" href="#topo">↑ Topo</a>
@@ -1445,6 +1464,12 @@ Share — Refill tab
         <dt>Pontinho vermelho no ícone do Drive · ⚠️ Drive sync failed: …</dt>
         <dd>A última sincronização falhou. Verifique a internet e toque em <b class="um-ui">Sync now</b> no painel. Se o painel mostrar <b class="um-ui">⚪ Not connected</b>, o acesso venceu: toque em <b class="um-ui">Connect Google Drive</b>.</dd>
 
+        <dt>⚠ reconnect (selo no cabeçalho) · ⚠️ Drive access expired</dt>
+        <dd>O acesso ao Google venceu. Toque no selo <b class="um-ui">⚠ reconnect</b> para renovar. Até lá, as alterações ficam só no aparelho.</dd>
+
+        <dt>Saved list could not be read</dt>
+        <dd>A lista salva no aparelho estava danificada, e o app abriu com os itens de exemplo. O conteúdo original foi guardado: toque em <b class="um-ui">⬇️ Download unreadable data</b> para baixá-lo. Depois, restaure a lista por um backup (<b class="um-ui">⬆️ Import data</b>) ou pelo Google Drive.</dd>
+
         <dt>⚠️ No access — owner must share this file with your account</dt>
         <dd>O arquivo aparece para você, mas não foi compartilhado com a sua conta. Peça ao dono para compartilhar a pasta (ou o arquivo) com a sua conta Google, como <b>Editor</b>. Depois, sincronize de novo.</dd>
 
@@ -1491,7 +1516,7 @@ Share — Refill tab
         </details>
         <details>
           <summary>O que acontece se duas pessoas editarem ao mesmo tempo?</summary>
-          <div><p>Vale a versão salva por último, inteira; as mudanças da outra pessoa se perdem. Combinem quem edita e sincronizem antes de começar.</p></div>
+          <div><p>As alterações das duas são juntadas na sincronização: itens diferentes ficam com as duas mudanças, e as quantidades se somam. Só quando as duas mudam o mesmo campo do mesmo item (por exemplo, o nome) vale o que foi salvo por último. Veja <a href="#como-a-sincronizacao-funciona">Como funciona</a>.</p></div>
         </details>
         <details>
           <summary>Excluí um item por engano. Dá para desfazer?</summary>
@@ -1529,7 +1554,7 @@ Share — Refill tab
         <dt>Lista (perfil)</dt>
         <dd>Um conjunto separado de itens. Você pode ter várias e trocar entre elas pelo 🛒.</dd>
         <dt>Sincronizar</dt>
-        <dd>Comparar a cópia do aparelho com a do Google Drive e deixar as duas iguais, mantendo a mais recente.</dd>
+        <dd>Comparar a cópia do aparelho com a do Google Drive, juntar as alterações dos dois lados e deixar as duas iguais.</dd>
         <dt>Dono (owner) e convidado (shared)</dt>
         <dd>Dono é quem tem a lista no próprio Drive. Convidado é quem usa uma lista que o dono compartilhou.</dd>
         <dt>Seletor do Google (Google Picker)</dt>
@@ -1545,7 +1570,7 @@ Share — Refill tab
 
   <footer class="um-footer">
     <p><a href="./index.html">← Voltar ao app</a> · <a href="./privacy.html">Privacidade</a> · <a href="./terms.html">Termos de uso</a></p>
-    <p>Manual gerado em 14/11/2026 a partir da versão do app 20260721 r45 (cache shoplist-v20260721-r48).</p>
+    <p>Manual gerado em 14/11/2026 a partir da versão do app 20260721 r45 (cache shoplist-v20260721-r52).</p>
   </footer>
 </div>
 
