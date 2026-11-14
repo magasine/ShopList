@@ -584,6 +584,7 @@
                 <li><a href="#painel-google-drive-sync">O painel Google Drive Sync</a></li>
                 <li><a href="#renovar-o-acesso">Renovar o acesso</a></li>
                 <li><a href="#sincronizar-antes-de-editar">Sincronizar antes de editar</a></li>
+                <li><a href="#usar-sem-internet">Usar sem internet</a></li>
                 <li><a href="#compartilhar-com-outra-pessoa">Compartilhar com outra pessoa</a></li>
                 <li><a href="#selos-de-sincronizacao">Selos de sincronização</a></li>
                 <li><a href="#desconectar">Desconectar</a></li>
@@ -677,7 +678,7 @@
         <li><b class="um-ui">cancel</b>: para a contagem e deixa você escolher.</li>
       </ul>
       <h4>Select list</h4>
-      <p>Aparece quando você tem duas ou mais listas, para escolher qual abrir (veja <a href="#varias-listas">Várias listas</a>).</p>
+      <p>Aparece quando você tem duas ou mais listas, para escolher qual abrir (veja <a href="#varias-listas">Várias listas</a>). Depois que você escolhe uma lista ou fecha a janela, ela não aparece de novo ao reabrir o app durante 1 hora.</p>
 
       <h3 id="roteiro-rapido">Roteiro rápido</h3>
       <ol>
@@ -1303,7 +1304,7 @@ Share — Refill tab
         <li>o selo do cabeçalho vira <b class="um-ui">⚠ reconnect</b> e aparece a faixa <b class="um-ui">⚠️ Drive access expired — tap "reconnect" to keep syncing</b>;</li>
         <li>a sincronização automática para, mas você continua usando o app normalmente. Ao editar, aparece <b class="um-ui">Saved on this device only — tap "reconnect" to sync</b>: as alterações ficam no aparelho e vão para o Drive quando você reconectar.</li>
       </ul>
-      <p>Para renovar, basta um toque no selo <b class="um-ui">⚠ reconnect</b>. Outra forma:</p>
+      <p>Na maioria das vezes você não precisa fazer nada: com internet, o próximo toque em qualquer parte do app renova o acesso sozinho. Se a janela do Google for fechada ou falhar, o app espera 2 minutos antes de tentar de novo. Para renovar na hora, toque no selo <b class="um-ui">⚠ reconnect</b>. Outra forma:</p>
       <ol>
         <li>Toque no ícone do Drive, no rodapé.</li>
         <li>Toque em <b class="um-ui">Connect Google Drive</b>.</li>
@@ -1315,11 +1316,21 @@ Share — Refill tab
       </div>
 
       <h3 id="sincronizar-antes-de-editar">Sincronizar antes de editar</h3>
-      <p>Se a lista está ligada ao Drive, mas ainda não foi sincronizada desde que você abriu o app, a primeira alteração (como adicionar, editar ou mudar quantidades) abre a janela <b class="um-ui">Sync before editing?</b> com o aviso <b class="um-ui">⚠️ Cloud may have newer data</b>.</p>
+      <p>Se a lista está ligada ao Drive, mas ainda não foi sincronizada desde que você abriu o app, a primeira alteração (como adicionar, editar, favoritar, excluir ou mudar quantidades) sincroniza antes, sozinha: aparece <b class="um-ui">☁️ Syncing before editing…</b> e, terminada a sincronização, a alteração é aplicada.</p>
+      <p>Se a sincronização não for possível, abre a janela <b class="um-ui">Sync before editing?</b>:</p>
       <ul>
-        <li><b class="um-ui">☁️ Sync now (recommended)</b>: sincroniza primeiro. Aparece <b class="um-ui">☁️ Syncing — redo your edit afterwards</b>: depois, refaça a alteração.</li>
+        <li><b class="um-ui">☁️ Sync now (recommended)</b>: tenta de novo e, dando certo, aplica a alteração.</li>
         <li><b class="um-ui">Edit anyway</b>: faz a alteração sem sincronizar. O app não pergunta de novo até ser reaberto.</li>
       </ul>
+
+      <h3 id="usar-sem-internet">Usar sem internet</h3>
+      <p>Numa lista ligada ao Drive, a primeira alteração feita sem internet abre a janela <b class="um-ui">You're offline</b>:</p>
+      <ul>
+        <li><b class="um-ui">Work offline</b>: autoriza o uso sem conexão. As alterações ficam no aparelho e são juntadas à cópia do Drive quando a internet voltar. O app não pergunta de novo enquanto a conexão estiver fora.</li>
+        <li><b class="um-ui">Cancel</b>: desiste da alteração.</li>
+      </ul>
+      <p>Se a conexão cair de novo mais tarde, o app pede a autorização outra vez.</p>
+      <p>Na janela <b class="um-ui">Cloud sync</b>, ao abrir o app, <b class="um-ui">Work locally for now</b> também é uma escolha explícita: até você conectar pelo ícone do Drive ou pelo selo, o app não reconecta sozinho nem pergunta antes de editar.</p>
 
       <h3 id="compartilhar-com-outra-pessoa">Compartilhar com outra pessoa</h3>
       <p>Duas pessoas podem usar a mesma lista, cada uma com a sua conta Google. Quem criou a lista é o <b>dono</b> (<i>owner</i>); quem recebe é o <b>convidado</b> (<i>shared</i>).</p>
@@ -1570,7 +1581,7 @@ Share — Refill tab
 
   <footer class="um-footer">
     <p><a href="./index.html">← Voltar ao app</a> · <a href="./privacy.html">Privacidade</a> · <a href="./terms.html">Termos de uso</a></p>
-    <p>Manual gerado em 14/11/2026 a partir da versão do app 20260721 r45 (cache shoplist-v20260721-r52).</p>
+    <p>Manual gerado em 14/11/2026 a partir da versão do app 20260721 r45 (cache shoplist-v20260721-r53).</p>
   </footer>
 </div>
 

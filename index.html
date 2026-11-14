@@ -4849,15 +4849,79 @@
     window._editAnywayAck = false;  // usuário aceitou editar sem sync (1x por sessão)
     window._disarmEditGuard = function () { window._cloudStale = false; };
 
-    function _needsEditGuard() { return window._cloudStale && !window._editAnywayAck; }
+    // Uso sem rede numa lista vinculada exige autorização explícita (1x por período
+    // offline — o evento 'offline' rearma). Online, a edição sincroniza antes.
+    window._offlineAck = false;
+    window._localByChoice = false;  // "Work locally for now" no boot: sem reconexão automática
+    window.addEventListener('offline', () => { window._offlineAck = false; });
+
+    function _listLinkedAndWanted() {
+      try {
+        const m = JSON.parse(localStorage.getItem(_syncMetaKey(_currentSlug)) || '{}');
+        return !!m.syncFileId && localStorage.getItem('ShopList_driveWanted') === '1';
+      } catch { return false; }
+    }
+
+    function _needsEditGuard() {
+      // Offline: a autorização vale também para a lista ainda não sincronizada
+      // (sem rede não há como sincronizar antes — a mesclagem resolve na volta)
+      if (!navigator.onLine) return !window._offlineAck && (_listLinkedAndWanted() || window._cloudStale);
+      return window._cloudStale && !window._editAnywayAck;
+    }
 
     function _startCloudSync() {
       try { DriveSync.connect(); } catch (_) { }
     }
 
     // Estado C — interceptação do primeiro gesto de edição pré-sync.
-    // retryFn: o gesto original, re-executado se o usuário escolher "Edit anyway".
+    // Modo conectado como prioridade:
+    //   • sem rede → pede autorização explícita para usar offline;
+    //   • com rede → conecta/sincroniza sozinho e reaplica o gesto (retryFn);
+    //     só se isso falhar cai no modal "Sync before editing?".
     function openEditGuardModal(retryFn) {
+      if (!navigator.onLine) return _openOfflineConsent(retryFn);
+      if (window.DriveSync && typeof window.DriveSync.ensureSynced === 'function' && !window._guardSyncing) {
+        window._guardSyncing = true;
+        toast('☁️ Syncing before editing…');
+        window.DriveSync.ensureSynced().then(ok => {
+          window._guardSyncing = false;
+          if (ok) { if (typeof retryFn === 'function') retryFn(); }
+          else _openEditGuardFallback(retryFn);
+        });
+        return;
+      }
+      if (window._guardSyncing) return;   // já sincronizando por um toque anterior
+      _openEditGuardFallback(retryFn);
+    }
+
+    function _openOfflineConsent(retryFn) {
+      const _label = Profiles.labelOf(_currentSlug);
+      openModal(`
+        <div class="modal-header">
+          <div class="modal-title">You're offline</div>
+          <div class="modal-sub">📋 ${esc(_label)} · linked</div>
+        </div>
+        <div class="modal-body">
+          <div class="guard-banner">
+            <b>📴 No connection to Google Drive</b>
+            Changes will be saved on this device only and merged with the
+            Drive copy when the connection returns.
+          </div>
+        </div>
+        <div class="modal-foot modal-foot--col">
+          <div class="modal-btn confirm" id="offline-ok">Work offline</div>
+          <div class="modal-btn cancel" onclick="closeModal()">Cancel</div>
+        </div>
+      `);
+      const b = document.getElementById('offline-ok');
+      if (b) b.onclick = () => {
+        window._offlineAck = true;
+        closeModal();
+        if (typeof retryFn === 'function') retryFn();
+      };
+    }
+
+    function _openEditGuardFallback(retryFn) {
       const _p = typeof _currentSlug !== 'undefined' ? _currentSlug : 'default';
       const _label = typeof Profiles !== 'undefined' ? Profiles.labelOf(_p) : _p;
       openModal(`
@@ -4882,8 +4946,7 @@
       const bEdit = document.getElementById('guard-edit');
       if (bSync) bSync.onclick = () => {
         closeModal();
-        toast('☁️ Syncing — redo your edit afterwards');
-        _startCloudSync();
+        openEditGuardModal(retryFn);   // tenta de novo (agora com o toque deste botão) e reaplica a edição
       };
       if (bEdit) bEdit.onclick = () => {
         window._editAnywayAck = true;   // não pergunta de novo nesta sessão
@@ -5252,8 +5315,8 @@
         </div>
         <div class="modal-foot modal-foot--col">
           <div class="modal-btn confirm" id="cf-sync">☁️ Sync now</div>
-          <div class="modal-btn cancel" id="cf-local">Work locally for now</div>
-          <div class="cf-count" id="cf-note">Syncing automatically in <b id="cf-num">5</b>s · <span class="cf-cancel" id="cf-cancel">cancel</span></div>
+          <div class="modal-btn cancel" id="cf-local" data-no-autoconnect>Work locally for now</div>
+          <div class="cf-count" id="cf-note">Syncing automatically in <b id="cf-num">5</b>s · <span class="cf-cancel" id="cf-cancel" data-no-autoconnect>cancel</span></div>
         </div>
       `);
 
@@ -5288,7 +5351,10 @@
         clearInterval(iv);
         closeModal();
         toast('Working locally — sync anytime via ☁️');
-        // _cloudStale permanece armado: o edit guard cobre esta sessão
+        // Escolha explícita de usar sem sync: sem reconexão automática e sem o edit
+        // guard nesta sessão (até o usuário conectar pelo ☁️ ou pelo selo)
+        window._localByChoice = true;
+        window._editAnywayAck = true;
       };
       if (bCancel) bCancel.onclick = _stopCount;
     }
@@ -6776,6 +6842,17 @@
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) updateSyncBadge();
     });
+
+    // Modo conectado como prioridade: qualquer toque na UI reconecta ao Drive se o
+    // acesso venceu (DriveSync.autoConnect decide se é o caso). Fase de captura:
+    // roda antes do handler do elemento e não interfere nele. Fica de fora o painel
+    // do Drive (onde o usuário gerencia a conexão, inclusive "Disconnect"), o manual
+    // e elementos marcados com data-no-autoconnect.
+    document.addEventListener('click', e => {
+      if (e.target.closest && e.target.closest('[data-no-autoconnect], #overlay.has-drive-panel, #manual-overlay')) return;
+      if (window.DriveSync && window.DriveSync._ready && typeof window.DriveSync.autoConnect === 'function')
+        window.DriveSync.autoConnect();
+    }, true);
 
     function updateFooter() {
       const addBtn = document.getElementById('add-btn');
@@ -9133,7 +9210,14 @@
     });
 
     // ==================== SELETOR DE PERFIL ====================
+    // Quando o usuário confirmou a lista pela última vez (escolheu ou fechou o "Select list")
+    const PROFILE_CONFIRMED_KEY = 'ShopList_profileConfirmedAt';
+    function _markProfileConfirmed() {
+      try { localStorage.setItem(PROFILE_CONFIRMED_KEY, String(Date.now())); } catch (_) { }
+    }
+
     function closeProfileModal() {
+      _markProfileConfirmed();
       document.getElementById('profile-modal').classList.remove('open');
       const input = document.getElementById('profile-new-input');
       if (input) { input.value = ''; profileNewInputChange(input); }
@@ -9266,6 +9350,7 @@
     }
 
     function _profilePick(slug) {
+      _markProfileConfirmed();
       const modal = document.getElementById('profile-modal');
       modal.classList.remove('open');
 
@@ -9494,8 +9579,15 @@
     // CORRIGIDO: variável estava referenciada sem ser declarada (ReferenceError
     // interrompia o script antes de render(), deixando a UI sem dados).
     const _bootProfiles = Profiles.list();
-    if (_bootProfiles.length > 1) {
-      // 2+ perfis: exibe seletor de confirmação logo após o primeiro render
+    // 2+ perfis: exibe seletor de confirmação logo após o primeiro render — mas não
+    // se a lista foi confirmada há menos de 1 h. Recargas (atualização, retorno da
+    // janela do Google no app instalado, Android recriando o app) reabriam o modal
+    // logo depois de o usuário ter passado por ele.
+    const _profileConfirmedRecently = (() => {
+      try { return Date.now() - (Number(localStorage.getItem(PROFILE_CONFIRMED_KEY)) || 0) < 60 * 60 * 1000; }
+      catch { return false; }
+    })();
+    if (_bootProfiles.length > 1 && !_profileConfirmedRecently) {
       requestAnimationFrame(() => openProfileModal());
     }
 
@@ -9564,6 +9656,7 @@
     let newWorker = null;
 
     let _swReloading = false;   // guarda contra reload em loop
+    let _updateRequested = false;   // usuário tocou em "Update" (applyUpdate)
 
     function _showUpdateBanner() {
       const b = document.getElementById('update-banner');
@@ -9608,12 +9701,17 @@
       // Quando o SW novo tomar controle, recarrega UMA única vez
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (_swReloading) return;   // impede o loop de reloads
+        // Só recarrega se o usuário pediu a atualização ("Update"). Na 1ª visita o
+        // sw.js chama clients.claim() e o controllerchange disparava um reload
+        // sozinho segundos depois — o "Select list" do boot aparecia de novo.
+        if (!_updateRequested) return;
         _swReloading = true;
         window.location.reload();
       });
     }
 
     function applyUpdate() {
+      _updateRequested = true;
       // Esconde o banner imediatamente para feedback visual ao clique
       const b = document.getElementById('update-banner');
       if (b) b.classList.remove('visible');
@@ -9780,6 +9878,8 @@
       let _runSlug = null;
       let _expiryTimer = null;      // dispara o aviso de acesso expirado (Auth._armExpiryNotice)
       let _unsyncedNoticeAt = 0;    // último aviso "salvo só neste aparelho" (afterSave)
+      let _tokenPromise = null;     // pedido de token em andamento (Auth.requestToken)
+      let _autoConnectFailedAt = 0; // última reconexão automática que falhou/foi fechada
       let _rerunAfterSync = false;  // outro aparelho gravou junto: mesclar de novo ao terminar
       let _verifyRetries = 0;       // limita essas novas tentativas (evita laço)
       let _btnEl = null;
@@ -9882,6 +9982,14 @@
 
         /** Dispara o popup OAuth do Google Identity Services */
         requestToken() {
+          // Uma janela do Google por vez: a reconexão automática (toque em qualquer
+          // lugar) e o edit guard podem pedir no mesmo gesto — reaproveita o pedido
+          if (_tokenPromise) return _tokenPromise;
+          _tokenPromise = Auth._requestTokenOnce().finally(() => { _tokenPromise = null; });
+          return _tokenPromise;
+        },
+
+        _requestTokenOnce() {
           return new Promise((resolve, reject) => {
             if (typeof google === 'undefined' || !google.accounts) {
               reject(new Error('Google Identity Services não carregado'));
@@ -11598,18 +11706,56 @@
         `);
         },
 
-        async connect() {
+        /** silent: reconexão automática — sem toasts de sucesso/erro (só o status) */
+        async connect({ silent = false } = {}) {
+          if (!silent) window._localByChoice = false;   // conectar explicitamente encerra o modo local
           try {
             await Auth.ensureToken();
             _setStatus('connected', '☁️ Drive connected');
             _startTimer();
-            if (typeof toast === 'function') toast('✅ Google Drive connected');
+            if (!silent && typeof toast === 'function') toast('✅ Google Drive connected');
             await Sync.run('manual');
+            return true;
           } catch (e) {
             _setStatus('error', '⚠️ Could not connect to Drive');
-            if (typeof toast === 'function') toast('❌ Drive connection failed');
+            if (!silent && typeof toast === 'function') toast('❌ Drive connection failed');
             console.error('[DriveSync] connect error:', e);
+            return false;
           }
+        },
+
+        /** Modo conectado como prioridade: chamado a cada toque na UI (listener de
+         *  captura no script 1). O toque é o gesto que o navegador exige para abrir a
+         *  janela do Google; com a conta lembrada (login_hint) ela fecha sozinha.
+         *  Só age se o usuário quer sincronizar (não desconectou), a lista está
+         *  vinculada, o acesso está vencido e há rede. Se a janela falhar ou for
+         *  fechada, espera 2 min antes de tentar de novo — não insiste a cada toque. */
+        autoConnect() {
+          if (Auth.isValid() || _tokenPromise) return;
+          if (!navigator.onLine || window._localByChoice) return;
+          if (localStorage.getItem(WANTED_KEY) !== '1') return;
+          const meta = _loadMeta();
+          if (!meta.syncFileId && !meta.folderId) return;
+          if (Date.now() - _autoConnectFailedAt < 2 * 60 * 1000) return;
+          console.log('[DriveSync] auto-reconnect on user tap');
+          window.DriveSync.connect({ silent: true }).then(ok => {
+            if (!ok) _autoConnectFailedAt = Date.now();
+          });
+        },
+
+        /** Edit guard online: garante acesso + sync da lista antes de aplicar a edição.
+         *  Retorna true se a lista ficou em dia com a nuvem. */
+        async ensureSynced() {
+          try {
+            await Auth.ensureToken();
+          } catch (e) {
+            console.warn('[DriveSync] ensureSynced: no token', e);
+            return false;
+          }
+          _startTimer();
+          while (_syncing) await new Promise(r => setTimeout(r, 200));   // sync em curso
+          if (window._cloudStale) await Sync.run('before-edit');
+          return !window._cloudStale;
         },
 
         disconnect() {
