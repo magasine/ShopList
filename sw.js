@@ -7,7 +7,7 @@
    detecte a mudança e dispare o fluxo de atualização no cliente.
    ────────────────────────────────────────────────────────────────────────── */
 
-const CACHE_VERSION = 'shoplist-v20260721-r47';   // ← incremente a cada release: v5, v6, ...
+const CACHE_VERSION = 'shoplist-v20260721-r48';   // ← incremente a cada release: v5, v6, ...
 const CACHE_NAME     = CACHE_VERSION;
 
 // Cache PRÓPRIO para fontes — desacoplado do CACHE_VERSION porque fontes
@@ -19,6 +19,7 @@ const FONT_CACHE = 'shoplist-fonts-v1';
 const PRECACHE_URLS = [
   './',
   './index.html',
+  './manual.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',

@@ -1,0 +1,1681 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Manual do usuário · Shop List</title>
+  <meta name="theme-color" content="#00796B">
+  <!--
+    Tema: abre no mesmo tema do app (localStorage 'Shop_List_theme' = 'light' | 'dark').
+    Sem preferência salva, vale prefers-color-scheme do sistema.
+    Modo embutido: ?embed=1 ou classe um-embed no <html>.
+    fonte: index.html (script anti-flash de tema, THEME_KEY, syncThemeColor)
+  -->
+  <script>
+    (function () {
+      var root = document.documentElement;
+      root.classList.add('um-js');
+      try {
+        var t = localStorage.getItem('Shop_List_theme');
+        if (t === 'light' || t === 'dark') root.setAttribute('data-theme', t);
+      } catch (e) { }
+      try {
+        if (new URLSearchParams(location.search).get('embed') === '1') root.classList.add('um-embed');
+      } catch (e) { }
+      function themeColor() {
+        var forced = root.getAttribute('data-theme');
+        var dark = forced ? forced === 'dark'
+          : (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+        var m = document.querySelector('meta[name="theme-color"]');
+        if (m) m.setAttribute('content', dark ? '#0E1621' : '#00796B');
+      }
+      themeColor();
+    })();
+  </script>
+  <style>
+    /* ── Tokens: mesmos valores do :root e [data-theme="dark"] do index.html ── */
+    .um-manual {
+      --um-bg: #F2F5F8;
+      --um-surface: #FFFFFF;
+      --um-surface2: #EBF0F5;
+      --um-border: #CDD8E0;
+      --um-border2: #AABBC8;
+      --um-text: #0D1B2A;
+      --um-text2: #4A6070;
+      --um-accent: #00796B;
+      --um-accent-light: #E0F2F1;
+      --um-accent-text: #004D40;
+      --um-warn: #B45309;
+      --um-warn-text: #92400E; /* ajuste do manual: reforça contraste do título sobre --um-warn-light */
+      --um-warn-light: #FEF3C7;
+      --um-crit: #C62828;
+      --um-crit-light: #FFEBEE;
+      --um-purple: #5C6BC0;
+      --um-purple-light: #EEF0FB;
+      --um-purple-text: #283593;
+      --um-header-bg: linear-gradient(135deg, #E4EEF5 0%, #EBF3F8 45%, #E2EBF5 100%);
+      --um-header-border: rgba(0, 121, 107, 0.14);
+      --um-radius: 10px;
+      --um-radius-lg: 16px;
+      --um-header-h: 56px;
+      /* altura da barra fixa do índice no celular (busca + ☰ Índice); o JS mede a real */
+      --um-toc-h: 106px;
+      color-scheme: light;
+    }
+
+    html[data-theme="dark"] .um-manual {
+      --um-bg: #0E1621;
+      --um-surface: #162030;
+      --um-surface2: #1E2D3E;
+      --um-border: #2B3D52;
+      --um-border2: #3C5268;
+      --um-text: #E6EFF6;
+      --um-text2: #7AABC6;
+      --um-accent: #26C6BA;
+      --um-accent-light: #0A2826;
+      --um-accent-text: #80DEDB;
+      --um-warn: #FFB300;
+      --um-warn-text: #FFB300;
+      --um-warn-light: #261C00;
+      --um-crit: #EF5350;
+      --um-crit-light: #2A0808;
+      --um-purple: #8C92F0;
+      --um-purple-light: #1E2148;
+      --um-purple-text: #C5C8FF;
+      --um-header-bg: linear-gradient(135deg, #0E1820 0%, #122030 50%, #0E1620 100%);
+      --um-header-border: rgba(38, 198, 186, 0.15);
+      color-scheme: dark;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      html:not([data-theme="light"]) .um-manual {
+        --um-bg: #0E1621;
+        --um-surface: #162030;
+        --um-surface2: #1E2D3E;
+        --um-border: #2B3D52;
+        --um-border2: #3C5268;
+        --um-text: #E6EFF6;
+        --um-text2: #7AABC6;
+        --um-accent: #26C6BA;
+        --um-accent-light: #0A2826;
+        --um-accent-text: #80DEDB;
+        --um-warn: #FFB300;
+        --um-warn-text: #FFB300;
+        --um-warn-light: #261C00;
+        --um-crit: #EF5350;
+        --um-crit-light: #2A0808;
+        --um-purple: #8C92F0;
+        --um-purple-light: #1E2148;
+        --um-purple-text: #C5C8FF;
+        --um-header-bg: linear-gradient(135deg, #0E1820 0%, #122030 50%, #0E1620 100%);
+        --um-header-border: rgba(38, 198, 186, 0.15);
+        color-scheme: dark;
+      }
+    }
+
+    html.um-embed .um-manual { --um-header-h: 0px; }
+
+    /* Fundo da página (o corpo só recebe estilo quando contém o manual) */
+    body:has(> .um-manual) { margin: 0; background: #F2F5F8; }
+    html[data-theme="dark"] body:has(> .um-manual) { background: #0E1621; }
+    @media (prefers-color-scheme: dark) {
+      html:not([data-theme="light"]) body:has(> .um-manual) { background: #0E1621; }
+    }
+
+    /* ── Base ── */
+    .um-manual {
+      min-height: 100vh;
+      background: var(--um-bg);
+      color: var(--um-text);
+      font-family: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+      overflow-wrap: anywhere;
+    }
+    .um-manual *, .um-manual *::before, .um-manual *::after { box-sizing: border-box; }
+
+    @media (prefers-reduced-motion: no-preference) {
+      html:has(.um-manual) { scroll-behavior: smooth; }
+    }
+
+    .um-manual a { color: var(--um-accent); text-underline-offset: 2px; }
+    .um-manual a:hover { color: var(--um-accent-text); }
+    .um-manual :focus-visible {
+      outline: 2px solid var(--um-accent);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+
+    /* Pular para o conteúdo */
+    .um-manual .um-skip {
+      position: absolute;
+      left: -9999px;
+      top: 8px;
+      z-index: 100;
+      background: var(--um-surface);
+      color: var(--um-accent-text);
+      padding: 8px 14px;
+      border-radius: var(--um-radius);
+      border: 2px solid var(--um-accent);
+      font-weight: 600;
+    }
+    .um-manual .um-skip:focus { left: 8px; }
+
+    /* ── Cabeçalho ── */
+    .um-manual .um-header {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      height: var(--um-header-h);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 16px;
+      background: var(--um-header-bg);
+      border-bottom: 1px solid var(--um-header-border);
+    }
+    .um-manual .um-brand {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      line-height: 1.2;
+      min-width: 0;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .um-manual .um-brand span { font-weight: 400; opacity: 0.75; }
+    .um-manual .um-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: var(--um-accent);
+      color: #FFFFFF;
+      font-weight: 600;
+      font-size: 14px;
+      text-decoration: none;
+      min-height: 40px;
+    }
+    html[data-theme="dark"] .um-manual .um-back { color: #062521; }
+    @media (prefers-color-scheme: dark) {
+      html:not([data-theme="light"]) .um-manual .um-back { color: #062521; }
+    }
+    .um-manual .um-back:hover { color: #FFFFFF; filter: brightness(1.08); }
+    html.um-embed .um-manual .um-header,
+    html.um-embed .um-manual .um-footer { display: none; }
+
+    /* ── Layout ── */
+    .um-manual .um-layout { display: block; }
+
+    /* Índice */
+    /* Barra do índice (busca + ☰ Índice) presa logo abaixo do cabeçalho ao rolar */
+    .um-manual .um-toc {
+      position: sticky;
+      top: var(--um-header-h);
+      z-index: 15;
+      background: var(--um-surface);
+      border-bottom: 1px solid var(--um-border);
+    }
+    .um-manual .um-toc-bar { padding: 10px 16px 0; }
+    .um-manual .um-toc-bar .um-toc-search { margin: 0; }
+    /* Índice aberto no celular: a lista rola por dentro, a busca continua visível */
+    .um-manual .um-toc details[open] > .um-toc-body {
+      max-height: calc(100vh - var(--um-header-h) - var(--um-toc-h) - 16px);
+      max-height: calc(100dvh - var(--um-header-h) - var(--um-toc-h) - 16px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+    .um-manual .um-toc details > summary {
+      list-style: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      font-weight: 700;
+      color: var(--um-accent-text);
+      min-height: 48px;
+    }
+    .um-manual .um-toc details > summary::-webkit-details-marker { display: none; }
+    .um-manual .um-toc details > summary::after {
+      content: '▾';
+      margin-left: auto;
+      transition: transform 0.16s;
+    }
+    .um-manual .um-toc details[open] > summary::after { transform: rotate(180deg); }
+    .um-manual .um-toc-body { padding: 0 16px 16px; }
+    .um-manual .um-toc-search {
+      width: 100%;
+      font: inherit;
+      font-size: 16px;
+      padding: 10px 12px;
+      margin: 4px 0 10px;
+      border: 1.5px solid var(--um-border);
+      border-radius: var(--um-radius);
+      background: var(--um-bg);
+      color: var(--um-text);
+    }
+    .um-manual .um-toc-search::placeholder { color: var(--um-text2); }
+    .um-manual .um-toc-empty { color: var(--um-text2); font-size: 14px; margin: 4px 0; }
+    .um-manual .um-toc ol { list-style: none; margin: 0; padding: 0; }
+    .um-manual .um-toc ol ol { padding-left: 14px; margin: 2px 0 6px; border-left: 2px solid var(--um-border); }
+    .um-manual .um-toc a {
+      display: block;
+      padding: 6px 10px;
+      border-radius: 8px;
+      text-decoration: none;
+      color: var(--um-text);
+      font-size: 15px;
+      line-height: 1.35;
+    }
+    .um-manual .um-toc ol ol a { font-size: 14px; color: var(--um-text2); padding: 4px 10px; }
+    .um-manual .um-toc a:hover { background: var(--um-surface2); color: var(--um-text); }
+    .um-manual .um-toc a.um-active {
+      background: var(--um-accent-light);
+      color: var(--um-accent-text);
+      font-weight: 700;
+    }
+    .um-manual .um-toc li[hidden] { display: none; }
+
+    /* Conteúdo */
+    .um-manual .um-content {
+      max-width: 72ch;
+      margin: 0 auto;
+      padding: 16px 16px 48px;
+    }
+    .um-manual h1 {
+      font-size: 26px;
+      line-height: 1.25;
+      margin: 8px 0 8px;
+      letter-spacing: -0.4px;
+    }
+    .um-manual .um-lead { color: var(--um-text2); font-size: 17px; margin: 0 0 16px; }
+    .um-manual h2 {
+      font-size: 22px;
+      line-height: 1.3;
+      margin: 40px 0 12px;
+      padding-top: 16px;
+      border-top: 2px solid var(--um-border);
+      letter-spacing: -0.2px;
+    }
+    .um-manual h3 {
+      font-size: 18px;
+      line-height: 1.35;
+      margin: 28px 0 8px;
+      color: var(--um-accent-text);
+    }
+    .um-manual h4 { font-size: 16px; margin: 18px 0 6px; }
+    .um-manual h2, .um-manual h3, .um-manual h4 {
+      /* desconta o cabeçalho e a barra fixa do índice (busca + ☰ Índice) */
+      scroll-margin-top: calc(var(--um-header-h) + var(--um-toc-h) + 12px);
+    }
+    .um-manual p { margin: 0 0 12px; }
+    .um-manual ul, .um-manual .um-content ol { margin: 0 0 14px; padding-left: 24px; }
+    .um-manual li { margin: 4px 0; }
+    .um-manual li > ul, .um-manual li > ol { margin: 4px 0; }
+
+    /* Rótulos da interface */
+    .um-manual .um-ui {
+      font-weight: 700;
+      color: var(--um-accent-text);
+      background: var(--um-accent-light);
+      padding: 0 5px;
+      border-radius: 5px;
+      white-space: nowrap;
+    }
+    .um-manual code, .um-manual kbd {
+      font-family: 'DM Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.92em;
+      background: var(--um-surface2);
+      border: 1px solid var(--um-border);
+      border-radius: 5px;
+      padding: 0 4px;
+    }
+    .um-manual kbd { border-bottom-width: 2px; }
+    .um-manual pre {
+      font-family: 'DM Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 14px;
+      background: var(--um-surface2);
+      border: 1px solid var(--um-border);
+      border-radius: var(--um-radius);
+      padding: 12px 14px;
+      overflow-x: auto;
+      white-space: pre;
+      overflow-wrap: normal;
+      margin: 0 0 14px;
+    }
+
+    /* Caixas de destaque: cor + ícone + palavra */
+    .um-manual .um-box {
+      border-left: 4px solid;
+      border-radius: var(--um-radius);
+      padding: 10px 14px;
+      margin: 14px 0;
+    }
+    .um-manual .um-box > :last-child { margin-bottom: 0; }
+    .um-manual .um-box-title { display: block; font-weight: 800; margin-bottom: 2px; }
+    .um-manual .um-tip { background: var(--um-accent-light); border-color: var(--um-accent); }
+    .um-manual .um-tip .um-box-title { color: var(--um-accent-text); }
+    .um-manual .um-warn { background: var(--um-warn-light); border-color: var(--um-warn); }
+    .um-manual .um-warn .um-box-title { color: var(--um-warn-text); }
+    .um-manual .um-note { background: var(--um-purple-light); border-color: var(--um-purple); }
+    .um-manual .um-note .um-box-title { color: var(--um-purple-text); }
+
+    /* Tabelas */
+    .um-manual .um-table-wrap { overflow-x: auto; margin: 0 0 14px; }
+    .um-manual table { border-collapse: collapse; width: 100%; font-size: 15px; }
+    .um-manual th, .um-manual td {
+      border: 1px solid var(--um-border);
+      padding: 7px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .um-manual th { background: var(--um-surface2); }
+
+    /* Perguntas frequentes */
+    .um-manual .um-faq details {
+      border: 1px solid var(--um-border);
+      border-radius: var(--um-radius);
+      background: var(--um-surface);
+      margin: 8px 0;
+    }
+    .um-manual .um-faq summary {
+      cursor: pointer;
+      padding: 10px 14px;
+      font-weight: 700;
+      min-height: 44px;
+    }
+    .um-manual .um-faq details > div { padding: 0 14px 10px; }
+
+    .um-manual dl { margin: 0 0 14px; }
+    .um-manual dt { font-weight: 700; margin-top: 10px; }
+    .um-manual dd { margin: 2px 0 0 0; color: var(--um-text); }
+
+    .um-manual .um-top {
+      display: inline-block;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+
+    /* Rodapé */
+    .um-manual .um-footer {
+      border-top: 1px solid var(--um-border);
+      background: var(--um-header-bg);
+      color: var(--um-text2);
+      font-size: 14px;
+      padding: 16px;
+      text-align: center;
+    }
+    .um-manual .um-footer p { margin: 4px 0; }
+
+    /* ── Computador ── */
+    @media (min-width: 900px) {
+      .um-manual .um-layout {
+        display: grid;
+        grid-template-columns: 290px minmax(0, 1fr);
+        align-items: start;
+      }
+      .um-manual {
+        --um-toc-h: 0px;
+      }
+      /* Barra lateral: busca fixa no topo, só a lista de tópicos rola */
+      .um-manual .um-toc {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - var(--um-header-h));
+        overflow: hidden;
+        border-bottom: none;
+        border-right: 1px solid var(--um-border);
+      }
+      .um-manual .um-toc-bar { flex-shrink: 0; padding: 16px 16px 10px; }
+      .um-manual .um-toc details {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+      }
+      .um-manual .um-toc details[open] > .um-toc-body { max-height: none; overflow: visible; }
+      html.um-js .um-manual .um-toc details > summary { display: none; }
+      .um-manual .um-content { padding: 24px 40px 64px; margin: 0; }
+      .um-manual h1 { font-size: 30px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .um-manual *, .um-manual *::before, .um-manual *::after {
+        transition: none !important;
+        animation: none !important;
+      }
+    }
+
+    /* ── Impressão ── */
+    @media print {
+      body:has(> .um-manual) { background: #FFFFFF; }
+      .um-manual { background: #FFFFFF; color: #000000; min-height: 0; }
+      .um-manual .um-toc,
+      .um-manual .um-back,
+      .um-manual .um-skip,
+      .um-manual .um-top { display: none !important; }
+      .um-manual .um-header { position: static; background: none; border-bottom: 1px solid #999; }
+      .um-manual .um-layout { display: block; }
+      .um-manual .um-content { max-width: none; padding: 0; }
+      .um-manual a { color: #000000; }
+      .um-manual a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 0.85em; }
+      .um-manual h2, .um-manual h3 { break-after: avoid; }
+      .um-manual .um-box, .um-manual pre, .um-manual table { break-inside: avoid; }
+      .um-manual .um-faq details > div { display: block; }
+    }
+  </style>
+</head>
+<body>
+<div class="um-manual">
+  <a class="um-skip" href="#conteudo">Pular para o conteúdo</a>
+
+  <header class="um-header" id="topo">
+    <p class="um-brand">Shop List <span>· Manual do usuário</span></p>
+    <a class="um-back" href="./index.html" aria-label="Voltar ao app Shop List">← Voltar ao app</a>
+  </header>
+
+  <div class="um-layout">
+    <nav class="um-toc" aria-label="Índice">
+      <!-- Busca FORA do <details>: fica sempre visível, presa no topo ao rolar -->
+      <div class="um-toc-bar">
+        <label for="um-toc-search" class="um-skip">Buscar no manual</label>
+        <input id="um-toc-search" class="um-toc-search" type="search" placeholder="Buscar no manual…" autocomplete="off" hidden>
+      </div>
+      <details id="um-toc-details">
+        <summary>☰ Índice</summary>
+        <div class="um-toc-body">
+          <p class="um-toc-empty" id="um-toc-empty" hidden>Nenhum tópico encontrado.</p>
+          <ol id="um-toc-list">
+            <li><a href="#o-que-e-o-shop-list">1. O que é o Shop List</a>
+              <ol>
+                <li><a href="#o-semaforo-do-estoque">O semáforo do estoque</a></li>
+              </ol>
+            </li>
+            <li><a href="#requisitos-e-acesso">2. Requisitos e acesso</a></li>
+            <li><a href="#primeiros-passos">3. Primeiros passos</a>
+              <ol>
+                <li><a href="#a-lista-de-exemplo">A lista de exemplo</a></li>
+                <li><a href="#janelas-ao-abrir-o-app">Janelas ao abrir o app</a></li>
+                <li><a href="#roteiro-rapido">Roteiro rápido</a></li>
+              </ol>
+            </li>
+            <li><a href="#instalar-o-app">4. Instalar o app</a>
+              <ol>
+                <li><a href="#instalar-no-android">Android</a></li>
+                <li><a href="#instalar-no-iphone-e-ipad">iPhone e iPad</a></li>
+                <li><a href="#instalar-no-computador">Computador</a></li>
+                <li><a href="#atalhos-do-icone">Atalhos do ícone</a></li>
+                <li><a href="#atualizar-o-app">Atualizar o app</a></li>
+              </ol>
+            </li>
+            <li><a href="#a-tela-do-app">5. A tela do app</a>
+              <ol>
+                <li><a href="#cabecalho">Cabeçalho</a></li>
+                <li><a href="#abas">Abas All, Stock e Refill</a></li>
+                <li><a href="#rodape">Rodapé</a></li>
+                <li><a href="#avisos">Avisos e mensagens</a></li>
+              </ol>
+            </li>
+            <li><a href="#cadastrar-itens">6. Cadastrar itens (aba All)</a>
+              <ol>
+                <li><a href="#adicionar-um-item">Adicionar um item</a></li>
+                <li><a href="#descricao-unidades-e-etiquetas">Descrição, unidades e etiquetas</a></li>
+                <li><a href="#editar-um-item">Editar um item</a></li>
+                <li><a href="#colocar-ou-tirar-do-estoque">Colocar ou tirar do estoque</a></li>
+                <li><a href="#excluir-um-item">Excluir um item</a></li>
+                <li><a href="#padronizar-unidades">Padronizar unidades</a></li>
+              </ol>
+            </li>
+            <li><a href="#controlar-o-estoque">7. Controlar o estoque (aba Stock)</a>
+              <ol>
+                <li><a href="#ajustar-quantidades">Ajustar quantidades</a></li>
+                <li><a href="#compartilhar-o-inventario">Compartilhar o inventário</a></li>
+              </ol>
+            </li>
+            <li><a href="#fazer-compras">8. Fazer compras (aba Refill)</a>
+              <ol>
+                <li><a href="#marcar-item-comprado">Marcar item comprado</a></li>
+                <li><a href="#desmarcar-um-item">Desmarcar um item</a></li>
+                <li><a href="#compartilhar-a-lista-de-compras">Compartilhar a lista de compras</a></li>
+              </ol>
+            </li>
+            <li><a href="#favoritos">9. Favoritos</a></li>
+            <li><a href="#barra-de-filtros">10. Barra de filtros 🚦</a>
+              <ol>
+                <li><a href="#filtros-de-estoque">Filtros 🟢 🟡 🔴 ⭕</a></li>
+                <li><a href="#filtro-de-favoritos">Filtro de favoritos</a></li>
+                <li><a href="#filtro-lembrado">O filtro fica lembrado</a></li>
+              </ol>
+            </li>
+            <li><a href="#buscar-itens">11. Buscar itens</a>
+              <ol>
+                <li><a href="#busca-por-texto">Busca por texto</a></li>
+                <li><a href="#combinar-termos">Combinar termos</a></li>
+                <li><a href="#busca-por-quantidade">Busca por quantidade</a></li>
+                <li><a href="#chips-de-busca">Chips de busca</a></li>
+                <li><a href="#busca-por-voz">Busca por voz</a></li>
+              </ol>
+            </li>
+            <li><a href="#ordenar-e-agrupar">12. Ordenar e agrupar</a>
+              <ol>
+                <li><a href="#modos-de-ordenacao">Modos de ordenação</a></li>
+                <li><a href="#secoes">Seções</a></li>
+                <li><a href="#acoes-em-lote">Ações em lote (menu ···)</a></li>
+              </ol>
+            </li>
+            <li><a href="#varias-listas">13. Várias listas</a>
+              <ol>
+                <li><a href="#criar-uma-lista">Criar uma lista</a></li>
+                <li><a href="#trocar-de-lista">Trocar de lista</a></li>
+                <li><a href="#renomear-ou-excluir-uma-lista">Renomear ou excluir</a></li>
+              </ol>
+            </li>
+            <li><a href="#google-drive">14. Sincronizar com o Google Drive</a>
+              <ol>
+                <li><a href="#conectar-ao-google-drive">Conectar</a></li>
+                <li><a href="#como-a-sincronizacao-funciona">Como funciona</a></li>
+                <li><a href="#painel-google-drive-sync">O painel Google Drive Sync</a></li>
+                <li><a href="#renovar-o-acesso">Renovar o acesso</a></li>
+                <li><a href="#sincronizar-antes-de-editar">Sincronizar antes de editar</a></li>
+                <li><a href="#compartilhar-com-outra-pessoa">Compartilhar com outra pessoa</a></li>
+                <li><a href="#selos-de-sincronizacao">Selos de sincronização</a></li>
+                <li><a href="#desconectar">Desconectar</a></li>
+              </ol>
+            </li>
+            <li><a href="#backup">15. Backup: exportar e importar</a></li>
+            <li><a href="#tema-claro-e-escuro">16. Tema claro e escuro</a></li>
+            <li><a href="#cuidados-com-os-dados">17. Cuidados com os dados</a></li>
+            <li><a href="#solucao-de-problemas">18. Solução de problemas</a></li>
+            <li><a href="#perguntas-frequentes">19. Perguntas frequentes</a></li>
+            <li><a href="#glossario">20. Glossário</a></li>
+          </ol>
+        </div>
+      </details>
+    </nav>
+
+    <main class="um-content" id="conteudo" tabindex="-1">
+      <h1>Manual do usuário do Shop List</h1>
+      <p class="um-lead">Lista de compras com controle do estoque de casa. Este manual explica, em português, como usar cada tela do app. A interface do app está em inglês: os nomes de botões e mensagens aparecem aqui <b class="um-ui">destacados</b>, exatamente como você os vê na tela.</p>
+
+      <!-- ═══════════════ 1 ═══════════════ -->
+      <!-- fonte: README.md, index.html (getStatus, renderPanel0/1/2, buyItems, defaultItems) -->
+      <h2 id="o-que-e-o-shop-list">1. O que é o Shop List</h2>
+      <p>O Shop List (no app, <b class="um-ui">Shop List Semaphore</b>) ajuda você a saber o que tem em casa e o que precisa comprar. Para cada item, você informa quanto quer ter no mínimo e quanto tem agora. O app calcula sozinho o que falta e monta a lista de compras.</p>
+      <p>O app funciona em três abas:</p>
+      <ul>
+        <li><b class="um-ui">All</b>: o cadastro completo dos seus itens.</li>
+        <li><b class="um-ui">Stock</b>: os itens que você controla no estoque, com a quantidade atual (<b class="um-ui">current</b>) e a mínima (<b class="um-ui">min.</b>).</li>
+        <li><b class="um-ui">Refill</b>: os itens que estão abaixo do mínimo, ou seja, a lista de compras.</li>
+      </ul>
+      <p>Não é preciso criar conta. Os dados ficam guardados no próprio aparelho. Se quiser usar a mesma lista em outro aparelho ou dividi-la com outra pessoa, você pode ligar o app ao seu Google Drive (opcional).</p>
+
+      <h3 id="o-semaforo-do-estoque">O semáforo do estoque</h3>
+      <p>Cada item controlado no estoque recebe uma cor, comparando a quantidade atual com a mínima:</p>
+      <div class="um-table-wrap">
+        <table>
+          <thead><tr><th>Cor</th><th>Situação</th><th>Regra</th></tr></thead>
+          <tbody>
+            <tr><td>🟢 Verde</td><td>Estoque em dia</td><td>quantidade atual <b>maior</b> que a mínima</td></tr>
+            <tr><td>🟡 Amarelo</td><td>Estoque no limite</td><td>quantidade atual <b>igual</b> à mínima</td></tr>
+            <tr><td>🔴 Vermelho</td><td>Estoque baixo</td><td>quantidade atual <b>menor</b> que a mínima</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Os itens vermelhos aparecem automaticamente na aba <b class="um-ui">Refill</b>. Itens que não estão no estoque não recebem cor.</p>
+      <a class="um-top" href="#topo">↑ Topo</a>
+
+      <!-- ═══════════════ 2 ═══════════════ -->
+      <!-- fonte: index.html (meta viewport, @media min-width 1024px, #app 100dvh), sw.js, manifest.json -->
+      <h2 id="requisitos-e-acesso">2. Requisitos e acesso</h2>
+      <ul>
+        <li>Um navegador atual, no celular, tablet ou computador.</li>
+        <li>Internet no primeiro acesso. Depois disso, o app abre mesmo sem conexão (veja <a href="#perguntas-frequentes">Perguntas frequentes</a>).</li>
+        <li>Para sincronizar com o Google Drive: uma conta Google e internet.</li>
+      </ul>
+      <p>O app ocupa a tela inteira em qualquer aparelho. O cabeçalho e o rodapé ficam fixos; só a lista rola. Em telas largas (computador ou tablet deitado), as barras vão de ponta a ponta e a lista fica numa coluna centralizada, mais fácil de ler.</p>
+      <p>Você pode usar o app pelo navegador ou instalá-lo como aplicativo (veja <a href="#instalar-o-app">Instalar o app</a>). Instalado, ele abre em janela própria, sem a barra do navegador.</p>
+      <a class="um-top" href="#topo">↑ Topo</a>
+
+      <!-- ═══════════════ 3 ═══════════════ -->
+      <!-- fonte: index.html (defaultItems, isModelData, showStartupDialog, showCloudFirstDialog, bootDataOrigin, importFile) -->
+      <h2 id="primeiros-passos">3. Primeiros passos</h2>
+
+      <h3 id="a-lista-de-exemplo">A lista de exemplo</h3>
+      <p>Na primeira vez, o app abre com dez itens de exemplo (como <i>Sugar</i>, <i>White rice</i> e <i>Butter</i>), para você ver como tudo funciona. Esses itens de exemplo não são enviados ao Google Drive e não podem ser importados como backup.</p>
+      <p>Quando quiser começar a sua lista, adicione os seus itens e apague os de exemplo.</p>
+      <div class="um-box um-tip">
+        <span class="um-box-title">💡 Dica: apagar todos os exemplos de uma vez</span>
+        <ol>
+          <li>Na aba <b class="um-ui">All</b>, toque na lupa e digite <code>*</code> na busca.</li>
+          <li>No título da busca, toque em <b class="um-ui">···</b>.</li>
+          <li>Toque em <b class="um-ui">Delete 10 items</b> e confirme.</li>
+        </ol>
+        <p>Faça isso <b>antes</b> de cadastrar os seus itens: o <code>*</code> encontra todos os itens da lista.</p>
+      </div>
+
+      <h3 id="janelas-ao-abrir-o-app">Janelas ao abrir o app</h3>
+      <p>Ao abrir, o app pode mostrar uma destas janelas:</p>
+      <h4>Local database</h4>
+      <p>Aparece quando a lista tem dados seus e não está ligada ao Google Drive. Mostra quando os dados foram salvos pela última vez (<b class="um-ui">Last saved</b>), há quanto tempo (🟢 menos de 7 dias, 🟡 menos de 30 dias, 🔴 mais que isso) e quantos itens existem (<b class="um-ui">items</b> e <b class="um-ui">in stock</b>). Opções:</p>
+      <ul>
+        <li><b class="um-ui">Use this data</b>: continua com os dados do aparelho.</li>
+        <li><b class="um-ui">Import backup</b>: carrega um arquivo de backup (veja <a href="#backup">Backup</a>).</li>
+        <li><b class="um-ui">☁️ Link shared file (Shop-List-Sync.json)</b>: liga o app a uma lista que outra pessoa compartilhou com você (veja <a href="#compartilhar-com-outra-pessoa">Compartilhar com outra pessoa</a>).</li>
+      </ul>
+      <h4>Cloud sync</h4>
+      <p>Aparece quando a lista já está ligada ao Google Drive. O app sugere buscar a versão mais nova antes de você editar. Se você não fizer nada, ele sincroniza sozinho em 5 segundos (<b class="um-ui">Syncing automatically in 5s</b>). Opções:</p>
+      <ul>
+        <li><b class="um-ui">☁️ Sync now</b>: sincroniza na hora.</li>
+        <li><b class="um-ui">Work locally for now</b>: usa os dados do aparelho por enquanto.</li>
+        <li><b class="um-ui">cancel</b>: para a contagem e deixa você escolher.</li>
+      </ul>
+      <h4>Select list</h4>
+      <p>Aparece quando você tem duas ou mais listas, para escolher qual abrir (veja <a href="#varias-listas">Várias listas</a>).</p>
+
+      <h3 id="roteiro-rapido">Roteiro rápido</h3>
+      <ol>
+        <li>Na aba <b class="um-ui">All</b>, toque em <b class="um-ui">Add</b> e cadastre um item.</li>
+        <li>Toque no quadradinho à esquerda do item para colocá-lo no estoque.</li>
+        <li>Na aba <b class="um-ui">Stock</b>, ajuste a quantidade atual (<b class="um-ui">current</b>) e a mínima (<b class="um-ui">min.</b>).</li>
+        <li>Se a quantidade atual ficar abaixo da mínima, o item aparece na aba <b class="um-ui">Refill</b>.</li>
+        <li>No mercado, na aba <b class="um-ui">Refill</b>, marque cada item comprado e informe quantas unidades levou.</li>
+      </ol>
+      <a class="um-top" href="#topo">↑ Topo</a>
+
+      <!-- ═══════════════ 4 ═══════════════ -->
+      <!-- fonte: index.html (#install-banner, beforeinstallprompt, triggerInstall, showHelp 'install', #update-banner, applyUpdate, SW register), manifest.json (display, orientation, shortcuts), sw.js -->
+      <h2 id="instalar-o-app">4. Instalar o app</h2>
+      <p>Instalar coloca o Shop List na tela inicial (ou no menu de aplicativos do computador). Ele abre em janela própria, como um aplicativo comum, e funciona sem internet depois do primeiro acesso.</p>
+
+      <h3 id="instalar-no-android">Android</h3>
+      <p>Em navegadores que oferecem instalação (como Chrome e Edge), o app mostra o aviso <b class="um-ui">📲 Install Shop List</b> · <i>Use offline, like a native app</i>.</p>
+      <ol>
+        <li>Toque em <b class="um-ui">Install</b> no aviso.</li>
+        <li>Confirme na janela do sistema.</li>
+        <li>Ao terminar, aparece a mensagem <b class="um-ui">✅ Shop List installed successfully!</b></li>
+      </ol>
+      <p>Se o aviso não aparecer, toque no menu de três pontos do navegador e escolha <b>Install app</b> ou <b>Add to home screen</b> (o nome pode estar em português no seu navegador, como "Instalar app" ou "Adicionar à tela inicial").</p>
+      <div class="um-box um-note">
+        <span class="um-box-title">ℹ️ Observação</span>
+        <p>O <b class="um-ui">✕</b> do aviso de instalação o esconde só até você fechar o navegador. O aviso não aparece se o app já estiver instalado e aberto como aplicativo.</p>
+      </div>
+
+      <h3 id="instalar-no-iphone-e-ipad">iPhone e iPad</h3>
+      <p>No Safari:</p>
+      <ol>
+        <li>Toque no ícone <b>Compartilhar</b> (o quadrado com a seta para cima).</li>
+        <li>Role a lista e toque em <b>Adicionar à Tela de Início</b> (<i>Add to Home Screen</i>).</li>
+        <li>Confira o nome e toque em <b>Adicionar</b>.</li>
+      </ol>
+      <p>No iPhone, o botão <b class="um-ui">Install</b> do app, quando aparece, apenas abre estas instruções na janela <b class="um-ui">Help &amp; Tips</b>.</p>
+
+      <h3 id="instalar-no-computador">Computador</h3>
+      <p>Em navegadores que oferecem instalação, o mesmo aviso <b class="um-ui">📲 Install Shop List</b> pode aparecer. Clique em <b class="um-ui">Install</b> e confirme. Se o aviso não aparecer, use a opção de instalar app do menu do próprio navegador.</p>
+      <p>Também é possível abrir as instruções de instalação pelo painel do Google Drive: toque no ícone do Drive no rodapé e, embaixo da janela, em <b class="um-ui">📲 Install app on device</b>.</p>
+
+      <h3 id="atalhos-do-icone">Atalhos do ícone</h3>
+      <p>No Android, com o app instalado, toque e segure o ícone do Shop List para ver dois atalhos:</p>
+      <ul>
+        <li><b>Adicionar</b> (Adicionar item): abre direto a janela de novo item.</li>
+        <li><b>Compras</b> (Lista de compras): abre direto na aba <b class="um-ui">Refill</b>.</li>
+      </ul>
+
+      <h3 id="atualizar-o-app">Atualizar o app</h3>
+      <p>Enquanto está aberto, o app verifica de tempos em tempos se há versão nova. Quando houver, aparece o aviso <b class="um-ui">🔄 New version available!</b></p>
+      <ol>
+        <li>Toque em <b class="um-ui">Update</b>.</li>
+        <li>O app recarrega já na versão nova. Seus dados são mantidos.</li>
+      </ol>
+      <a class="um-top" href="#topo">↑ Topo</a>
+
+      <!-- ═══════════════ 5 ═══════════════ -->
+      <!-- fonte: index.html (#header, .header-controls, #title-sub, #sync-badges, #tabs, switchTab, _toggleFoldAll, updateBadges, #footer, updateFooter, closeApp, toast, banners, keydown Escape) -->
+      <h2 id="a-tela-do-app">5. A tela do app</h2>
+
+      <h3 id="cabecalho">Cabeçalho</h3>
+      <p>Na parte de cima ficam:</p>
+      <ul>
+        <li>O título <b class="um-ui">Shop List Semaphore</b> e a hora do último salvamento, no formato <b class="um-ui">Saved at: dia/mês hora:minuto</b>.</li>
+        <li>Quando a lista está sincronizada com o Google Drive, os selos de sincronização (veja <a href="#selos-de-sincronizacao">Selos de sincronização</a>).</li>
+        <li>O botão de ordenação, que mostra o modo atual (<b class="um-ui">A·Z</b>, <b class="um-ui">#·Z</b>, <b class="um-ui">⭐</b>…). Veja <a href="#ordenar-e-agrupar">Ordenar e agrupar</a>.</li>
+        <li><b class="um-ui">🚦</b>: abre e fecha a barra de filtros. Veja <a href="#barra-de-filtros">Barra de filtros</a>.</li>
+        <li>Lupa: abre e fecha a busca. Veja <a href="#buscar-itens">Buscar itens</a>.</li>
+        <li><b class="um-ui">✕</b> (<i>Close</i>): fecha o app ou volta à página anterior do navegador.</li>
+      </ul>
+
+      <h3 id="abas">Abas All, Stock e Refill</h3>
+      <p>Logo abaixo ficam as três abas. O número ao lado de cada nome mostra quantos itens ela tem:</p>
+      <ul>
+        <li><b class="um-ui">All</b>: itens que aparecem com a busca e o filtro atuais.</li>
+        <li><b class="um-ui">Stock</b>: itens no estoque.</li>
+        <li><b class="um-ui">Refill</b>: itens que ainda faltam comprar (os já marcados como comprados não entram na conta).</li>
+      </ul>
+      <div class="um-box um-tip">
+        <span class="um-box-title">💡 Dica</span>
+        <p>Toque no nome da aba que já está aberta para recolher todas as seções de uma vez. Toque de novo para abri-las.</p>
+      </div>
+
+      <h3 id="rodape">Rodapé</h3>
+      <p>À esquerda, cinco ícones:</p>
+      <div class="um-table-wrap">
+        <table>
+          <thead><tr><th>Ícone</th><th>Para que serve</th></tr></thead>
+          <tbody>
+            <tr><td>Ponto de interrogação</td><td>Abre este manual.</td></tr>
+            <tr><td>Lua ou sol</td><td>Troca entre tema claro e escuro (veja <a href="#tema-claro-e-escuro">Tema</a>).</td></tr>
+            <tr><td>Cilindro (banco de dados)</td><td>Menu de backup: exportar e importar dados (veja <a href="#backup">Backup</a>).</td></tr>
+            <tr><td>🛒</td><td>Abre as listas. Um pontinho no ícone indica que você tem mais de uma lista (veja <a href="#varias-listas">Várias listas</a>).</td></tr>
+            <tr><td>Logotipo do Google Drive</td><td>Abre o painel de sincronização. O pontinho mostra o estado (veja abaixo).</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>O pontinho do ícone do Drive indica:</p>
+      <ul>
+        <li><b>cinza</b>: não conectado;</li>
+        <li><b>verde-azulado</b>: conectado;</li>
+        <li><b>amarelo piscando</b>: sincronizando;</li>
+        <li><b>vermelho</b>: houve erro na última sincronização.</li>
+      </ul>
+      <p>À direita fica o botão principal, que muda conforme a aba:</p>
+      <ul>
+        <li>aba <b class="um-ui">All</b>: <b class="um-ui">+ Add</b> (adicionar item);</li>
+        <li>aba <b class="um-ui">Stock</b>: <b class="um-ui">Inventory</b> (compartilhar o inventário);</li>
+        <li>aba <b class="um-ui">Refill</b>: <b class="um-ui">Share</b> (compartilhar a lista de compras).</li>
+      </ul>
+
+      <h3 id="avisos">Avisos e mensagens</h3>
+      <ul>
+        <li>Mensagens curtas aparecem por cerca de dois segundos e somem sozinhas (por exemplo, <b class="um-ui">Item added</b>).</li>
+        <li>Faixas de aviso aparecem abaixo das abas: instalação, nova versão, backup, sincronização e padronização de unidades. O <b class="um-ui">✕</b> fecha cada uma.</li>
+        <li>Janelas de confirmação fecham com <b class="um-ui">Cancel</b>, tocando fora delas ou, no computador, com a tecla <kbd>Esc</kbd>.</li>
+      </ul>
+      <a class="um-top" href="#topo">↑ Topo</a>
+
+      <!-- ═══════════════ 6 ═══════════════ -->
+      <!-- fonte: index.html (openAddModal, confirmAdd, openEditModal, confirmEdit, openModal, acOnInput, acPick, UNIT_SUGGESTIONS, PREFIX_META, normalizeUnitModule, toggleStock, attachSwipe, confirmDelete, doDelete, #unit-sweep-banner, runLegacyUnitSweep, dismissUnitSweepBanner, renderPanel0) -->
+      <h2 id="cadastrar-itens">6. Cadastrar itens (aba All)</h2>
+      <p>A aba <b class="um-ui">All</b> mostra todos os itens. Cada linha tem, da esquerda para a direita: o quadradinho do estoque, o nome com a descrição embaixo e a estrela de favorito.</p>
+
+      <h3 id="adicionar-um-item">Adicionar um item</h3>
+      <ol>
+        <li>Abra a aba <b class="um-ui">All</b> (o botão <b class="um-ui">Add</b> só aparece nela).</li>
+        <li>Toque em <b class="um-ui">+ Add</b>, no rodapé.</li>
+        <li>Na janela <b class="um-ui">New item</b>, preencha <b class="um-ui">Item name</b> (obrigatório). Exemplo: <i>Butter</i>.</li>
+        <li>Se quiser, preencha <b class="um-ui">Description (Unit/#Category)</b>. Exemplo: <code>200-g #dairy</code>.</li>
+        <li>Toque em <b class="um-ui">Add</b> (ou pressione <kbd>Enter</kbd>).</li>
+      </ol>
+      <p>O item entra na lista e aparece a mensagem <b class="um-ui">Item added</b>. Todo item novo começa <b>fora do estoque</b>, com quantidade mínima 1 e atual 0. Para controlá-lo, coloque-o no estoque (veja <a href="#colocar-ou-tirar-do-estoque">Colocar ou tirar do estoque</a>).</p>
+      <div class="um-box um-note">
+        <span class="um-box-title">ℹ️ Observação</span>
+        <p>Sem nome, o botão <b class="um-ui">Add</b> não faz nada. Se você colar um texto com várias linhas, ele vira uma linha só.</p>
+      </div>
+
+      <h3 id="descricao-unidades-e-etiquetas">Descrição, unidades e etiquetas</h3>
+      <p>A descrição é um texto livre. Nela você pode indicar a embalagem e organizar o item com etiquetas.</p>
+      <h4>Unidades</h4>
+      <p>Digite um número seguido de espaço ou hífen (por exemplo, <code>500 </code> ou <code>500-</code>). O app sugere unidades (<b class="um-ui">📐 Units</b>): <code>bx</code> (caixa), <code>dz</code> (dúzia), <code>jar</code> (pote), <code>g</code>, <code>kg</code>, <code>can</code> (lata), <code>l</code>, <code>ml</code>, <code>pkg</code> (pacote), <code>bag</code> (saco), <code>bar</code> (barra/tablete), <code>un</code> (unidade), além das que você já usou. Toque numa sugestão ou use as setas e <kbd>Enter</kbd>.</p>
+      <p>Ao salvar, o app padroniza as quantidades no formato número-hífen-unidade: <code>500g</code> e <code>500 g</code> viram <code>500-g</code>; <code>1,5 l</code> vira <code>1,5-l</code>.</p>
+      <div class="um-box um-note">
+        <span class="um-box-title">ℹ️ Observação</span>
+        <p>A padronização vale para qualquer número seguido de uma palavra de até 5 letras. Por isso, <code>2 latas</code> vira <code>2-latas</code>.</p>
+      </div>
+      <h4>Etiquetas</h4>
+      <p>Etiquetas são palavras com um símbolo na frente. Servem para agrupar, buscar e editar vários itens de uma vez:</p>
+      <div class="um-table-wrap">
+        <table>
+          <thead><tr><th>Símbolo</th><th>Tipo</th><th>Exemplo</th></tr></thead>
+          <tbody>
+            <tr><td><code>#</code></td><td>categoria</td><td><code>#dairy</code>, <code>#limpeza</code></td></tr>
+            <tr><td><code>@</code></td><td>contexto (loja, lugar)</td><td><code>@mercado</code>, <code>@casa</code></td></tr>
+            <tr><td><code>&amp;</code></td><td>relacionamento (evento, receita, pessoa)</td><td><code>&amp;festa</code></td></tr>
+            <tr><td><code>$</code></td><td>orçamento (reservado para uso futuro)</td><td><code>$promo</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul>
+        <li>Um item pode ter várias etiquetas: <code>1-kg #grains @mercado &amp;festa</code>.</li>
+        <li>A etiqueta termina no espaço, na vírgula, no ponto e vírgula ou no ponto <code>·</code>. Para nomes compostos, use hífen: <code>#produtos-de-limpeza</code>.</li>
+        <li>Ao digitar <code>#</code>, <code>@</code>, <code>&amp;</code> ou <code>$</code>, o app sugere as etiquetas que você já usou.</li>
+      </ul>
+
+      <h3 id="editar-um-item">Editar um item</h3>
+      <ol>
+        <li>Na aba <b class="um-ui">All</b>, toque no nome ou na descrição do item.</li>
+        <li>Na janela <b class="um-ui">Edit item</b>, altere <b class="um-ui">Item name</b> ou <b class="um-ui">Description</b>.</li>
+        <li>Toque em <b class="um-ui">Save</b> (ou pressione <kbd>Enter</kbd>).</li>
+      </ol>
+      <div class="um-box um-note">
+        <span class="um-box-title">ℹ️ Observação</span>
+        <p>A edição só abre pela aba <b class="um-ui">All</b>. Nas abas <b class="um-ui">Stock</b> e <b class="um-ui">Refill</b>, tocar no nome não abre a edição.</p>
+      </div>
+
+      <h3 id="colocar-ou-tirar-do-estoque">Colocar ou tirar do estoque</h3>
+      <p>Só os itens no estoque aparecem nas abas <b class="um-ui">Stock</b> e <b class="um-ui">Refill</b>. Na aba <b class="um-ui">All</b>:</p>
+      <ul>
+        <li>toque no quadradinho à esquerda do item; ou</li>
+        <li>deslize o item para a <b>direita</b> (aparece <b class="um-ui">In stock</b> ou <b class="um-ui">Out of stock</b>). No computador, clique e arraste.</li>
+      </ul>
+      <div class="um-box um-warn">
+        <span class="um-box-title">⚠️ Atenção</span>
+        <p>Ao tirar um item do estoque, a quantidade atual dele volta para 0.</p>
+      </div>
+
+      <h3 id="excluir-um-item">Excluir um item</h3>
+      <ol>
+        <li>Na aba <b class="um-ui">All</b>, deslize o item para a <b>esquerda</b> (aparece <b class="um-ui">Delete</b>).</li>
+        <li>Na janela <b class="um-ui">Remove item?</b>, toque em <b class="um-ui">Remove</b>.</li>
+      </ol>
+      <p>Aparece a mensagem <b class="um-ui">Item removed</b>. Para excluir vários itens de uma vez, veja <a href="#acoes-em-lote">Ações em lote</a>.</p>
+      <div class="um-box um-warn">
+        <span class="um-box-title">⚠️ Atenção</span>
+        <p>A exclusão é definitiva: não há como desfazer. Se a lista estiver sincronizada, a exclusão também vai para o Google Drive.</p>
+      </div>
+
+      <h3 id="padronizar-unidades">Padronizar unidades</h3>
+      <p>Se a sua lista tiver itens com unidades em formato antigo (como <code>500g</code>), o app pode mostrar o aviso <b class="um-ui">📐 Tidy up units</b>, com a quantidade de itens afetados.</p>
+      <ul>
+        <li><b class="um-ui">Normalize</b>: corrige todos de uma vez para o formato <code>500-g</code>. Aparece <b class="um-ui">✓ N items normalized to NNN-unit</b>.</li>
+        <li><b class="um-ui">✕</b>: dispensa o aviso.</li>
+      </ul>
+      <p>Nos dois casos, o aviso não volta mais neste aparelho.</p>
+      <a class="um-top" href="#topo">↑ Topo</a>
+
+      <!-- ═══════════════ 7 ═══════════════ -->
+      <!-- fonte: index.html (renderPanel1, buildStepper, attachStepperPress, STEPPER_LONG_STEP, updateMin, updateQty, copyStockInventory) -->
+      <h2 id="controlar-o-estoque">7. Controlar o estoque (aba Stock)</h2>
+      <p>A aba <b class="um-ui">Stock</b> lista os itens no estoque. Cada linha mostra o nome, a estrela de favorito e o controle <b class="um-ui">current</b> (quantidade atual). A cor da linha segue o <a href="#o-semaforo-do-estoque">semáforo</a>.</p>
+      <p>Se a aba estiver vazia, aparece <b class="um-ui">Empty stock</b>: coloque itens no estoque pela aba <b class="um-ui">All</b>.</p>
+
+      <h3 id="ajustar-quantidades">Ajustar quantidades</h3>
+      <ol>
+        <li>No controle <b class="um-ui">current</b>, toque em <b class="um-ui">−</b> ou <b class="um-ui">+</b> para mudar 1 unidade.</li>
+        <li>Para mudar 5 de uma vez, toque e segure o botão por meio segundo.</li>
+        <li>Para digitar o número, toque no valor e escreva.</li>
+      </ol>
+      <p>Ao tocar no controle <b class="um-ui">current</b>, aparece ao lado o controle <b class="um-ui">min.</b> (quantidade mínima). Ajuste-o do mesmo jeito. Ele some quando você sai do controle.</p>
+      <ul>
+        <li>Os valores nunca ficam abaixo de 0.</li>
+        <li>As mudanças são salvas na hora.</li>
+        <li>Se a quantidade atual ficar menor que a mínima, o item vai para a aba <b class="um-ui">Refill</b>.</li>
+      </ul>
+
+      <h3 id="compartilhar-o-inventario">Compartilhar o inventário</h3>
+      <p>O botão <b class="um-ui">Inventory</b> envia um retrato do estoque, com a quantidade atual e a mínima de cada item e a cor do semáforo.</p>
+      <ol>
+        <li>Na aba <b class="um-ui">Stock</b>, use a busca, o filtro e a ordenação para mostrar só o que quer enviar (opcional).</li>
+        <li>Toque em <b class="um-ui">Inventory</b>, no rodapé.</li>
+        <li>No celular, escolha o aplicativo para enviar (por exemplo, um app de mensagens). No computador, o texto é copiado; cole onde quiser.</li>
+      </ol>
+      <p>Exemplo do texto gerado (itens de exemplo do app):</p>
+      <pre>*Shop List ・ Semaphore*
+Default - 14/11 10:30
+Inventory — Stock tab
+2 items - A–Z
+🟢 1 · 🟡 0 · 🔴 1
+---
+- 🟢 Butter: 3/1 200-g (#dairy)
+- 🔴 White rice: 1/3 5-kg (#grains)</pre>
+      <p>Mensagens: <b class="um-ui">Inventory shared!</b>, <b class="um-ui">Inventory copied to clipboard!</b> ou, se não houver itens, <b class="um-ui">No items in stock view</b>.</p>
+      <a class="um-top" href="#topo">↑ Topo</a>
+
+      <!-- ═══════════════ 8 ═══════════════ -->
+      <!-- fonte: index.html (renderPanel2, buyItems, toggleDone, confirmDone, attachSwipeRefill, save() remove _done, copyBuyList) -->
+      <h2 id="fazer-compras">8. Fazer compras (aba Refill)</h2>
+      <p>A aba <b class="um-ui">Refill</b> é a lista de compras. Ela mostra os itens do estoque com quantidade atual menor que a mínima. À direita de cada item, <b class="um-ui">+ N</b> indica quantas unidades faltam para chegar ao mínimo.</p>
+      <p>Quando nada falta, aparece <b class="um-ui">All stocked up!</b>. Se ainda não houver itens no estoque, aparece <b class="um-ui">No items in stock</b>.</p>
+
+      <h3 id="marcar-item-comprado">Marcar item comprado</h3>
+      <ol>
+        <li>Toque no quadradinho à esquerda do item, ou deslize o item para a <b>direita</b> (aparece <b class="um-ui">Acquired</b>).</li>
+        <li>A janela pergunta <b class="um-ui">How many units did you acquire?</b> O número já vem preenchido com o que falta.</li>
+        <li>Ajuste com <b class="um-ui">−</b> e <b class="um-ui">+</b> se comprou outra quantidade (toque e segure para mudar de 5 em 5).</li>
+        <li>Toque em <b class="um-ui">Confirm</b>.</li>
+      </ol>
+      <p>As unidades são somadas à quantidade atual do estoque e aparece <b class="um-ui">+N added to stock</b>. O item fica riscado na lista. Se você confirmar com 0, nada muda.</p>
+      <div class="um-box um-note">
+        <span class="um-box-title">ℹ️ Observação</span>
+        <p>A marcação de "comprado" vale só enquanto o app está aberto. Na próxima vez que você abrir o app, os itens que chegaram ao mínimo não aparecem mais na lista; a quantidade somada ao estoque continua salva.</p>
+      </div>
+
+      <h3 id="desmarcar-um-item">Desmarcar um item</h3>
+      <p>Marcou por engano? Toque de novo no quadradinho, ou deslize o item para a <b>esquerda</b> (aparece <b class="um-ui">Unmark</b>). O app desfaz a compra: tira do estoque as unidades que tinha somado, e o item volta a aparecer como pendente.</p>
+      <div class="um-box um-tip">
+        <span class="um-box-title">💡 Dica</span>
+        <p>Se você mudar a quantidade atual do item na aba <b class="um-ui">Stock</b>, a marcação de comprado é retirada.</p>
+      </div>
+
+      <h3 id="compartilhar-a-lista-de-compras">Compartilhar a lista de compras</h3>
+      <ol>
+        <li>Na aba <b class="um-ui">Refill</b>, use a busca, o filtro e a ordenação se quiser enviar só parte da lista.</li>
+        <li>Toque em <b class="um-ui">Share</b>, no rodapé.</li>
+        <li>No celular, escolha o aplicativo para enviar. No computador, o texto é copiado.</li>
+      </ol>
+      <p>Cada linha diz quantas unidades comprar. Exemplo:</p>
+      <pre>*Shop List・Semaphore*
+Default - 14/11 10:30
+Share — Refill tab
+2 items - A–Z
+---
+- Ground coffee: 1x 500-g (#beverages)
+- White rice: 2x 5-kg (#grains)</pre>
+      <p>Mensagens: <b class="um-ui">List shared!</b>, <b class="um-ui">List copied to clipboard!</b> ou, se a lista estiver vazia, <b class="um-ui">No pending items</b>.</p>
+      <a class="um-top" href="#topo">↑ Topo</a>
+
+      <!-- ═══════════════ 9 ═══════════════ -->
+      <!-- fonte: index.html (fav-btn em renderPanel0/1/2, toggleFav, bulkSetFavByKey) -->
+      <h2 id="favoritos">9. Favoritos</h2>
+      <p>Marque como favoritos os itens que você compra sempre, para achá-los mais rápido.</p>
+      <ul>
+        <li>Toque na estrela à direita do item, em qualquer aba. A estrela preenchida indica favorito; toque de novo para desmarcar.</li>
+        <li>Para marcar ou desmarcar vários de uma vez, use o menu <b class="um-ui">···</b> de uma seção: <b class="um-ui">★ Favorite N</b> ou <b class="um-ui">☆ Unfavorite N</b> (veja <a href="#acoes-em-lote">Ações em lote</a>).</li>
+        <li>Para ver só os favoritos, use o <a href="#filtro-de-favoritos">filtro de favoritos</a>. Para mostrá-los primeiro, use a ordenação <b class="um-ui">⭐</b> (veja <a href="#modos-de-ordenacao">Modos de ordenação</a>).</li>
+      </ul>
+      <a class="um-top" href="#topo">↑ Topo</a>
+
+      <!-- ═══════════════ 10 ═══════════════ -->
+      <!-- fonte: index.html (#filter-bar, toggleFilterBar, applyQuickFilter, syncFavBtn, syncQuickFilterBtns, filteredItems, saveUI/load activeQuickFilter) -->
+      <h2 id="barra-de-filtros">10. Barra de filtros 🚦</h2>
+      <p>Toque em <b class="um-ui">🚦</b>, no cabeçalho, para abrir a barra de filtros. Com a barra aberta, o ícone muda para <b class="um-ui">🚥</b>. A barra tem, nesta ordem: o filtro de favoritos, 🟢, 🟡, 🔴 e ⭕.</p>
+      <p>O filtro vale para as três abas e funciona junto com a busca. Só um filtro fica ativo por vez: tocar em outro troca o filtro.</p>
+
+      <h3 id="filtros-de-estoque">Filtros 🟢 🟡 🔴 ⭕</h3>
+      <div class="um-table-wrap">
+        <table>
+          <thead><tr><th>Botão</th><th>Mostra</th></tr></thead>
+          <tbody>
+            <tr><td>🟢</td><td>itens com estoque em dia (atual maior que o mínimo)</td></tr>
+            <tr><td>🟡</td><td>itens no limite (atual igual ao mínimo)</td></tr>
+            <tr><td>🔴</td><td>itens com estoque baixo (atual menor que o mínimo)</td></tr>
+            <tr><td>⭕</td><td>itens no estoque com quantidade atual 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Toque no botão para ligar o filtro. Toque de novo no mesmo botão para desligar. Estes filtros mostram apenas itens que estão no estoque.</p>
+
+      <h3 id="filtro-de-favoritos">Filtro de favoritos</h3>
+      <p>O primeiro botão da barra (a estrela) tem três estados. Cada toque passa para o próximo:</p>
+      <ol>
+        <li><b>1º toque</b>: só favoritos. Aparece <b class="um-ui">★ N favorites shown</b> (ou <b class="um-ui">★ No favorites added yet</b>, se não houver nenhum).</li>
+        <li><b>2º toque</b>: só os que <b>não</b> são favoritos. Aparece <b class="um-ui">✩ N non-favorites shown</b>.</li>
+        <li><b>3º toque</b>: desliga o filtro. Aparece <b class="um-ui">Favorites filter cleared</b>.</li>
+      </ol>
+
+      <h3 id="filtro-lembrado">O filtro fica lembrado</h3>
+      <ul>
+        <li>O filtro ativo é guardado: ao fechar e abrir o app de novo, ele continua ligado. Cada lista guarda o seu.</li>
+        <li>Quando há filtro ativo, a barra de filtros já abre sozinha, para você ver o que está filtrando e poder desligá-lo.</li>
+        <li>Fechar a barra tocando em <b class="um-ui">🚥</b> <b>desliga o filtro</b> e mostra todos os itens de novo.</li>
+      </ul>
+      <div class="um-box um-tip">
+        <span class="um-box-title">💡 Dica</span>
+        <p>Se a lista parecer incompleta ao abrir o app, verifique se a barra de filtros está aberta com algum botão ativo.</p>
+      </div>
+      <a class="um-top" href="#topo">↑ Topo</a>
+
+      <!-- ═══════════════ 11 ═══════════════ -->
+      <!-- fonte: index.html (#search-bar, toggleSearch, onSearch, clearSearch, parseSearchTerms, termMatch, simpleMatch, acOnInputSearch, #search-chips, toggleChipFilter, syncChips, insertSearchTerm, insertSearchPrefix, VoiceSearch, showHelp 'search') -->
+      <h2 id="buscar-itens">11. Buscar itens</h2>
+      <p>Toque na lupa, no cabeçalho. A barra de busca abre com o teclado pronto. A busca vale para as três abas.</p>
+      <ul>
+        <li><b class="um-ui">clear</b>: apaga o que foi digitado e desliga os chips.</li>
+        <li>Tocar de novo na lupa fecha a barra e limpa a busca.</li>
+      </ul>
+
+      <h3 id="busca-por-texto">Busca por texto</h3>
+      <ul>
+        <li>Digite parte do nome ou da descrição. Maiúsculas e acentos não importam: <code>acucar</code> encontra "Açúcar".</li>
+        <li>Várias palavras: o item precisa ter <b>todas</b>, em qualquer ordem. <code>leite integral</code> encontra itens com "leite" e "integral".</li>
+        <li>Para buscar por etiqueta, digite-a com o símbolo: <code>#dairy</code>, <code>@mercado</code>. Ao digitar <code>#</code>, <code>@</code> ou <code>&amp;</code>, o app sugere as etiquetas existentes.</li>
+      </ul>
+      <p>Na aba <b class="um-ui">All</b>, a busca mostra um título com o texto buscado e a quantidade de itens encontrados, além do menu <b class="um-ui">···</b> para agir sobre todos os resultados (veja <a href="#acoes-em-lote">Ações em lote</a>). Sem resultados, aparece <b class="um-ui">No results</b>.</p>
+
+      <h3 id="combinar-termos">Combinar termos</h3>
+      <div class="um-table-wrap">
+        <table>
+          <thead><tr><th>Escreva</th><th>Resultado</th></tr></thead>
+          <tbody>
+            <tr><td><code>-termo</code></td><td>exclui os itens com o termo. Ex.: <code>-#dairy</code></td></tr>
+            <tr><td><code>a | b</code></td><td>itens com <i>a</i> <b>ou</b> com <i>b</i>. Ex.: <code>#dairy | #grains</code></td></tr>
+            <tr><td><code>A*</code></td><td>itens cujo nome começa com a letra A</td></tr>
+            <tr><td><code>*milk*</code></td><td>o asterisco vale por qualquer trecho</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Exemplo: <code>#bebidas @casa | #limpeza -@mercado</code> mostra as bebidas de casa e também os itens de limpeza que não são do mercado.</p>
+
+      <h3 id="busca-por-quantidade">Busca por quantidade</h3>
+      <p>Você pode buscar pelos números de cada item:</p>
+      <ul>
+        <li><code>current:</code> quantidade atual (também aceita <code>qty:</code>);</li>
+        <li><code>min:</code> quantidade mínima;</li>
+        <li><code>refill:</code> quanto falta, isto é, mínima menos atual (também aceita <code>def:</code>).</li>
+      </ul>
+      <div class="um-table-wrap">
+        <table>
+          <thead><tr><th>Exemplo</th><th>Mostra</th></tr></thead>
+          <tbody>
+            <tr><td><code>current:0</code></td><td>itens com 0 em estoque</td></tr>
+            <tr><td><code>current:&gt;3</code> · <code>current:&gt;=3</code></td><td>mais que 3 · 3 ou mais</td></tr>
+            <tr><td><code>current:&lt;5</code> · <code>current:&lt;=5</code></td><td>menos que 5 · 5 ou menos</td></tr>
+            <tr><td><code>min:2-5</code></td><td>mínimo entre 2 e 5</td></tr>
+            <tr><td><code>refill:&gt;0</code></td><td>tudo o que está abaixo do mínimo</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Escreva sem espaços dentro do termo (<code>current:&gt;3</code>, e não <code>current: &gt; 3</code>). Pode combinar com o resto: <code>#limpeza current:&lt;2</code>.</p>
+
+      <h3 id="chips-de-busca">Chips de busca</h3>
+      <p>Abaixo do campo de busca, depois de <b class="um-ui">filter:</b>, há botões de atalho:</p>
+      <ul>
+        <li><b class="um-ui">✓</b> e <b class="um-ui">○</b>: mostram só os itens marcados ou só os desmarcados. Na aba <b class="um-ui">All</b>, "marcado" quer dizer no estoque. Na aba <b class="um-ui">Refill</b>, quer dizer já comprado. Esses dois não aparecem na aba <b class="um-ui">Stock</b>.</li>
+        <li><b class="um-ui">min:…</b>: escreve <code>min:</code> na busca para você completar (por exemplo, <code>min:&gt;=5</code>).</li>
+        <li><b class="um-ui">current:0</b>: itens com estoque zerado.</li>
+        <li><b class="um-ui">refill:&gt;0</b>: itens abaixo do mínimo.</li>
+      </ul>
+      <p>Os três últimos apenas escrevem o termo no campo de busca. Toque de novo no chip para retirá-lo. O chip fica destacado enquanto o termo está na busca.</p>
+
+      <h3 id="busca-por-voz">Busca por voz</h3>
+      <p>Dentro do campo de busca há um ícone de microfone (<i>Search by voice</i>).</p>
+      <ol>
+        <li>Toque no microfone. Na primeira vez, o navegador pede permissão para usar o microfone; permita.</li>
+        <li>Fale os itens, por exemplo: "arroz feijão café".</li>
+        <li>O app escreve as palavras ligadas por "ou" (<code>arroz | feijão | café</code>) e mostra os itens que tenham qualquer uma delas.</li>
+      </ol>
+      <p>Toque de novo no microfone para parar. O reconhecimento usa o idioma do navegador.</p>
+      <ul>
+        <li><b class="um-ui">🎤 Microphone unavailable — search by typing</b>: o microfone foi bloqueado. Libere-o nas permissões do navegador ou busque digitando.</li>
+        <li><b class="um-ui">🎤 No speech detected</b>: nenhuma fala foi ouvida. Tente de novo.</li>
+      </ul>
+      <div class="um-box um-note">
+        <span class="um-box-title">ℹ️ Observação</span>
+        <p>Se o navegador não tiver reconhecimento de voz, o ícone do microfone não aparece.</p>
+      </div>
+      <a class="um-top" href="#topo">↑ Topo</a>
+
+      <!-- ═══════════════ 12 ═══════════════ -->
+      <!-- fonte: index.html (#btn-sort, SORT_MODES, SORT_CYCLE, toggleSortMode, openSortMenu, attachLongPress, sorted, sectionKeyOf, buildSectionLabel, _collapsedSections, openBulkSectionMenu, openCatSectionMenu, openGenericSectionMenu, openSearchSectionMenu, _showTokenInputRow, _bulk*, startCatRename, startTokenRename, confirmBulkDelete, doBulkDelete) -->
+      <h2 id="ordenar-e-agrupar">12. Ordenar e agrupar</h2>
+
+      <h3 id="modos-de-ordenacao">Modos de ordenação</h3>
+      <p>O botão de ordenação fica no cabeçalho, à esquerda do <b class="um-ui">🚦</b>, e mostra o modo atual.</p>
+      <p><b>Toque rápido</b>: alterna entre os três modos principais.</p>
+      <ol>
+        <li><b class="um-ui">A·Z</b>: ordem alfabética (<b class="um-ui">Sorting A–Z</b>).</li>
+        <li><b class="um-ui">#·Z</b>: agrupa por categoria (<b class="um-ui">Sorting by category</b>).</li>
+        <li><b class="um-ui">⭐</b>: favoritos primeiro (<b class="um-ui">Sorting by favorites</b>).</li>
+      </ol>
+      <p><b>Toque e segure</b> (meio segundo): abre o menu <b class="um-ui">Group by</b>, com todos os modos:</p>
+      <ul>
+        <li><b class="um-ui">A·Z Alphabetical</b></li>
+        <li><b class="um-ui">#·Z Categories</b>: por categoria (<code>#</code>)</li>
+        <li><b class="um-ui">@·Z Contexts</b>: por contexto (<code>@</code>)</li>
+        <li><b class="um-ui">&amp;·Z Relationships</b>: por relacionamento (<code>&amp;</code>)</li>
+        <li><b class="um-ui">⭐ Favorites first</b></li>
+      </ul>
+      <p>Ao lado de cada modo por etiqueta aparece quantas etiquetas diferentes existem. Se não houver nenhuma, o modo fica indisponível, com <b class="um-ui">· none yet</b>. O modo atual tem <b class="um-ui">✓</b>.</p>
+      <p>Com <b class="um-ui">@·Z</b> ou <b class="um-ui">&amp;·Z</b> ativo, um toque rápido volta para <b class="um-ui">A·Z</b>. A ordenação escolhida fica guardada para cada lista.</p>
+
+      <h3 id="secoes">Seções</h3>
+      <p>As listas são divididas em seções, cada uma com um título, a quantidade de itens e, na maioria, o menu <b class="um-ui">···</b>:</p>
+      <ul>
+        <li>em <b class="um-ui">A·Z</b>: uma seção por letra inicial;</li>
+        <li>em <b class="um-ui">#·Z</b>, <b class="um-ui">@·Z</b> e <b class="um-ui">&amp;·Z</b>: uma seção por etiqueta. Um item com duas etiquetas aparece nas duas seções. Itens sem etiqueta ficam no fim, na seção <b class="um-ui">—</b>;</li>
+        <li>em <b class="um-ui">⭐</b>: <b class="um-ui">Favorites</b> e <b class="um-ui">Other items</b>.</li>
+      </ul>
+      <p>Toque no título de uma seção para recolhê-la ou abri-la. O app lembra quais seções você recolheu. Para recolher ou abrir todas, toque no nome da aba que já está aberta.</p>
+      <div class="um-box um-note">
+        <span class="um-box-title">ℹ️ Observação</span>
+        <p>Na aba <b class="um-ui">All</b>, com uma busca ativa nos modos <b class="um-ui">A·Z</b> e <b class="um-ui">⭐</b>, os resultados aparecem numa lista única, sem seções.</p>
+      </div>
+
+      <h3 id="acoes-em-lote">Ações em lote (menu ···)</h3>
+      <p>O menu <b class="um-ui">···</b> de uma seção (ou do título de uma busca) age sobre todos os itens daquela seção que estão visíveis na aba atual, já considerando busca e filtro. O topo do menu mostra o nome da seção e quantos itens serão afetados.</p>
+      <div class="um-table-wrap">
+        <table>
+          <thead><tr><th>Opção</th><th>O que faz</th></tr></thead>
+          <tbody>
+            <tr><td><b class="um-ui">★ Favorite N</b> / <b class="um-ui">☆ Unfavorite N</b></td><td>marca ou desmarca os itens como favoritos</td></tr>
+            <tr><td><b class="um-ui">➕ Add token (# @ &amp; $)</b></td><td>acrescenta uma etiqueta a todos os itens</td></tr>
+            <tr><td><b class="um-ui">➖ Remove #x here</b> ou <b class="um-ui">➖ Remove token</b></td><td>retira uma etiqueta dos itens da seção</td></tr>
+            <tr><td><b class="um-ui">✏️ Rename #x here</b> ou <b class="um-ui">✏️ Rename token here</b></td><td>troca o nome de uma etiqueta só nos itens da seção</td></tr>
+            <tr><td><b class="um-ui">✏️ Rename #x everywhere</b></td><td>troca o nome da etiqueta na lista inteira, inclusive em itens escondidos por filtros</td></tr>
+            <tr><td><b class="um-ui">🗑️ Delete N items</b></td><td>exclui todos os itens da seção</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Nas seções de uma etiqueta (por exemplo, <code>#dairy</code>), as opções já vêm com o nome dela, e remover é um toque só. Nas outras seções, você digita a etiqueta.</p>
+      <h4>Acrescentar, retirar ou renomear uma etiqueta</h4>
+      <ol>
+        <li>Toque em <b class="um-ui">···</b> no título da seção.</li>
+        <li>Toque na opção desejada. Ela vira um campo de texto.</li>
+        <li>Digite a etiqueta com o símbolo (por exemplo, <code>@mercado</code>). Para renomear, o app pede depois o nome novo, <b>sem</b> o símbolo.</li>
+        <li>Toque em <b class="um-ui">OK</b> ou pressione <kbd>Enter</kbd>. <kbd>Esc</kbd> cancela.</li>
+      </ol>
+      <p>Se faltar o símbolo, aparece <b class="um-ui">Use a #, @, &amp; or $ prefixed token</b>. Ao concluir, o app informa quantos itens foram alterados.</p>
+      <h4>Renomear em toda a lista</h4>
+      <p>A opção <b class="um-ui">✏️ Rename #x everywhere</b> aparece nas seções de categoria (modo <b class="um-ui">#·Z</b>) e no menu da busca quando você buscou uma única etiqueta (por exemplo, <code>@mercado</code>). O título vira um campo editável com a dica <b class="um-ui">Enter ↵ to save</b>.</p>
+      <ol>
+        <li>Apague o nome antigo e digite o novo.</li>
+        <li>Pressione <kbd>Enter</kbd> para salvar, ou <kbd>Esc</kbd> para cancelar.</li>
+      </ol>
+      <div class="um-box um-warn">
+        <span class="um-box-title">⚠️ Atenção</span>
+        <p>Neste campo, tocar fora dele também salva o nome digitado.</p>
+      </div>
+      <h4>Excluir vários itens</h4>
+      <ol>
+        <li>Toque em <b class="um-ui">···</b> e em <b class="um-ui">🗑️ Delete N items</b>.</li>
+        <li>Leia o aviso <b class="um-ui">Delete N items?</b> e toque em <b class="um-ui">Delete N items</b> para confirmar.</li>
+      </ol>
+      <div class="um-box um-warn">
+        <span class="um-box-title">⚠️ Atenção</span>
+        <p>A exclusão em lote é definitiva (<i>This action cannot be undone</i>). Confira a quantidade no topo do menu antes de confirmar. Se precisar de segurança, <a href="#backup">exporte um backup</a> antes.</p>
+      </div>
+      <a class="um-top" href="#topo">↑ Topo</a>
+
+      <!-- ═══════════════ 13 ═══════════════ -->
+      <!-- fonte: index.html (#profile-modal, openProfileModal, _profilePick, profileAddNew, Profiles.add/rename/remove, profileRename, profileDelete, profileModalSync, switchProfile, _syncProfileBtn, boot _bootProfiles) -->
+      <h2 id="varias-listas">13. Várias listas</h2>
+      <p>Você pode ter listas separadas, por exemplo uma para casa e outra para a praia. Cada lista guarda os próprios itens, ordenação, filtro, seções recolhidas e arquivo no Google Drive.</p>
+      <p>Para abrir as listas, toque em <b class="um-ui">🛒</b> no rodapé (ou, com o Drive conectado, no selo com o nome da lista no cabeçalho). A janela <b class="um-ui">🛒 Select list</b> mostra:</p>
+      <ul>
+        <li>📂 a lista aberta, com <b class="um-ui">✓</b>, e 📁 as demais;</li>
+        <li>a situação no Drive: <b class="um-ui">⚪ not linked</b> (não ligada), <b class="um-ui">🔒 owner</b> (no seu Drive) ou <b class="um-ui">🔓 shared</b> (compartilhada com você);</li>
+        <li>os botões <b class="um-ui">✏️</b> (renomear) e <b class="um-ui">🗑</b> (excluir);</li>
+        <li><b class="um-ui">⟳</b>: atualiza as listas a partir do Drive;</li>
+        <li><b class="um-ui">✕</b>: fecha a janela.</li>
+      </ul>
+      <p>Quando você tem duas ou mais listas, esta janela abre sozinha ao iniciar o app.</p>
+
+      <h3 id="criar-uma-lista">Criar uma lista</h3>
+      <ol>
+        <li>Toque em <b class="um-ui">🛒</b>.</li>
+        <li>No campo <b class="um-ui">New list name…</b>, digite o nome (até 40 caracteres).</li>
+        <li>Toque em <b class="um-ui">＋</b> ou pressione <kbd>Enter</kbd>.</li>
+      </ol>
+      <p>Aparece <b class="um-ui">📋 Nome created</b> e a lista nova já abre. Se já existir uma lista com o mesmo nome, aparece <b class="um-ui">⚠️ A list with this name already exists.</b> (nomes que só diferem em acentos, maiúsculas ou pontuação contam como iguais).</p>
+      <div class="um-box um-note">
+        <span class="um-box-title">ℹ️ Observação</span>
+        <p>Uma lista nova pode começar com os itens de exemplo. Apague-os e adicione os seus.</p>
+      </div>
+
+      <h3 id="trocar-de-lista">Trocar de lista</h3>
+      <ol>
+        <li>Toque em <b class="um-ui">🛒</b>.</li>
+        <li>Toque no nome da lista.</li>
+      </ol>
+      <p>O app mostra o nome da lista aberta numa mensagem rápida. A busca aberta é limpa ao trocar.</p>
+
+      <h3 id="renomear-ou-excluir-uma-lista">Renomear ou excluir</h3>
+      <ul>
+        <li><b>Renomear</b>: toque em <b class="um-ui">✏️</b> ao lado da lista, digite o nome novo na janela <b class="um-ui">Rename "…" to:</b> e confirme. Aparece <b class="um-ui">✅ Renamed to "…"</b>.</li>
+        <li><b>Excluir</b>: toque em <b class="um-ui">🗑</b> e confirme a pergunta <b class="um-ui">Delete "…"?</b>. A lista aberta não pode ser excluída; abra outra antes.</li>
+      </ul>
+      <div class="um-box um-warn">
+        <span class="um-box-title">⚠️ Atenção</span>
+        <p>Excluir apaga deste aparelho todos os dados da lista, sem volta (<i>All data in this list will be permanently erased</i>). O arquivo da lista no Google Drive não é apagado pelo app.</p>
+      </div>
+      <a class="um-top" href="#topo">↑ Topo</a>
+
+      <!-- ═══════════════ 14 ═══════════════ -->
+      <!-- fonte: index.html (módulo DriveSync: Auth.requestToken prompt '' + login_hint, Auth.revoke, Drive.ensureFolder, SYNC_FILENAME, INDEX_FILENAME, Sync.run, _startTimer, afterSave, init online/visibility, openPanel, connect, disconnect, manualSync, resolveFolder, trashFolder, pickSharedFolder, pickForProfile, Picker.open; updateSyncBadge; openEditGuardModal; showCloudFirstDialog) -->
+      <h2 id="google-drive">14. Sincronizar com o Google Drive</h2>
+      <p>Sincronizar guarda uma cópia da lista no seu Google Drive. Assim você usa a mesma lista em vários aparelhos e pode dividi-la com outra pessoa. É opcional: sem conectar, tudo funciona só no aparelho.</p>
+
+      <h3 id="conectar-ao-google-drive">Conectar</h3>
+      <ol>
+        <li>Toque no ícone do Google Drive, no rodapé.</li>
+        <li>Na janela <b class="um-ui">Google Drive Sync</b> (estado <b class="um-ui">⚪ Not connected</b>), toque em <b class="um-ui">Connect Google Drive</b>.</li>
+        <li>Na janela do Google, escolha a conta e autorize o acesso.</li>
+        <li>Aparece <b class="um-ui">✅ Google Drive connected</b> e a primeira sincronização começa.</li>
+      </ol>
+      <p>A tela de autorização completa do Google só aparece na primeira vez. Nas próximas conexões, abre só uma janelinha rápida que fecha sozinha, e o app já lembra qual conta você usou.</p>
+      <p>O app cria no seu Drive a pasta <code>_ShopList_Sync</code>, com:</p>
+      <ul>
+        <li><code>Shop-List-Sync.json</code>: a primeira lista (<i>Default</i>);</li>
+        <li><code>Shop-List-Sync-nome-da-lista.json</code>: cada lista adicional;</li>
+        <li><code>Shop-List-Index.json</code>: o catálogo das suas listas.</li>
+      </ul>
+      <div class="um-box um-note">
+        <span class="um-box-title">ℹ️ Observação</span>
+        <p>O app só tem acesso aos arquivos que ele mesmo criou ou que você escolher pelo seletor de arquivos do Google. Ele não vê o resto do seu Drive.</p>
+      </div>
+
+      <h3 id="como-a-sincronizacao-funciona">Como funciona</h3>
+      <p>Com a conexão ativa, o app sincroniza sozinho:</p>
+      <ul>
+        <li>ao abrir;</li>
+        <li>cerca de 2 segundos depois de cada alteração;</li>
+        <li>a cada 5 minutos, enquanto está aberto;</li>
+        <li>quando a internet volta.</li>
+      </ul>
+      <p>Em cada sincronização, o app compara a hora em que a cópia do aparelho e a do Drive foram salvas. <b>A mais recente vence</b> e substitui a outra inteira. Durante a sincronização aparece <b class="um-ui">🔄 Syncing with Google Drive…</b>; depois, uma destas mensagens:</p>
+      <ul>
+        <li><b class="um-ui">☁️ Synced to Drive ✓</b>: a cópia do aparelho foi enviada;</li>
+        <li><b class="um-ui">☁️ Data updated from Drive ✓</b>: a cópia do Drive era mais nova e foi trazida;</li>
+        <li><b class="um-ui">☁️ Already in sync</b>: as duas já eram iguais.</li>
+      </ul>
+      <div class="um-box um-warn">
+        <span class="um-box-title">⚠️ Atenção</span>
+        <p>O app não junta alterações. Se duas pessoas (ou dois aparelhos) mudarem a lista ao mesmo tempo, vale a versão salva por último, e as mudanças da outra se perdem. Sincronize antes de editar e evite editar em dois lugares ao mesmo tempo.</p>
+      </div>
+
+      <h3 id="painel-google-drive-sync">O painel Google Drive Sync</h3>
+      <p>Toque no ícone do Drive no rodapé para abrir o painel. Com a conexão ativa (<b class="um-ui">🟢 Connected</b>), ele mostra:</p>
+      <ul>
+        <li><b class="um-ui">✓ in sync</b> (<i>Local and Drive data match</i>) ou <b class="um-ui">⚠ out of sync</b> (<i>Local and Drive data differ — next sync will reconcile</i>);</li>
+        <li><b class="um-ui">📱 local savedAt</b> e <b class="um-ui">☁️ cloud savedAt</b>: quando cada cópia foi salva;</li>
+        <li><b class="um-ui">🔗 file id</b>: a identificação do arquivo no Drive;</li>
+        <li><b class="um-ui">Last sync</b>: data e hora da última sincronização.</li>
+      </ul>
+      <p>Botões:</p>
+      <ul>
+        <li><b class="um-ui">Sync now</b>: sincroniza na hora;</li>
+        <li><b class="um-ui">Link shared file</b>: liga o app a uma lista compartilhada por outra pessoa (veja abaixo);</li>
+        <li><b class="um-ui">Disconnect</b>: desconecta do Drive;</li>
+        <li><b class="um-ui">Close</b>: fecha o painel.</li>
+      </ul>
+      <p>Se o aparelho não tiver dados da lista, aparece também <b class="um-ui">⬇ Pull data from Drive now</b>, que traz a cópia do Drive.</p>
+
+      <h3 id="renovar-o-acesso">Renovar o acesso</h3>
+      <p>Por segurança, o acesso que o Google concede vence a cada hora, mais ou menos. Quando isso acontece:</p>
+      <ul>
+        <li>o pontinho do ícone do Drive fica cinza e os selos do cabeçalho somem;</li>
+        <li>a sincronização automática para, mas você continua usando o app normalmente.</li>
+      </ul>
+      <p>Para renovar, basta um toque:</p>
+      <ol>
+        <li>Toque no ícone do Drive, no rodapé.</li>
+        <li>Toque em <b class="um-ui">Connect Google Drive</b>.</li>
+      </ol>
+      <p>Abre só a janelinha rápida do Google, que fecha sozinha. Não é preciso escolher a conta nem autorizar de novo.</p>
+      <div class="um-box um-tip">
+        <span class="um-box-title">💡 Dica</span>
+        <p>Se a lista já estava ligada ao Drive, ao abrir o app aparece a janela <b class="um-ui">Cloud sync</b>, que reconecta e sincroniza sozinha em 5 segundos, ou na hora com <b class="um-ui">☁️ Sync now</b>.</p>
+      </div>
+
+      <h3 id="sincronizar-antes-de-editar">Sincronizar antes de editar</h3>
+      <p>Se a lista está ligada ao Drive, mas ainda não foi sincronizada desde que você abriu o app, a primeira alteração (como adicionar, editar ou mudar quantidades) abre a janela <b class="um-ui">Sync before editing?</b> com o aviso <b class="um-ui">⚠️ Cloud may have newer data</b>.</p>
+      <ul>
+        <li><b class="um-ui">☁️ Sync now (recommended)</b>: sincroniza primeiro. Aparece <b class="um-ui">☁️ Syncing — redo your edit afterwards</b>: depois, refaça a alteração.</li>
+        <li><b class="um-ui">Edit anyway</b>: faz a alteração sem sincronizar. O app não pergunta de novo até ser reaberto.</li>
+      </ul>
+
+      <h3 id="compartilhar-com-outra-pessoa">Compartilhar com outra pessoa</h3>
+      <p>Duas pessoas podem usar a mesma lista, cada uma com a sua conta Google. Quem criou a lista é o <b>dono</b> (<i>owner</i>); quem recebe é o <b>convidado</b> (<i>shared</i>).</p>
+      <h4>Quem compartilha (dono)</h4>
+      <ol>
+        <li>Conecte o app ao Drive e sincronize pelo menos uma vez, para a pasta <code>_ShopList_Sync</code> existir.</li>
+        <li>No Google Drive (pelo site ou pelo aplicativo do Drive, fora do Shop List), compartilhe a pasta <code>_ShopList_Sync</code> com a conta Google da outra pessoa, com permissão de <b>Editor</b>.</li>
+      </ol>
+      <h4>Quem recebe (convidado)</h4>
+      <ol>
+        <li>Abra o Shop List, toque no ícone do Drive e em <b class="um-ui">Connect Google Drive</b>.</li>
+        <li>No painel, toque em <b class="um-ui">Link shared file</b>. (Também dá para usar <b class="um-ui">☁️ Link shared file (Shop-List-Sync.json)</b> na janela <b class="um-ui">Local database</b>, ao abrir o app.)</li>
+        <li>Aparece <b class="um-ui">📂 Select the Shop-List-Index.json file from the shared folder…</b> e abre o seletor de arquivos do Google, com as abas <b class="um-ui">Shared with me</b> e <b class="um-ui">My Drive</b>.</li>
+        <li>Na pasta compartilhada, escolha o arquivo <code>Shop-List-Index.json</code>.</li>
+        <li>Aparece <b class="um-ui">✅ Shared folder linked — select a list below</b> e abre a janela <b class="um-ui">Select list</b> com as listas do dono.</li>
+        <li>Toque na lista que quer usar. O seletor abre de novo, com o nome do arquivo esperado no título (por exemplo, <code>Shop-List-Sync.json</code>). Escolha esse arquivo.</li>
+        <li>Aparece <b class="um-ui">✅ "Nome da lista" linked — syncing…</b>. Os dados do dono são trazidos e o cabeçalho passa a mostrar <b class="um-ui">🔓 shared</b>.</li>
+      </ol>
+      <p>Repita o passo 6 para cada lista do dono que quiser usar. Se o dono criar listas novas depois, abra <b class="um-ui">🛒</b> e toque em <b class="um-ui">⟳</b> para buscá-las (aparece <b class="um-ui">📋 N list(s) discovered: …</b>).</p>
+      <div class="um-box um-warn">
+        <span class="um-box-title">⚠️ Atenção</span>
+        <p>No aparelho do convidado, ligar uma lista compartilhada substitui os dados locais dessa lista (e da primeira lista, <i>Default</i>) pelos do dono. Se você já tinha uma lista sua, <a href="#backup">exporte um backup</a> antes.</p>
+      </div>
+      <p>Mensagens que podem aparecer:</p>
+      <ul>
+        <li><b class="um-ui">⚠️ Wrong file selected — please select "…"</b>: o arquivo escolhido não corresponde à lista. O seletor abre de novo. Depois de 3 tentativas erradas, a ligação é cancelada (<b class="um-ui">❌ Incorrect file selected 3 times — link cancelled. Try again from the list.</b>).</li>
+        <li><b class="um-ui">⚠️ Expected "Shop-List-Index.json", got "…" — please select the index file</b>: no primeiro seletor, escolha o arquivo de índice.</li>
+        <li><b class="um-ui">⚠️ This file belongs to your own Drive. Select a file shared by another user.</b>: você escolheu um arquivo do seu próprio Drive.</li>
+        <li><b class="um-ui">⚠️ Tap the list name to select its file from the shared folder</b>: falta escolher o arquivo desta lista. Abra <b class="um-ui">🛒</b> e toque no nome dela.</li>
+        <li>Problemas de permissão e de seletor: veja <a href="#solucao-de-problemas">Solução de problemas</a>.</li>
+      </ul>
+
+      <h3 id="selos-de-sincronizacao">Selos de sincronização</h3>
+      <p>Com o Drive conectado, o cabeçalho mostra, ao lado do horário de salvamento:</p>
+      <ul>
+        <li><b class="um-ui">🔒 owner</b>: a lista está no seu Drive;</li>
+        <li><b class="um-ui">🔓 shared</b>: a lista é de outra pessoa e foi compartilhada com você;</li>
+        <li><b class="um-ui">⚠ duplicate</b>: foram encontradas duas pastas de sincronização (veja abaixo).</li>
+      </ul>
+      <p>Depois do selo aparece o nome da lista (exceto quando é a lista inicial com o nome original). Tocar no selo abre a janela de listas.</p>
+      <p>O selo <b class="um-ui">✏ editing</b> indica que outra sessão (outro aparelho ou o dono) está editando a lista naquele momento. O aviso dura até 10 minutos. Toque nele para ver os detalhes no painel. Você pode continuar editando, mas lembre que vale a versão salva por último.</p>
+      <h4>Duas pastas encontradas</h4>
+      <p>Se aparecer <b class="um-ui">⚠ duplicate</b>, o painel do Drive mostra <b class="um-ui">Two folders detected.</b> e um cartão para cada pasta. O cartão em uso tem <b class="um-ui">IN USE</b>.</p>
+      <ul>
+        <li><b class="um-ui">Use this file</b>: passa a usar a outra pasta e sincroniza.</li>
+        <li><b class="um-ui">🗑</b>: move a pasta que não está em uso para a lixeira do Drive (<b class="um-ui">🗑 Folder moved to Drive trash</b>).</li>
+      </ul>
+
+      <h3 id="desconectar">Desconectar</h3>
+      <ol>
+        <li>Toque no ícone do Drive, no rodapé.</li>
+        <li>Toque em <b class="um-ui">Disconnect</b>.</li>
+      </ol>
+      <p>Aparece <b class="um-ui">🔌 Google Drive disconnected</b>. O app retira a autorização e esquece a conta: na próxima conexão, o Google pede a autorização completa de novo. Os dados no aparelho e os arquivos no Drive continuam onde estão.</p>
+      <a class="um-top" href="#topo">↑ Topo</a>
+
+      <!-- ═══════════════ 15 ═══════════════ -->
+      <!-- fonte: index.html (#footer-data-btn, openDataMenu, exportData, exportDataSilent, triggerImport, importFile, #backup-banner, BACKUP_THRESHOLD, dismissBanner, exportDataFromBanner) -->
+      <h2 id="backup">15. Backup: exportar e importar</h2>
+      <p>O backup é um arquivo <code>.json</code> com os itens da lista aberta. Use-o para guardar uma cópia de segurança ou levar a lista para outro aparelho sem o Google Drive.</p>
+      <h4>Exportar</h4>
+      <ol>
+        <li>Toque no ícone de cilindro (banco de dados), no rodapé.</li>
+        <li>No menu <b class="um-ui">Data · backup (.json)</b>, toque em <b class="um-ui">⬇️ Export data</b>.</li>
+      </ol>
+      <p>O arquivo é baixado com o nome <code>AAAAMMDD.HHmm-Shop-List.json</code> (data e hora da exportação) e aparece <b class="um-ui">Data exported</b>. Só a lista aberta é exportada; para guardar outras listas, abra cada uma e exporte.</p>
+      <h4>Importar</h4>
+      <ol>
+        <li>Abra a lista que vai receber os dados.</li>
+        <li>Toque no ícone de cilindro e em <b class="um-ui">⬆️ Import data</b>.</li>
+        <li>Escolha o arquivo <code>.json</code>.</li>
+      </ol>
+      <p>Aparece <b class="um-ui">Data imported successfully</b>. Com o Drive conectado, aparece <b class="um-ui">Data imported — will overwrite the Drive copy on next sync</b>.</p>
+      <div class="um-box um-warn">
+        <span class="um-box-title">⚠️ Atenção</span>
+        <p>Importar substitui todos os itens da lista aberta pelos do arquivo. Os dados importados passam a contar como os mais recentes: com o Drive conectado, eles substituem a cópia do Drive na próxima sincronização.</p>
+      </div>
+      <h4>Lembrete de backup</h4>
+      <p>Depois de 10 alterações, aparece a faixa <b class="um-ui">💾 Many changes made — save a backup now!</b> Toque nela para exportar na hora (<b class="um-ui">Backup saved successfully!</b>) ou no <b class="um-ui">✕</b> para dispensá-la por alguns minutos.</p>
+      <a class="um-top" href="#topo">↑ Topo</a>
+
+      <!-- ═══════════════ 16 ═══════════════ -->
+      <!-- fonte: index.html (#footer-theme-btn, toggleTheme, THEME_KEY, load() tema padrão 'light') -->
+      <h2 id="tema-claro-e-escuro">16. Tema claro e escuro</h2>
+      <ol>
+        <li>Toque no ícone da lua, no rodapé, para o tema escuro (<b class="um-ui">Dark mode enabled</b>).</li>
+        <li>No tema escuro, o ícone vira um sol: toque nele para voltar ao claro (<b class="um-ui">Light mode enabled</b>).</li>
+      </ol>
+      <p>A escolha fica guardada no aparelho. Sem escolha, o app abre no tema claro. Este manual abre no mesmo tema que você escolheu no app.</p>
+      <a class="um-top" href="#topo">↑ Topo</a>
+
+      <!-- ═══════════════ 17 ═══════════════ -->
+      <!-- fonte: index.html (localStorage: Shop_List_<lista>, Shop_List_ui_<lista>, ShopList_profiles, ShopList_driveToken, ShopList_driveHint; save(); load() 'Corrupted data'), sw.js, reset.html -->
+      <h2 id="cuidados-com-os-dados">17. Cuidados com os dados</h2>
+      <ul>
+        <li><b>Onde ficam</b>: no armazenamento do navegador deste aparelho, ligados ao endereço do app. Outro navegador ou outro aparelho não enxerga esses dados, a menos que você use o Google Drive ou um backup.</li>
+        <li><b>Salvamento</b>: cada alteração é salva na hora. O horário aparece no cabeçalho (<b class="um-ui">Saved at:</b>).</li>
+        <li><b>O que é guardado</b>: os itens de cada lista, as listas, a ordenação, o filtro ativo, as seções recolhidas, o tema e a conexão com o Drive. A marcação de "comprado" da aba <b class="um-ui">Refill</b> não é guardada.</li>
+      </ul>
+      <div class="um-box um-warn">
+        <span class="um-box-title">⚠️ Atenção</span>
+        <ul>
+          <li>Limpar os dados do site ou do navegador apaga todas as listas deste aparelho.</li>
+          <li>Em janela anônima ou privada, os dados podem ser apagados ao fechar a janela.</li>
+          <li>Exclusões de itens e de listas não têm como ser desfeitas.</li>
+        </ul>
+        <p>Mantenha um backup recente ou use a sincronização com o Google Drive.</p>
+      </div>
+      <a class="um-top" href="#topo">↑ Topo</a>
+
+      <!-- ═══════════════ 18 ═══════════════ -->
+      <!-- fonte: index.html (mensagens de toast/_setStatus, openPanel nota PWA, Picker timeout, load, save, importFile, VoiceSearch), reset.html -->
+      <h2 id="solucao-de-problemas">18. Solução de problemas</h2>
+      <dl>
+        <dt>O app parece desatualizado ou com comportamento estranho</dt>
+        <dd>Se aparecer <b class="um-ui">🔄 New version available!</b>, toque em <b class="um-ui">Update</b>. Se não resolver, abra a <a href="./reset.html">página de limpeza de cache</a> e toque em <b class="um-ui">Clear cache &amp; service workers</b>. Isso apaga só os arquivos guardados do app; <b>suas listas não são apagadas</b>. Depois de 3 segundos, o app abre de novo.</dd>
+
+        <dt>A lista aparece vazia ou incompleta</dt>
+        <dd>Veja se há um filtro ligado na barra 🚦 ou uma busca aberta. Feche a barra pelo <b class="um-ui">🚥</b> e limpe a busca. Confira também se você está na lista certa (<b class="um-ui">🛒</b>).</dd>
+
+        <dt>Um item não aparece na aba Stock ou Refill</dt>
+        <dd>Só itens no estoque aparecem nelas. Na aba <b class="um-ui">All</b>, toque no quadradinho do item. Para entrar em <b class="um-ui">Refill</b>, a quantidade atual precisa ser menor que a mínima.</dd>
+
+        <dt>Corrupted data. Starting with default values.</dt>
+        <dd>Os dados guardados não puderam ser lidos e a lista voltou aos exemplos. Recupere com <b class="um-ui">⬆️ Import data</b> (um backup) ou sincronizando com o Drive.</dd>
+
+        <dt>Error saving data locally</dt>
+        <dd>O navegador não deixou salvar (por exemplo, armazenamento cheio ou bloqueado). Exporte um backup e libere espaço no aparelho.</dd>
+
+        <dt>Error: invalid file · ⚠️ This file contains only sample data — nothing imported</dt>
+        <dd>O arquivo escolhido não é um backup do Shop List, ou contém apenas os itens de exemplo. Escolha um arquivo exportado pelo app.</dd>
+
+        <dt>❌ Drive connection failed · ⚠️ Could not connect to Drive</dt>
+        <dd>Verifique a internet e se o navegador não bloqueou a janela do Google. Tente de novo em <b class="um-ui">Connect Google Drive</b>.</dd>
+
+        <dt>Pontinho vermelho no ícone do Drive · ⚠️ Drive sync failed: …</dt>
+        <dd>A última sincronização falhou. Verifique a internet e toque em <b class="um-ui">Sync now</b> no painel. Se o painel mostrar <b class="um-ui">⚪ Not connected</b>, o acesso venceu: toque em <b class="um-ui">Connect Google Drive</b>.</dd>
+
+        <dt>⚠️ No access — owner must share this file with your account</dt>
+        <dd>O arquivo aparece para você, mas não foi compartilhado com a sua conta. Peça ao dono para compartilhar a pasta (ou o arquivo) com a sua conta Google, como <b>Editor</b>. Depois, sincronize de novo.</dd>
+
+        <dt>⚠️ No edit permission on the shared file — ask the owner for editor access</dt>
+        <dd>Você só tem permissão de leitura. Peça ao dono a permissão de <b>Editor</b>.</dd>
+
+        <dt>⚠️ Google Picker did not respond — try opening the app in Chrome instead of the installed PWA</dt>
+        <dd>Em alguns aparelhos, o seletor de arquivos do Google não funciona dentro do app instalado. O painel do Drive avisa isso com <b class="um-ui">📱 Installed PWA detected.</b> Abra o endereço do app no navegador Chrome, faça a ligação do arquivo por lá e depois volte ao app instalado.</dd>
+
+        <dt>⚠️ Drive not ready — connect first · ⚠️ No Drive folder linked yet</dt>
+        <dd>Aparecem ao tocar em <b class="um-ui">⟳</b> na janela de listas sem o Drive conectado ou sem pasta ligada. Conecte o Drive primeiro.</dd>
+
+        <dt>O botão Share ou Inventory copiou o texto em vez de abrir o compartilhamento</dt>
+        <dd>Quando o navegador não oferece o compartilhamento do sistema (comum no computador), o texto é copiado. Cole-o no aplicativo que quiser.</dd>
+
+        <dt>O microfone não aparece ou não funciona</dt>
+        <dd>Veja <a href="#busca-por-voz">Busca por voz</a>.</dd>
+      </dl>
+      <a class="um-top" href="#topo">↑ Topo</a>
+
+      <!-- ═══════════════ 19 ═══════════════ -->
+      <!-- fonte: README.md, sw.js (cache network-first/cache-first), index.html (DriveSync, VoiceSearch.lang, toggleStock, confirmDone) -->
+      <h2 id="perguntas-frequentes">19. Perguntas frequentes</h2>
+      <div class="um-faq">
+        <details>
+          <summary>Preciso criar conta?</summary>
+          <div><p>Não. O app funciona sem conta. A conta Google só é necessária se você quiser sincronizar com o Google Drive.</p></div>
+        </details>
+        <details>
+          <summary>Meus dados vão para algum servidor?</summary>
+          <div><p>Ficam no seu aparelho. Só vão para a internet se você conectar o Google Drive, e nesse caso vão para o <b>seu</b> Drive. Veja também a <a href="./privacy.html">política de privacidade</a> e os <a href="./terms.html">termos de uso</a>.</p></div>
+        </details>
+        <details>
+          <summary>O app funciona sem internet?</summary>
+          <div><p>Sim, depois do primeiro acesso: você abre o app, consulta e altera as listas normalmente. A sincronização com o Drive espera a internet voltar e acontece sozinha, se o acesso ao Google ainda estiver valendo. Caso contrário, renove o acesso (veja <a href="#renovar-o-acesso">Renovar o acesso</a>).</p></div>
+        </details>
+        <details>
+          <summary>Como uso a mesma lista no celular e no computador?</summary>
+          <div><p>Conecte o Google Drive nos dois aparelhos, com a mesma conta Google. Cada alteração vai para o Drive e chega ao outro aparelho na próxima sincronização. Outra opção é exportar um backup num aparelho e importar no outro.</p></div>
+        </details>
+        <details>
+          <summary>Por que o app pede para conectar ao Google de novo?</summary>
+          <div><p>O acesso concedido pelo Google vence a cada hora, mais ou menos. Renovar é um toque em <b class="um-ui">Connect Google Drive</b>, com uma janelinha rápida, sem escolher a conta de novo. A tela completa de autorização só volta se você tiver tocado em <b class="um-ui">Disconnect</b>.</p></div>
+        </details>
+        <details>
+          <summary>O que acontece se duas pessoas editarem ao mesmo tempo?</summary>
+          <div><p>Vale a versão salva por último, inteira; as mudanças da outra pessoa se perdem. Combinem quem edita e sincronizem antes de começar.</p></div>
+        </details>
+        <details>
+          <summary>Excluí um item por engano. Dá para desfazer?</summary>
+          <div><p>Não pelo app. Se você tiver um backup anterior, pode importá-lo, mas ele substitui a lista inteira pela versão do backup.</p></div>
+        </details>
+        <details>
+          <summary>Marquei itens como comprados e, ao reabrir o app, eles sumiram da lista.</summary>
+          <div><p>É o esperado. A marcação vale só enquanto o app está aberto. As unidades compradas já foram somadas ao estoque; como o item chegou ao mínimo, ele não precisa mais de reposição.</p></div>
+        </details>
+        <details>
+          <summary>Posso usar o app em português?</summary>
+          <div><p>A interface do app está em inglês. A busca por voz usa o idioma do seu navegador, e você pode cadastrar os itens e etiquetas em português.</p></div>
+        </details>
+        <details>
+          <summary>Como volto deste manual para o app?</summary>
+          <div><p>Toque em <b class="um-ui">← Voltar ao app</b>, no topo desta página, ou use o botão Voltar do aparelho.</p></div>
+        </details>
+      </div>
+      <a class="um-top" href="#topo">↑ Topo</a>
+
+      <!-- ═══════════════ 20 ═══════════════ -->
+      <!-- fonte: index.html (PREFIX_META, SORT_MODES, stepper labels, DriveSync) -->
+      <h2 id="glossario">20. Glossário</h2>
+      <dl>
+        <dt>All, Stock, Refill</dt>
+        <dd>As três abas: todos os itens; itens controlados no estoque; itens a comprar.</dd>
+        <dt>current e min.</dt>
+        <dd>Quantidade atual e quantidade mínima de um item no estoque.</dd>
+        <dt>Semáforo</dt>
+        <dd>As cores 🟢 🟡 🔴 que indicam se o estoque do item está em dia, no limite ou baixo.</dd>
+        <dt>Etiqueta (token)</dt>
+        <dd>Palavra com símbolo na descrição do item: <code>#</code> categoria, <code>@</code> contexto, <code>&amp;</code> relacionamento, <code>$</code> orçamento.</dd>
+        <dt>Seção</dt>
+        <dd>Grupo de itens com um título, formado conforme a ordenação (letra, etiqueta ou favoritos).</dd>
+        <dt>Lista (perfil)</dt>
+        <dd>Um conjunto separado de itens. Você pode ter várias e trocar entre elas pelo 🛒.</dd>
+        <dt>Sincronizar</dt>
+        <dd>Comparar a cópia do aparelho com a do Google Drive e deixar as duas iguais, mantendo a mais recente.</dd>
+        <dt>Dono (owner) e convidado (shared)</dt>
+        <dd>Dono é quem tem a lista no próprio Drive. Convidado é quem usa uma lista que o dono compartilhou.</dd>
+        <dt>Seletor do Google (Google Picker)</dt>
+        <dd>A janela do Google para escolher um arquivo do Drive.</dd>
+        <dt>Backup</dt>
+        <dd>Arquivo <code>.json</code> com a cópia dos itens de uma lista.</dd>
+        <dt>PWA (app instalável)</dt>
+        <dd>Site que pode ser instalado como aplicativo e funciona sem internet depois do primeiro acesso.</dd>
+      </dl>
+      <a class="um-top" href="#topo">↑ Topo</a>
+    </main>
+  </div>
+
+  <footer class="um-footer">
+    <p><a href="./index.html">← Voltar ao app</a> · <a href="./privacy.html">Privacidade</a> · <a href="./terms.html">Termos de uso</a></p>
+    <p>Manual gerado em 14/11/2026 a partir da versão do app 20260721 r45 (cache shoplist-v20260721-r48).</p>
+  </footer>
+</div>
+
+<script>
+  // Modo embutido (iframe do app): links #âncora rolam sem criar entradas no
+  // histórico (no iframe elas iriam para o histórico da janela do app e o
+  // "voltar" precisaria passar por cada uma antes de fechar o manual).
+  // Links para outras páginas (reset, privacidade, termos) abrem na janela do app.
+  (function () {
+    if (!document.documentElement.classList.contains('um-embed')) return;
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest ? e.target.closest('a[href]') : null;
+      if (!a) return;
+      var href = a.getAttribute('href');
+      if (href.charAt(0) === '#') {
+        var target = href.length > 1 ? document.getElementById(decodeURIComponent(href.slice(1))) : null;
+        if (!target) return;
+        e.preventDefault();
+        target.scrollIntoView({ block: 'start' });
+        try { history.replaceState(null, '', href); } catch (_) { }
+      } else if (!a.target) {
+        a.target = '_top';
+      }
+    });
+  })();
+
+  (function () {
+    var details = document.getElementById('um-toc-details');
+    var list = document.getElementById('um-toc-list');
+    var search = document.getElementById('um-toc-search');
+    var empty = document.getElementById('um-toc-empty');
+    if (!details || !list) return;
+
+    // Índice: aberto no computador, recolhido no celular
+    var mq = window.matchMedia ? window.matchMedia('(min-width: 900px)') : null;
+    function syncOpen() { if (mq && mq.matches) details.open = true; }
+    syncOpen();
+    if (mq) {
+      if (mq.addEventListener) mq.addEventListener('change', syncOpen);
+      else if (mq.addListener) mq.addListener(syncOpen);
+    }
+    list.addEventListener('click', function (e) {
+      var a = e.target.closest ? e.target.closest('a') : null;
+      if (a && mq && !mq.matches) details.open = false;
+    });
+
+    // Mede a barra fixa do índice (busca + ☰ Índice, fechado) no celular e grava em
+    // --um-toc-h: os títulos param logo abaixo dela ao navegar pelo índice
+    var root = document.querySelector('.um-manual');
+    var bar = document.querySelector('.um-toc-bar');
+    var summary = details.querySelector('summary');
+    function syncTocH() {
+      if (!root) return;
+      if (mq && mq.matches) { root.style.removeProperty('--um-toc-h'); return; }
+      var h = (bar ? bar.offsetHeight : 0) + (summary ? summary.offsetHeight : 0) + 1;
+      if (h > 1) root.style.setProperty('--um-toc-h', h + 'px');
+    }
+    syncTocH();
+    window.addEventListener('resize', syncTocH);
+
+    // Buscar no manual: filtra os itens do índice
+    function norm(s) {
+      return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    }
+    if (search) {
+      search.hidden = false;
+      syncTocH();   // a busca só aparece com JS: remede a barra
+      search.addEventListener('input', function () {
+        var q = norm(search.value.trim());
+        // No celular, os resultados aparecem no índice: abre ao digitar
+        if (q) details.open = true;
+        var shown = 0;
+        Array.prototype.forEach.call(list.children, function (li) {
+          var top = li.querySelector('a');
+          var subs = li.querySelectorAll('ol li');
+          var topMatch = !q || norm(top.textContent).indexOf(q) !== -1;
+          var anySub = false;
+          Array.prototype.forEach.call(subs, function (s) {
+            var m = !q || topMatch || norm(s.textContent).indexOf(q) !== -1;
+            s.hidden = !m;
+            if (m && q && !topMatch) anySub = true;
+          });
+          var vis = topMatch || anySub;
+          li.hidden = !vis;
+          if (vis) shown++;
+        });
+        empty.hidden = shown > 0;
+      });
+    }
+
+    // Destaque da seção visível
+    var links = {};
+    Array.prototype.forEach.call(list.querySelectorAll('a[href^="#"]'), function (a) {
+      links[a.getAttribute('href').slice(1)] = a;
+    });
+    var heads = Array.prototype.filter.call(
+      document.querySelectorAll('.um-content h2[id], .um-content h3[id]'),
+      function (h) { return links[h.id]; }
+    );
+    var current = null;
+    function update() {
+      var offset = (document.querySelector('.um-header') || { offsetHeight: 0 }).offsetHeight + 24;
+      if (!(mq && mq.matches) && bar) offset += bar.offsetHeight + (summary ? summary.offsetHeight : 0);
+      var active = heads[0];
+      for (var i = 0; i < heads.length; i++) {
+        if (heads[i].getBoundingClientRect().top - offset <= 0) active = heads[i];
+        else break;
+      }
+      if (active && active !== current) {
+        if (current && links[current.id]) links[current.id].classList.remove('um-active');
+        links[active.id].classList.add('um-active');
+        current = active;
+        if (mq && mq.matches) {
+          var a = links[active.id];
+          var nav = document.querySelector('.um-toc');
+          var r = a.getBoundingClientRect(), nr = nav.getBoundingClientRect();
+          if (r.top < nr.top || r.bottom > nr.bottom) a.scrollIntoView({ block: 'nearest' });
+        }
+      }
+    }
+    if ('IntersectionObserver' in window && heads.length) {
+      var io = new IntersectionObserver(function () { update(); }, { rootMargin: '0px 0px -60% 0px', threshold: [0, 1] });
+      heads.forEach(function (h) { io.observe(h); });
+      window.addEventListener('scroll', function () {
+        if (update._t) return;
+        update._t = requestAnimationFrame(function () { update._t = 0; update(); });
+      }, { passive: true });
+      update();
+    }
+  })();
+</script>
+</body>
+</html>

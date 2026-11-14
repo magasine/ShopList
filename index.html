@@ -3194,6 +3194,54 @@
       }
     }
 
+    /* ── Manual do usuário (painel sobreposto, ver openManual) ── */
+    #manual-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 3500;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+    }
+
+    #manual-bar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      padding-top: max(10px, env(safe-area-inset-top, 0px));
+      padding-left: max(12px, env(safe-area-inset-left, 0px));
+      padding-right: max(12px, env(safe-area-inset-right, 0px));
+      background: var(--header-bg);
+      border-bottom: 1px solid var(--header-border);
+    }
+
+    #manual-bar-title {
+      font-size: var(--fs-md);
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    #manual-close {
+      width: 40px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text2);
+      font-size: var(--fs-sm);
+      cursor: pointer;
+    }
+
+    #manual-overlay iframe {
+      flex: 1;
+      width: 100%;
+      border: 0;
+      background: var(--surface);
+    }
+
     /* Safari: stepper-val font-size para evitar zoom */
     .stepper-val {
       font-size: max(16px, var(--fs-sm));
@@ -4612,7 +4660,7 @@
       <div id="footer-left">
 
         <!-- Ajuda & dicas -->
-        <div class="fbtn" id="footer-help-btn" title="Help &amp; tips" onclick="showHelp('search')">
+        <div class="fbtn" id="footer-help-btn" title="User manual" onclick="openManual()">
           <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="10" />
             <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
@@ -7861,6 +7909,32 @@
     }
 
     function openConfig() { closeModal(); }
+
+    // ── Manual do usuário ───────────────────────────────────────────────────
+    // Painel sobreposto com manual.html?embed=1 num iframe. Navegar para a página
+    // recarregaria o index.html na volta e repetiria os diálogos de boot (Local
+    // database / Cloud sync / Select list). Uma entrada no histórico faz o
+    // "voltar" do Android fechar o painel em vez de sair do app.
+    function openManual() {
+      if (document.getElementById('manual-overlay')) return;
+      const ov = document.createElement('div');
+      ov.id = 'manual-overlay';
+      ov.innerHTML = `
+        <div id="manual-bar">
+          <span id="manual-bar-title">User manual</span>
+          <button id="manual-close" type="button" title="Close manual" aria-label="Close manual">✕</button>
+        </div>
+        <iframe src="./manual.html?embed=1" title="Shop List user manual"></iframe>`;
+      document.body.appendChild(ov);
+      ov.querySelector('#manual-close').addEventListener('click', () => history.back());
+      history.pushState({ manual: true }, '');
+      window.addEventListener('popstate', _closeManual, { once: true });
+    }
+
+    function _closeManual() {
+      const ov = document.getElementById('manual-overlay');
+      if (ov) ov.remove();
+    }
 
     // ── Help & Tips ──────────────────────────────────────────────────────────
     // Hierarquia invertida em relação ao antigo "Install App": ajuda de busca
