@@ -57,6 +57,10 @@
   </noscript>
   <style>
     :root {
+      /* Alvo de toque dos botões de cabeçalho/rodapé — padrão de apps móveis
+         (iOS 44pt; Android recomenda 48dp, que as abas usam) */
+      --tap: 44px;
+
       /* ── Light Theme — MD3 Futuristic ── */
 
       /* Base surfaces: fundo frio mineral com leve tint cyan */
@@ -381,8 +385,8 @@
     }
 
     #app {
-      /* Full-bleed em qualquer tela: sem max-width nem margens. Em telas largas
-         só o conteúdo é limitado (ver --content-max) */
+      /* Full-bleed até 1023px: sem max-width nem margens. No desktop (≥ 1024px)
+         vira uma coluna centralizada (ver @media min-width: 1024px) */
       width: 100%;
       /* Altura fixa = viewport: header e footer ficam fixos, apenas #panels rola */
       height: 100%;
@@ -404,10 +408,21 @@
       padding-right: env(safe-area-inset-right, 0px);
     }
 
+    /* Duas linhas ("Shop List" / "Semaphore") com a altura dos botões (--tap) */
     #title-link {
       color: inherit;
       text-decoration: none;
       cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-width: 0;
+      min-height: var(--tap);
+    }
+
+    #title-link>span {
+      white-space: nowrap;
+      overflow: hidden;
       text-overflow: ellipsis;
     }
 
@@ -417,7 +432,7 @@
 
     /* HEADER */
     #header {
-      padding: 14px 16px 0;
+      padding: 12px 16px 0;
       background: var(--header-bg);
       border-bottom: 1px solid var(--header-border);
       /* flex-shrink:0 garante que o header nunca encolhe — ocupa sempre seu espaço natural */
@@ -428,9 +443,9 @@
 
     #header-top {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       gap: 8px;
-      padding-bottom: 12px;
+      padding-bottom: 6px;
       justify-content: flex-end;
       flex-wrap: nowrap;
       min-width: 0;
@@ -439,32 +454,41 @@
     }
 
     #app-title {
-      font-size: var(--fs-md);
-      font-weight: 800;
-      letter-spacing: -0.3px;
-      display: flex;
-      align-items: baseline;
-      gap: 3px;
       flex-shrink: 1;
       /* pode encolher se necessário */
       min-width: 0;
-      flex-wrap: wrap;
-      /* timestamp quebra p/ 2ª linha se não couber */
     }
 
-    /* "Shop List" — nome principal, opacidade plena */
+    /* "Shop List" — nome principal: um passo acima do antigo --fs-md, agora que
+       divide a linha só com os botões */
     .title-main {
-      opacity: 1;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      line-height: 1.15;
     }
 
-    /* "Semaphore" — sufixo do app, mais discreto */
+    /* "Semaphore" — sozinho na 2ª linha, menor e discreto */
     .title-suffix {
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      line-height: 1.2;
       opacity: 0.6;
-      font-weight: 400;
+    }
+
+    /* Linha de status abaixo do título: último salvamento + selos de sync */
+    #header-status {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px 8px;
+      min-width: 0;
+      padding-bottom: 8px;
     }
 
     /* Timestamp de dados — mais contrastado que antes */
-    #app-title span#title-sub {
+    #title-sub {
       color: inherit;
       font-weight: 500;
       font-size: var(--fs-xs);
@@ -476,7 +500,7 @@
     }
 
     /* Wrapper dos dois badges — mantém o par na mesma linha como item atômico
-       no flex-wrap do #app-title; o #title-sub ainda pode quebrar independentemente */
+       no flex-wrap do #header-status; o #title-sub ainda pode quebrar independentemente */
     #sync-badges {
       display: inline-flex;
       align-items: center;
@@ -589,16 +613,16 @@
 
     /* ─── Botão toggle 🚦 ───────────────────────────────────────────────── */
     #btn-traffic {
-      width: 34px;
-      height: 34px;
-      border-radius: 10px;
+      width: var(--tap);
+      height: var(--tap);
+      border-radius: 12px;
       border: 1px solid var(--border);
       background: var(--surface2);
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 16px;
+      font-size: 19px;
       line-height: 1;
       transition: all var(--transition);
       flex-shrink: 0;
@@ -625,7 +649,7 @@
     }
 
     #filter-bar.open {
-      max-height: 56px;
+      max-height: 64px;   /* botões de --tap (44px) + respiro */
       padding: 4px 0 10px;
     }
 
@@ -658,9 +682,9 @@
 
     /* ── Botões de filtro: mesma base visual que .hbtn ── */
     .filter-btn {
-      width: 40px;
-      height: 34px;
-      border-radius: 10px;
+      width: var(--tap);
+      height: var(--tap);
+      border-radius: 12px;
       border: 1px solid var(--border);
       display: flex;
       align-items: center;
@@ -872,9 +896,9 @@
     }
 
     #btn-sort {
-      width: 40px;
-      height: 34px;
-      border-radius: 10px;
+      width: 50px;
+      height: var(--tap);
+      border-radius: 12px;
       border: 1px solid var(--border);
       background: var(--surface2);
       display: flex;
@@ -926,9 +950,9 @@
     }
 
     .hbtn {
-      width: 34px;
-      height: 34px;
-      border-radius: 10px;
+      width: var(--tap);
+      height: var(--tap);
+      border-radius: 12px;
       border: 1px solid var(--border);
       background: var(--surface2);
       display: flex;
@@ -1090,7 +1114,11 @@
     .tab {
       flex: 1;
       text-align: center;
-      padding: 11px 4px;
+      padding: 0 4px;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: var(--fs-base);
       font-weight: 600;
       color: var(--text2);
@@ -2002,19 +2030,19 @@
       flex-shrink: 0;
       background: var(--footer-bg);
       border-top: 1px solid var(--header-border);
-      padding: 8px 12px;
+      padding: 8px 16px;
       padding-bottom: max(8px, calc(8px + env(safe-area-inset-bottom, 0px)));
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 6px;
+      gap: 8px;
     }
 
     /* Grupo de ícones à esquerda */
     #footer-left {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 8px;
       flex-shrink: 0;
     }
 
@@ -2029,9 +2057,9 @@
 
     /* Botões de ícone no rodapé */
     .fbtn {
-      width: 34px;
-      height: 34px;
-      border-radius: 10px;
+      width: var(--tap);
+      height: var(--tap);
+      border-radius: 12px;
       border: 1px solid var(--border);
       background: var(--surface2);
       display: flex;
@@ -2044,6 +2072,20 @@
         border-color var(--transition), transform var(--transition), box-shadow var(--transition);
       -webkit-tap-highlight-color: transparent;
       box-shadow: 0 1px 3px rgba(13, 27, 42, 0.06);
+    }
+
+    /* Ícones proporcionais ao alvo de toque (--tap) */
+    .hbtn svg,
+    .fbtn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    #add-btn>svg,
+    #inventory-btn>svg,
+    #share-btn>svg {
+      width: 16px;
+      height: 16px;
     }
 
     .fbtn:active {
@@ -2061,13 +2103,14 @@
       display: flex;
       align-items: center;
       gap: 7px;
-      font-size: var(--fs-sm);
+      font-size: var(--fs-base);
       font-weight: 600;
       color: #fff;
       background: linear-gradient(135deg, var(--accent) 0%, #00897B 100%);
       border: none;
-      border-radius: 10px;
-      padding: 8px 16px;
+      border-radius: 12px;
+      min-height: var(--tap);
+      padding: 0 18px;
       cursor: pointer;
       flex-shrink: 0;
       transition: background var(--transition), transform var(--transition),
@@ -2104,13 +2147,14 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      font-size: var(--fs-sm);
+      font-size: var(--fs-base);
       font-weight: 600;
       color: var(--accent);
       background: var(--accent-light);
       border: 1.5px solid var(--row-ok-border);
-      border-radius: 10px;
-      padding: 8px 14px;
+      border-radius: 12px;
+      min-height: var(--tap);
+      padding: 0 18px;
       cursor: pointer;
       flex-shrink: 0;
       margin-left: auto;
@@ -2142,7 +2186,7 @@
       #inventory-btn,
       #share-btn {
         gap: 0;
-        padding: 8px 12px;
+        padding: 0 16px;
       }
     }
 
@@ -2155,7 +2199,7 @@
       #add-btn,
       #inventory-btn,
       #share-btn {
-        padding: 8px 10px;
+        padding: 0 12px;
       }
     }
 
@@ -2598,7 +2642,7 @@
     /* ── Botão de perfil no footer ─────────────────────────────────────────── */
     #btn-profile {
       position: relative;
-      font-size: 16px;
+      font-size: 20px;
       /* emoji */
     }
 
@@ -3174,30 +3218,21 @@
       font-style: italic;
     }
 
-    /* Telas largas (desktop / tablet em paisagem): o app segue full-bleed — header,
-       footer e área de rolagem ocupam a janela inteira —, mas o CONTEÚDO fica numa
-       coluna legível de até --content-max, centralizada. As faixas laterais têm a
-       mesma cor de cada barra, então não leem como margem. Substitui o antigo
-       "modo cartão" (480px, 90vh, padding 24px), que encolhia a UI no desktop. */
+    /* Desktop (≥ 1024px): o app inteiro — header, lista e footer — vira UMA coluna
+       centralizada, com a altura toda da janela. Antes só o conteúdo era limitado
+       (960px) e as barras iam de ponta a ponta, extrapolando o corpo da lista.
+       Largura: 30% da janela, com piso de 420px (30% de 1024–1399px ficaria estreito
+       demais para os nomes). As laterais mostram o fundo do body (--bg). */
     @media (min-width: 1024px) {
-      :root {
-        --content-max: 960px;
+      #app {
+        width: max(420px, 30vw);
+        border-left: 1px solid var(--border);
+        border-right: 1px solid var(--border);
+        box-shadow: 0 0 48px rgba(13, 27, 42, 0.10);
       }
 
-      #header {
-        padding-left: max(16px, calc((100% - var(--content-max)) / 2));
-        padding-right: max(16px, calc((100% - var(--content-max)) / 2));
-      }
-
-      #footer {
-        padding-left: max(12px, calc((100% - var(--content-max)) / 2));
-        padding-right: max(12px, calc((100% - var(--content-max)) / 2));
-      }
-
-      /* padding no próprio #panels: a scrollbar continua na borda da janela */
-      #panels {
-        padding-left: calc((100% - var(--content-max)) / 2);
-        padding-right: calc((100% - var(--content-max)) / 2);
+      [data-theme="dark"] #app {
+        box-shadow: 0 0 48px rgba(0, 0, 0, 0.45);
       }
     }
 
@@ -4515,14 +4550,11 @@
   <div id="app">
     <div id="header">
       <div id="header-top">
-        <!-- Título + timestamp sempre visível -->
+        <!-- Título em duas linhas: "Shop List" / "Semaphore" (sozinho na 2ª) -->
         <div id="app-title">
           <a href="https://linktr.ee/magasine" target="_blank" rel="noopener" id="title-link"
-            title="Credits: @magasine"><span class="title-main">Shop List</span><span class="title-suffix">
-              Semaphore</span></a>
-          <span id="title-sub"></span><span id="sync-badges"><span id="sync-locality" style="display:none"
-              onclick="syncLocalityClick()" title="Switch list / manage profiles"></span><span id="sync-editing-badge"
-              style="display:none" onclick="DriveSync.openPanel()" title=""></span></span>
+            title="Credits: @magasine"><span class="title-main">Shop List</span><span
+              class="title-suffix">Semaphore</span></a>
         </div>
 
         <!-- Controles fixos da linha 1: sort · 🚦 · search · close -->
@@ -4540,13 +4572,22 @@
             </svg>
           </div>
 
-          <div class="hbtn" id="btn-close" title="Close" onclick="closeApp()">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
+          <!-- Menu ⋯: tema, manual, backup e fechar (funções pouco usadas, antes no rodapé/✕) -->
+          <div class="hbtn" id="btn-more" title="More options" aria-label="More options" onclick="openMoreMenu(this)">
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+              <circle cx="5" cy="12" r="2" />
+              <circle cx="12" cy="12" r="2" />
+              <circle cx="19" cy="12" r="2" />
             </svg>
           </div>
         </div>
+      </div>
+
+      <!-- Status: último salvamento + selos de sync (antes ficavam ao lado do título) -->
+      <div id="header-status">
+        <span id="title-sub"></span><span id="sync-badges"><span id="sync-locality" style="display:none"
+            onclick="syncLocalityClick()" title="Switch list / manage profiles"></span><span id="sync-editing-badge"
+            style="display:none" onclick="DriveSync.openPanel()" title=""></span></span>
       </div>
 
       <!-- Segunda linha: filtros crit/warn/ok (toggle via 🚦) -->
@@ -4671,30 +4712,7 @@
       <!-- Grupo de ícones esquerdo -->
       <div id="footer-left">
 
-        <!-- Ajuda & dicas -->
-        <div class="fbtn" id="footer-help-btn" title="User manual" onclick="openManual()">
-          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
-        </div>
-
-        <!-- Alternar tema -->
-        <div class="fbtn" id="footer-theme-btn" title="Toggle theme" onclick="toggleTheme()">
-          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-          </svg>
-        </div>
-
-        <!-- Dados: Export/Import agrupados num menu (libera 1 slot no footer) -->
-        <div class="fbtn" id="footer-data-btn" title="Backup data (.json)" onclick="openDataMenu(this)">
-          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <ellipse cx="12" cy="5" rx="9" ry="3" />
-            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-          </svg>
-        </div>
+        <!-- Manual, tema e backup ficam no menu ⋯ do cabeçalho (openMoreMenu) -->
 
         <!-- Perfis / listas -->
         <div class="fbtn" id="btn-profile" title="Switch list / manage profiles" onclick="openProfileModal()">
@@ -7486,8 +7504,17 @@
     // flip automático (o footer fica na base, então o menu abre PARA CIMA),
     // clique-fora, tema e animação — zero CSS novo. Agrupar as duas operações
     // raras de backup em 1 slot liberou 38px no footer.
-    function openDataMenu(triggerEl) {
+    // Menu ⋯ do cabeçalho (substitui o ✕): reúne funções pouco usadas que ocupavam
+    // o rodapé — tema no topo, manual, backup — e o "Close app" que era o ✕.
+    function openMoreMenu(triggerEl) {
+      const dark = document.documentElement.getAttribute('data-theme') === 'dark';
       _showSectionMenu(triggerEl, `
+        <div class="sec-action-item" data-action="theme">
+          <span class="sec-action-icon">${dark ? '☀️' : '🌙'}</span> ${dark ? 'Light mode' : 'Dark mode'}
+        </div>
+        <div class="sec-action-item" data-action="manual">
+          <span class="sec-action-icon">📖</span> User manual
+        </div>
         <div class="sec-action-header">Data · backup (.json)</div>
         <div class="sec-action-item" data-action="data-export">
           <span class="sec-action-icon">⬇️</span> Export data
@@ -7499,6 +7526,10 @@
         <div class="sec-action-item" data-action="data-undo-import">
           <span class="sec-action-icon">↩️</span> Undo last import
         </div>` : ''}
+        <div class="sec-action-header">App</div>
+        <div class="sec-action-item" data-action="close">
+          <span class="sec-action-icon">✕</span> Close app
+        </div>
       `);
 
       _secMenuEl.addEventListener('click', e => {
@@ -7506,6 +7537,9 @@
         if (!item) return;
         const action = item.dataset.action;
         closeSectionMenu();
+        if (action === 'theme') toggleTheme();
+        if (action === 'manual') openManual();
+        if (action === 'close') closeApp();
         if (action === 'data-export') exportData();
         if (action === 'data-import') triggerImport();
         if (action === 'data-undo-import') undoLastImport();
@@ -8102,14 +8136,6 @@
       document.documentElement.setAttribute('data-theme', next);
       syncThemeColor(next);
       localStorage.setItem(THEME_KEY, next);
-      // Atualiza ícone do botão no rodapé
-      const btn = document.getElementById('footer-theme-btn');
-      if (btn) {
-        btn.title = next === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
-        btn.innerHTML = next === 'dark'
-          ? `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`
-          : `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
-      }
       toast(`${next === 'dark' ? 'Dark' : 'Light'} mode enabled`);
     }
 
@@ -9610,17 +9636,6 @@
     // competir com o cloud-first dialog no boot; se dados da nuvem chegarem,
     // _applyItems reavalia. Só aparece se houver legado E nunca resolvido antes.
     setTimeout(() => { try { maybeOfferUnitSweep(); } catch (_) { } }, 1200);
-
-    // Sincroniza ícone do tema no rodapé com o tema carregado
-    (function syncThemeIcon() {
-      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-      const btn = document.getElementById('footer-theme-btn');
-      if (!btn) return;
-      if (isDark) {
-        btn.title = 'Switch to light mode';
-        btn.innerHTML = `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
-      }
-    })();
 
     // Busca por voz: liga o botão de microfone (ou o oculta sem suporte)
     VoiceSearch.init();

@@ -640,7 +640,7 @@
         <li>Internet no primeiro acesso. Depois disso, o app abre mesmo sem conexão (veja <a href="#perguntas-frequentes">Perguntas frequentes</a>).</li>
         <li>Para sincronizar com o Google Drive: uma conta Google e internet.</li>
       </ul>
-      <p>O app ocupa a tela inteira em qualquer aparelho. O cabeçalho e o rodapé ficam fixos; só a lista rola. Em telas largas (computador ou tablet deitado), as barras vão de ponta a ponta e a lista fica numa coluna centralizada, mais fácil de ler.</p>
+      <p>No celular e no tablet, o app ocupa a tela inteira. O cabeçalho e o rodapé ficam fixos; só a lista rola. No computador (janelas a partir de 1024 pixels de largura), o app inteiro vira uma coluna centralizada, com a altura toda da janela e cerca de 30% da largura (no mínimo 420 pixels).</p>
       <p>Você pode usar o app pelo navegador ou instalá-lo como aplicativo (veja <a href="#instalar-o-app">Instalar o app</a>). Instalado, ele abre em janela própria, sem a barra do navegador.</p>
       <a class="um-top" href="#topo">↑ Topo</a>
 
@@ -743,12 +743,20 @@
       <h3 id="cabecalho">Cabeçalho</h3>
       <p>Na parte de cima ficam:</p>
       <ul>
-        <li>O título <b class="um-ui">Shop List Semaphore</b> e a hora do último salvamento, no formato <b class="um-ui">Saved at: dia/mês hora:minuto</b>.</li>
+        <li>O título <b class="um-ui">Shop List</b>, com <b class="um-ui">Semaphore</b> na linha de baixo.</li>
+        <li>Logo abaixo do título, a hora do último salvamento, no formato <b class="um-ui">Saved at: dia/mês hora:minuto</b>.</li>
         <li>Quando a lista está sincronizada com o Google Drive, os selos de sincronização (veja <a href="#selos-de-sincronizacao">Selos de sincronização</a>).</li>
         <li>O botão de ordenação, que mostra o modo atual (<b class="um-ui">A·Z</b>, <b class="um-ui">#·Z</b>, <b class="um-ui">⭐</b>…). Veja <a href="#ordenar-e-agrupar">Ordenar e agrupar</a>.</li>
         <li><b class="um-ui">🚦</b>: abre e fecha a barra de filtros. Veja <a href="#barra-de-filtros">Barra de filtros</a>.</li>
         <li>Lupa: abre e fecha a busca. Veja <a href="#buscar-itens">Buscar itens</a>.</li>
-        <li><b class="um-ui">✕</b> (<i>Close</i>): fecha o app ou volta à página anterior do navegador.</li>
+        <li><b class="um-ui">⋯</b> (<i>More options</i>): abre o menu com as funções menos usadas, nesta ordem:
+          <ul>
+            <li><b class="um-ui">🌙 Dark mode</b> ou <b class="um-ui">☀️ Light mode</b>: troca o tema (veja <a href="#tema-claro-e-escuro">Tema</a>);</li>
+            <li><b class="um-ui">📖 User manual</b>: abre este manual;</li>
+            <li><b class="um-ui">Data · backup (.json)</b>: <b class="um-ui">⬇️ Export data</b>, <b class="um-ui">⬆️ Import data</b> e, depois de uma importação, <b class="um-ui">↩️ Undo last import</b> (veja <a href="#backup">Backup</a>);</li>
+            <li><b class="um-ui">✕ Close app</b>: fecha o app ou volta à página anterior do navegador.</li>
+          </ul>
+        </li>
       </ul>
 
       <h3 id="abas">Abas All, Stock e Refill</h3>
@@ -764,14 +772,11 @@
       </div>
 
       <h3 id="rodape">Rodapé</h3>
-      <p>À esquerda, cinco ícones:</p>
+      <p>À esquerda, dois ícones (o manual, o tema e o backup ficam no menu <b class="um-ui">⋯</b> do cabeçalho):</p>
       <div class="um-table-wrap">
         <table>
           <thead><tr><th>Ícone</th><th>Para que serve</th></tr></thead>
           <tbody>
-            <tr><td>Ponto de interrogação</td><td>Abre este manual.</td></tr>
-            <tr><td>Lua ou sol</td><td>Troca entre tema claro e escuro (veja <a href="#tema-claro-e-escuro">Tema</a>).</td></tr>
-            <tr><td>Cilindro (banco de dados)</td><td>Menu de backup: exportar e importar dados (veja <a href="#backup">Backup</a>).</td></tr>
             <tr><td>🛒</td><td>Abre as listas. Um pontinho no ícone indica que você tem mais de uma lista (veja <a href="#varias-listas">Várias listas</a>).</td></tr>
             <tr><td>Logotipo do Google Drive</td><td>Abre o painel de sincronização. O pontinho mostra o estado (veja abaixo).</td></tr>
           </tbody>
@@ -1393,14 +1398,14 @@ Share — Refill tab
       <p>O backup é um arquivo <code>.json</code> com os itens da lista aberta. Use-o para guardar uma cópia de segurança ou levar a lista para outro aparelho sem o Google Drive.</p>
       <h4>Exportar</h4>
       <ol>
-        <li>Toque no ícone de cilindro (banco de dados), no rodapé.</li>
+        <li>Toque em <b class="um-ui">⋯</b>, no cabeçalho.</li>
         <li>No menu <b class="um-ui">Data · backup (.json)</b>, toque em <b class="um-ui">⬇️ Export data</b>.</li>
       </ol>
       <p>O arquivo é baixado com o nome <code>AAAAMMDD.HHmm-Shop-List.json</code> (data e hora da exportação) e aparece <b class="um-ui">Data exported</b>. Só a lista aberta é exportada; para guardar outras listas, abra cada uma e exporte.</p>
       <h4>Importar</h4>
       <ol>
         <li>Abra a lista que vai receber os dados.</li>
-        <li>Toque no ícone de cilindro e em <b class="um-ui">⬆️ Import data</b>.</li>
+        <li>Toque em <b class="um-ui">⋯</b>, no cabeçalho, e em <b class="um-ui">⬆️ Import data</b>.</li>
         <li>Escolha o arquivo <code>.json</code>.</li>
       </ol>
       <p>Abre a janela <b class="um-ui">Replace list?</b>, que mostra quantos itens a lista tem agora (<b class="um-ui">items now</b>) e quantos há no arquivo (<b class="um-ui">in the file</b>), e a data do backup.</p>
@@ -1413,17 +1418,17 @@ Share — Refill tab
         <p>Importar substitui todos os itens da lista aberta pelos do arquivo. Com o Drive conectado, a lista importada substitui a cópia do Drive na próxima sincronização, sem juntar alterações.</p>
       </div>
       <h4>Desfazer a importação</h4>
-      <p>A lista que existia antes da importação fica guardada no aparelho. Para voltar a ela, toque no ícone de cilindro e em <b class="um-ui">↩️ Undo last import</b> (a opção só aparece depois de uma importação). Aparece <b class="um-ui">Previous list restored</b>.</p>
+      <p>A lista que existia antes da importação fica guardada no aparelho. Para voltar a ela, toque em <b class="um-ui">⋯</b>, no cabeçalho, e em <b class="um-ui">↩️ Undo last import</b> (a opção só aparece depois de uma importação). Aparece <b class="um-ui">Previous list restored</b>.</p>
       <h4>Lembrete de backup</h4>
       <p>Depois de 10 alterações, aparece a faixa <b class="um-ui">💾 Many changes made — save a backup now!</b> Toque nela para exportar na hora (<b class="um-ui">Backup saved successfully!</b>) ou no <b class="um-ui">✕</b> para dispensá-la por alguns minutos.</p>
       <a class="um-top" href="#topo">↑ Topo</a>
 
       <!-- ═══════════════ 16 ═══════════════ -->
-      <!-- fonte: index.html (#footer-theme-btn, toggleTheme, THEME_KEY, load() tema padrão 'light') -->
+      <!-- fonte: index.html (openMoreMenu, toggleTheme, THEME_KEY, load() tema padrão 'light') -->
       <h2 id="tema-claro-e-escuro">16. Tema claro e escuro</h2>
       <ol>
-        <li>Toque no ícone da lua, no rodapé, para o tema escuro (<b class="um-ui">Dark mode enabled</b>).</li>
-        <li>No tema escuro, o ícone vira um sol: toque nele para voltar ao claro (<b class="um-ui">Light mode enabled</b>).</li>
+        <li>Toque em <b class="um-ui">⋯</b>, no cabeçalho.</li>
+        <li>No topo do menu, toque em <b class="um-ui">🌙 Dark mode</b> para o tema escuro (<b class="um-ui">Dark mode enabled</b>). No tema escuro, a opção vira <b class="um-ui">☀️ Light mode</b>, que volta ao claro (<b class="um-ui">Light mode enabled</b>).</li>
       </ol>
       <p>A escolha fica guardada no aparelho. Sem escolha, o app abre no tema claro. Este manual abre no mesmo tema que você escolheu no app.</p>
       <a class="um-top" href="#topo">↑ Topo</a>
@@ -1581,7 +1586,7 @@ Share — Refill tab
 
   <footer class="um-footer">
     <p><a href="./index.html">← Voltar ao app</a> · <a href="./privacy.html">Privacidade</a> · <a href="./terms.html">Termos de uso</a></p>
-    <p>Manual gerado em 14/11/2026 a partir da versão do app 20260721 r45 (cache shoplist-v20260721-r53).</p>
+    <p>Manual gerado em 14/11/2026 a partir da versão do app 20260721 r45 (cache shoplist-v20260721-r54).</p>
   </footer>
 </div>
 
