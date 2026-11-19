@@ -7,7 +7,7 @@
    detecte a mudança e dispare o fluxo de atualização no cliente.
    ────────────────────────────────────────────────────────────────────────── */
 
-const CACHE_VERSION = 'shoplist-v20260721-r58';   // ← incremente a cada release: v5, v6, ...
+const CACHE_VERSION = 'shoplist-v20260721-r59';   // ← incremente a cada release: v5, v6, ...
 const CACHE_NAME     = CACHE_VERSION;
 
 // Cache PRÓPRIO para fontes — desacoplado do CACHE_VERSION porque fontes

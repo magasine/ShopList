@@ -1280,7 +1280,11 @@
       font-weight: 500;
       letter-spacing: 0.10em;
       color: var(--accent);
-      padding: 10px 8px 6px 16px;   /* direita = linhas (···  alinha com a estrela) */
+      /* Faixa de fundo de ponta a ponta: sai dos 20px laterais do #panels com
+         margem negativa e devolve por dentro (20+16 / 20+8) — texto, contagem e
+         ··· continuam alinhados com as linhas, sem lacunas nas extremidades */
+      margin: 0 -20px;
+      padding: 10px 28px 6px 36px;
       text-transform: capitalize;
       font-family: 'DM Mono', monospace;
       display: flex;
@@ -5989,6 +5993,10 @@
     };
     const SORT_CYCLE = ['az', 'cat', 'fav'];  // tap cicla apenas o núcleo
 
+    // Modos com seções (títulos .sec-label + grupos recolhíveis). A·Z exibe só a
+    // lista ordenada: cabeçalhos por letra eram ruído (a ordem já é a navegação).
+    function _showsSections() { return sortMode !== 'az'; }
+
     // Prefixo do token do modo atual — 'cat' é o caso particular tok:#
     function _sortTokenPrefix() {
       if (sortMode === 'cat') return '#';
@@ -6325,7 +6333,7 @@
         // duplicada de um item multi-token fica autoexplicativa: cada ocorrência
         // aparece sob o cabeçalho do seu grupo. Em az/fav a busca permanece
         // plana (o search-label basta; cabeçalhos de letra seriam ruído).
-        if (section !== lastSection && (!searchQuery.trim() || _sortTokenPrefix())) {
+        if (section !== lastSection && _showsSections() && (!searchQuery.trim() || _sortTokenPrefix())) {
           const isCat = sortMode === 'cat';
           // Deriva da SEÇÃO (fonte autoritativa via sectionKeyOf/_secTok), não do
           // item: com multi-associação, getCategoryOf(it) devolve o 1º token do
@@ -6353,7 +6361,7 @@
           fragment.appendChild(label);
           lastSection = section;
         } else if (section !== lastSection) {
-          // az/fav com busca ativa: lista plana — só rastreia a mudança
+          // A·Z (sempre) e fav com busca ativa: lista plana — só rastreia a mudança
           lastSection = section;
         }
 
@@ -6364,7 +6372,7 @@
         // Wrapper de swipe — marcado com data-sec-key para toggle de seção (unificado entre abas).
         // Em modos por token a marcação vale TAMBÉM durante a busca (cabeçalhos visíveis
         // → collapse operante, como em p1/p2); az/fav com busca segue sem marcação (lista plana).
-        const secGroupKey = (!searchQuery.trim() || _sortTokenPrefix()) ? (sortMode + '||' + section) : '';
+        const secGroupKey = (_showsSections() && (!searchQuery.trim() || _sortTokenPrefix())) ? (sortMode + '||' + section) : '';
         const wrap = createElement('div', `swipe-wrap sec-group-item${_collapsedSections.has(secGroupKey) ? ' sec-group-hidden' : ''}`);
         if (secGroupKey) wrap.dataset.secKey = secGroupKey;
 
@@ -6497,7 +6505,7 @@
 
       for (const it of list) {
         const section = sectionKeyOf(it);
-        if (section !== lastSection) {
+        if (section !== lastSection && _showsSections()) {
           const isCat = sortMode === 'cat';
           // Deriva da SEÇÃO (fonte autoritativa via sectionKeyOf/_secTok), não do
           // item: com multi-associação, getCategoryOf(it) devolve o 1º token do
@@ -6522,11 +6530,11 @@
           lastSection = section;
         }
 
-        const secGroupKey = sortMode + '||' + section;
+        const secGroupKey = _showsSections() ? sortMode + '||' + section : '';
         const s = getStatus(it);
         const rowClass = s === 'ok' ? 'row-ok' : s === 'warn' ? 'row-warn' : 'row-crit';
         const row = createElement('div', `stock-row ${rowClass} sec-group-item${_collapsedSections.has(secGroupKey) ? ' sec-group-hidden' : ''}`);
-        row.dataset.secKey = secGroupKey;
+        if (secGroupKey) row.dataset.secKey = secGroupKey;
 
         // Name
         const nameDiv = createElement('div', 'stock-name');
@@ -6685,7 +6693,7 @@
 
       for (const it of list) {
         const section = sectionKeyOf(it);
-        if (section !== lastSection) {
+        if (section !== lastSection && _showsSections()) {
           const isCat = sortMode === 'cat';
           // Deriva da SEÇÃO (fonte autoritativa via sectionKeyOf/_secTok), não do
           // item: com multi-associação, getCategoryOf(it) devolve o 1º token do
@@ -6710,10 +6718,10 @@
           lastSection = section;
         }
 
-        const secGroupKey = sortMode + '||' + section;
+        const secGroupKey = _showsSections() ? sortMode + '||' + section : '';
         // ── Swipe wrapper ─────────────────────────────────────────────────
         const wrap = createElement('div', `swipe-wrap sec-group-item${_collapsedSections.has(secGroupKey) ? ' sec-group-hidden' : ''}`);
-        wrap.dataset.secKey = secGroupKey;
+        if (secGroupKey) wrap.dataset.secKey = secGroupKey;
 
         // Bg esquerdo: desmarcar (cinza/undo)
         const bgLeft = createElement('div', 'swipe-bg swipe-bg-left');
