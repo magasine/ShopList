@@ -483,17 +483,25 @@
     }
 
     /* Linha de status abaixo do título: último salvamento + selos de sync */
+    /* Altura fixa e sem quebra: selos que surgem depois (owner, ✏ editing,
+       reconnect) não podem fazer o cabeçalho crescer e empurrar a lista —
+       se faltar espaço, o "Saved at" é que encolhe com reticências */
     #header-status {
       display: flex;
       align-items: center;
-      flex-wrap: wrap;
-      gap: 4px 8px;
+      flex-wrap: nowrap;
+      gap: 8px;
       min-width: 0;
-      padding-bottom: 8px;
+      height: 22px;
+      margin-bottom: 8px;
+      overflow: hidden;
     }
 
     /* Timestamp de dados — mais contrastado que antes */
     #title-sub {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
       color: inherit;
       font-weight: 500;
       font-size: var(--fs-xs);
@@ -2034,8 +2042,52 @@
       border-radius: 8px;
     }
 
+    /* ── Doca de avisos (update/backup/unidades/instalar) ──────────────────
+       Flutua logo acima do rodapé, sobre a lista, sem entrar no fluxo: aparecer
+       ou sumir não desloca nenhum item. Mostra só o 1º aviso visível (ordem do
+       HTML = prioridade); os demais esperam a vez. O espaço que ela cobre no fim
+       da lista é compensado por _syncNoticeSpace (padding-bottom do #panels). */
+    #notice-dock {
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: calc(100% + 8px);
+      display: flex;
+      flex-direction: column;
+      z-index: 150;
+      pointer-events: none;
+    }
+
+    #notice-dock>.visible {
+      pointer-events: auto;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(13, 27, 42, 0.18);
+      overflow: hidden;
+      animation: noticeIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    [data-theme="dark"] #notice-dock>.visible {
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    }
+
+    /* Um aviso por vez */
+    #notice-dock>.visible~.visible {
+      display: none;
+    }
+
+    @keyframes noticeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #notice-dock>.visible { animation: none; }
+    }
+
     /* FOOTER */
     #footer {
+      position: relative;   /* âncora da #notice-dock */
       /* flex-shrink:0 garante que o footer sempre ocupa seu espaço natural — nunca some */
       flex-shrink: 0;
       background: var(--footer-bg);
@@ -2677,6 +2729,23 @@
       position: relative;
     }
 
+    /* Pontinho no ⋯ quando há versão nova ("Update app" no menu) */
+    #btn-more {
+      position: relative;
+    }
+
+    #btn-more.has-notice::after {
+      content: '';
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--crit);
+      border: 1.5px solid var(--surface);
+    }
+
     #btn-drive .drive-dot {
       position: absolute;
       top: 5px;
@@ -2712,49 +2781,6 @@
       50% {
         opacity: 0.3;
       }
-    }
-
-    /* Banner de sync — usa CSS vars do tema */
-    #sync-banner {
-      display: none;
-      align-items: center;
-      gap: 10px;
-      background: var(--purple-light);
-      border-bottom: 1px solid var(--border2);
-      padding: 10px 16px;
-      font-size: var(--fs-xs);
-      color: var(--purple);
-      font-weight: 500;
-      font-family: 'DM Mono', monospace;
-      cursor: default;
-      transition: background var(--transition);
-    }
-
-    #sync-banner.visible {
-      display: flex;
-    }
-
-    #sync-banner .banner-icon {
-      font-size: 16px;
-      flex-shrink: 0;
-    }
-
-    #sync-banner .banner-text {
-      flex: 1;
-    }
-
-    #sync-banner .banner-close {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: rgba(0, 0, 0, 0.08);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      flex-shrink: 0;
-      color: var(--purple);
-      cursor: pointer;
     }
 
     /* cfg-icon para Drive no modal de settings — usa CSS vars do tema */
@@ -4679,46 +4705,6 @@
       </div>
     </div>
 
-    <div id="backup-banner" onclick="exportDataFromBanner()">
-      <span class="banner-icon">💾</span>
-      <span class="banner-text">Many changes made — save a backup now!</span>
-      <span class="banner-close" onclick="dismissBanner(event)">✕</span>
-    </div>
-
-    <!-- Google Drive Sync Banner -->
-    <div id="sync-banner">
-      <span class="banner-icon" id="sync-banner-icon">☁️</span>
-      <span class="banner-text" id="sync-banner-text">Syncing with Google Drive…</span>
-      <span class="banner-close" onclick="document.getElementById('sync-banner').classList.remove('visible')">✕</span>
-    </div>
-
-    <div id="install-banner">
-      <span class="banner-icon">📲</span>
-      <span class="banner-text">
-        <strong>Install Shop List</strong>
-        Use offline, like a native app
-      </span>
-      <span class="install-cta" onclick="triggerInstall(event)">Install</span>
-      <span class="banner-close" onclick="dismissInstallBanner(event)">✕</span>
-    </div>
-
-    <!-- Unit/module legacy normalization — contextual, non-recurring -->
-    <div id="unit-sweep-banner" onclick="runLegacyUnitSweep()">
-      <span class="banner-icon">📐</span>
-      <span class="banner-text">
-        <strong>Tidy up units</strong>
-        <span id="unit-sweep-count">Some items use a legacy unit format</span>
-      </span>
-      <span class="unit-sweep-cta" onclick="event.stopPropagation(); runLegacyUnitSweep()">Normalize</span>
-      <span class="banner-close" onclick="dismissUnitSweepBanner(event)">✕</span>
-    </div>
-
-    <div id="update-banner">
-      <span class="banner-icon">🔄</span>
-      <span class="banner-text">New version available!</span>
-      <span class="update-cta" onclick="applyUpdate()">Update</span>
-    </div>
-
     <div id="panels">
       <div class="panel active" id="panel-0"></div>
       <div class="panel" id="panel-1"></div>
@@ -4726,6 +4712,46 @@
     </div>
 
     <div id="footer">
+
+      <!-- Avisos que pedem ação: flutuam logo acima do rodapé, um por vez (o 1º
+           visível na ordem abaixo; os demais esperam). Antes ficavam no fluxo entre
+           o cabeçalho e a lista e, ao aparecer, deslocavam os itens sob o dedo.
+           A sincronização não tem mais faixa: usa o pontinho do Drive e toasts. -->
+      <div id="notice-dock">
+        <div id="update-banner">
+          <span class="banner-icon">🔄</span>
+          <span class="banner-text">New version available!</span>
+          <span class="update-cta" onclick="applyUpdate()">Update</span>
+          <span class="banner-close" onclick="dismissUpdateBanner(event)">✕</span>
+        </div>
+
+        <div id="backup-banner" onclick="exportDataFromBanner()">
+          <span class="banner-icon">💾</span>
+          <span class="banner-text">Many changes made — save a backup now!</span>
+          <span class="banner-close" onclick="dismissBanner(event)">✕</span>
+        </div>
+
+        <!-- Unit/module legacy normalization — contextual, non-recurring -->
+        <div id="unit-sweep-banner" onclick="runLegacyUnitSweep()">
+          <span class="banner-icon">📐</span>
+          <span class="banner-text">
+            <strong>Tidy up units</strong>
+            <span id="unit-sweep-count">Some items use a legacy unit format</span>
+          </span>
+          <span class="unit-sweep-cta" onclick="event.stopPropagation(); runLegacyUnitSweep()">Normalize</span>
+          <span class="banner-close" onclick="dismissUnitSweepBanner(event)">✕</span>
+        </div>
+
+        <div id="install-banner">
+          <span class="banner-icon">📲</span>
+          <span class="banner-text">
+            <strong>Install Shop List</strong>
+            Use offline, like a native app
+          </span>
+          <span class="install-cta" onclick="triggerInstall(event)">Install</span>
+          <span class="banner-close" onclick="dismissInstallBanner(event)">✕</span>
+        </div>
+      </div>
 
       <!-- Grupo de ícones esquerdo -->
       <div id="footer-left">
@@ -5169,13 +5195,38 @@
       return d.innerHTML;
     }
 
-    function toast(msg) {
+    function toast(msg, ms = 2200) {
       const el = document.getElementById('toast');
       el.textContent = msg;
       el.classList.add('show');
       clearTimeout(el._t);
-      el._t = setTimeout(() => el.classList.remove('show'), 2200);
+      el._t = setTimeout(() => el.classList.remove('show'), ms);
     }
+
+    // ── Doca de avisos flutuante (#notice-dock) ────────────────────────────────
+    // Enquanto um aviso está aberto: (1) o fim da lista ganha o espaço que ele cobre
+    // — padding-bottom só aumenta o curso da rolagem, não desloca itens visíveis;
+    // (2) o toast sobe para não ficar por baixo do aviso.
+    function _syncNoticeSpace() {
+      const dock = document.getElementById('notice-dock');
+      const panels = document.getElementById('panels');
+      const footer = document.getElementById('footer');
+      const toastEl = document.getElementById('toast');
+      if (!dock || !panels || !footer) return;
+      const dockH = dock.offsetHeight;
+      panels.style.paddingBottom = dockH ? (dockH + 16) + 'px' : '';
+      if (toastEl) {
+        const fromBottom = window.innerHeight - footer.getBoundingClientRect().top;
+        toastEl.style.bottom = (fromBottom + (dockH ? dockH + 8 : 0) + 16) + 'px';
+      }
+    }
+    (function watchNoticeDock() {
+      const dock = document.getElementById('notice-dock');
+      if (!dock) return;
+      new MutationObserver(_syncNoticeSpace).observe(dock, { subtree: true, attributes: true, attributeFilter: ['class'] });
+      window.addEventListener('resize', _syncNoticeSpace);
+      requestAnimationFrame(_syncNoticeSpace);
+    })();
 
     // ── Toque longo genérico ───────────────────────────────────────────────────
     // Tap curto → onTap() · Toque mantido por LONG_PRESS_MS → onLong() (suprime o tap).
@@ -7545,6 +7596,16 @@
         <div class="sec-action-item" data-action="data-undo-import">
           <span class="sec-action-icon">↩️</span> Undo last import
         </div>` : ''}
+        ${(window._updateAvailable || !window.matchMedia('(display-mode: standalone)').matches) ? `
+        <div class="sec-action-header">App</div>` : ''}
+        ${window._updateAvailable ? `
+        <div class="sec-action-item" data-action="app-update">
+          <span class="sec-action-icon">🔄</span> Update app
+        </div>` : ''}
+        ${!window.matchMedia('(display-mode: standalone)').matches ? `
+        <div class="sec-action-item" data-action="app-install">
+          <span class="sec-action-icon">📲</span> Install app
+        </div>` : ''}
       `);
 
       _secMenuEl.addEventListener('click', e => {
@@ -7557,6 +7618,9 @@
         if (action === 'data-export') exportData();
         if (action === 'data-import') triggerImport();
         if (action === 'data-undo-import') undoLastImport();
+        // Mesmas ações das faixas da doca — encontráveis mesmo após dispensá-las
+        if (action === 'app-update') applyUpdate();
+        if (action === 'app-install') triggerInstall({ stopPropagation() { } });
       });
     }
 
@@ -9705,8 +9769,20 @@
     let _updateRequested = false;   // usuário tocou em "Update" (applyUpdate)
 
     function _showUpdateBanner() {
+      window._updateAvailable = true;
+      const more = document.getElementById('btn-more');
+      if (more) more.classList.add('has-notice');   // pontinho: "Update app" no menu ⋯
       const b = document.getElementById('update-banner');
-      if (b) b.classList.add('visible');
+      if (b && !sessionStorage.getItem('update-dismissed')) b.classList.add('visible');
+    }
+
+    // ✕ da faixa: esconde nesta sessão (libera a fila de avisos); a atualização
+    // continua disponível no menu ⋯ ("Update app"), sinalizada pelo pontinho
+    function dismissUpdateBanner(e) {
+      if (e) e.stopPropagation();
+      const b = document.getElementById('update-banner');
+      if (b) b.classList.remove('visible');
+      try { sessionStorage.setItem('update-dismissed', '1'); } catch (_) { }
     }
 
     if ('serviceWorker' in navigator) {
@@ -9945,27 +10021,11 @@
           _btnEl.className = 'fbtn' + (state ? ' ' + state : '');
           _btnEl.title = msg || 'Google Drive sync';
         }
-        const banner = document.getElementById('sync-banner');
-        const bannerTx = document.getElementById('sync-banner-text');
-        const bannerIc = document.getElementById('sync-banner-icon');
-        if (!banner) return;
-        if (state === 'syncing') {
-          if (bannerIc) bannerIc.textContent = '🔄';
-          if (bannerTx) bannerTx.textContent = msg || 'Syncing with Google Drive…';
-          banner.classList.add('visible');
-        } else if (state === 'error') {
-          if (bannerIc) bannerIc.textContent = '⚠️';
-          if (bannerTx) bannerTx.textContent = msg || 'Drive sync error';
-          banner.classList.add('visible');
-          setTimeout(() => banner.classList.remove('visible'), 5000);
-        } else if (state === 'connected') {
-          if (bannerIc) bannerIc.textContent = '✅';
-          if (bannerTx) bannerTx.textContent = msg || 'Drive sync complete';
-          banner.classList.add('visible');
-          setTimeout(() => banner.classList.remove('visible'), 3000);
-        } else {
-          banner.classList.remove('visible');
-        }
+        // Sem faixa: o estado de rotina (syncing/connected) fica só no pontinho do
+        // botão do Drive (pisca durante o sync) e no title acima. A antiga faixa
+        // entrava no fluxo entre o cabeçalho e a lista ~2 s após CADA edição e
+        // deslocava os itens sob o dedo. Erros viram toast flutuante (5 s).
+        if (state === 'error' && typeof toast === 'function') toast(msg || '⚠️ Drive sync error', 5000);
       }
 
       // ─── MÓDULO auth/ ──────────────────────────────────────────────────────────
@@ -11072,9 +11132,10 @@
                   cloudModifiedAt: uploaded.savedAt,
                   forceUpload: false,
                 });
-                _setStatus('connected', action === 'merge' && incoming > 0
-                  ? `☁️ ${incoming} change${incoming !== 1 ? 's' : ''} from another device merged ✓`
-                  : '☁️ Synced to Drive ✓');
+                const mergedMsg = `☁️ ${incoming} change${incoming !== 1 ? 's' : ''} from another device merged ✓`;
+                _setStatus('connected', action === 'merge' && incoming > 0 ? mergedMsg : '☁️ Synced to Drive ✓');
+                // Único status de sucesso que vale avisar: a lista mudou por outro aparelho
+                if (action === 'merge' && incoming > 0 && typeof toast === 'function') toast(mergedMsg, 3500);
               }
               console.log('[DriveSync] three-way done:', action, '| file', syncFileId);
             }

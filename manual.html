@@ -718,7 +718,7 @@
       <p>No iPhone, o botão <b class="um-ui">Install</b> do app, quando aparece, apenas abre estas instruções na janela <b class="um-ui">Help &amp; Tips</b>.</p>
 
       <h3 id="instalar-no-computador">Computador</h3>
-      <p>Em navegadores que oferecem instalação, o mesmo aviso <b class="um-ui">📲 Install Shop List</b> pode aparecer. Clique em <b class="um-ui">Install</b> e confirme. Se o aviso não aparecer, use a opção de instalar app do menu do próprio navegador.</p>
+      <p>Em navegadores que oferecem instalação, o mesmo aviso <b class="um-ui">📲 Install Shop List</b> pode aparecer. Clique em <b class="um-ui">Install</b> e confirme. Se você fechou o aviso, use <b class="um-ui">⋯</b> › <b class="um-ui">📲 Install app</b>. Se nada disso aparecer, use a opção de instalar app do menu do próprio navegador.</p>
       <p>Também é possível abrir as instruções de instalação pelo painel do Google Drive: toque no ícone do Drive no rodapé e, embaixo da janela, em <b class="um-ui">📲 Install app on device</b>.</p>
 
       <h3 id="atalhos-do-icone">Atalhos do ícone</h3>
@@ -729,9 +729,9 @@
       </ul>
 
       <h3 id="atualizar-o-app">Atualizar o app</h3>
-      <p>Enquanto está aberto, o app verifica de tempos em tempos se há versão nova. Quando houver, aparece o aviso <b class="um-ui">🔄 New version available!</b></p>
+      <p>Enquanto está aberto, o app verifica de tempos em tempos se há versão nova. Quando houver, aparece o aviso <b class="um-ui">🔄 New version available!</b>, e o botão <b class="um-ui">⋯</b> do cabeçalho ganha um pontinho vermelho.</p>
       <ol>
-        <li>Toque em <b class="um-ui">Update</b>.</li>
+        <li>Toque em <b class="um-ui">Update</b> no aviso, ou em <b class="um-ui">⋯</b> › <b class="um-ui">🔄 Update app</b> (se você tiver fechado o aviso pelo <b class="um-ui">✕</b>).</li>
         <li>O app recarrega já na versão nova. Seus dados são mantidos.</li>
       </ol>
       <a class="um-top" href="#topo">↑ Topo</a>
@@ -754,6 +754,7 @@
             <li><b class="um-ui">🌙 Dark mode</b> ou <b class="um-ui">☀️ Light mode</b>: troca o tema (veja <a href="#tema-claro-e-escuro">Tema</a>);</li>
             <li><b class="um-ui">📖 User manual</b>: abre este manual;</li>
             <li><b class="um-ui">Data · backup (.json)</b>: <b class="um-ui">⬇️ Export data</b>, <b class="um-ui">⬆️ Import data</b> e, depois de uma importação, <b class="um-ui">↩️ Undo last import</b> (veja <a href="#backup">Backup</a>);</li>
+            <li><b class="um-ui">App</b>: <b class="um-ui">🔄 Update app</b>, quando há versão nova (um pontinho vermelho no <b class="um-ui">⋯</b> avisa), e <b class="um-ui">📲 Install app</b>, quando o app ainda não está instalado (veja <a href="#instalar-o-app">Instalar o app</a>).</li>
           </ul>
         </li>
       </ul>
@@ -798,7 +799,7 @@
       <h3 id="avisos">Avisos e mensagens</h3>
       <ul>
         <li>Mensagens curtas aparecem por cerca de dois segundos e somem sozinhas (por exemplo, <b class="um-ui">Item added</b>).</li>
-        <li>Faixas de aviso aparecem abaixo das abas: instalação, nova versão, backup, sincronização e padronização de unidades. O <b class="um-ui">✕</b> fecha cada uma.</li>
+        <li>Avisos que pedem uma ação (nova versão, lembrete de backup, padronização de unidades e instalação) aparecem flutuando logo acima do rodapé, um de cada vez, sem mover a lista. O <b class="um-ui">✕</b> fecha cada um, e o próximo, se houver, assume o lugar. Enquanto um aviso está aberto, o fim da lista ganha espaço extra, para o último item continuar alcançável.</li>
         <li>Janelas de confirmação fecham com <b class="um-ui">Cancel</b>, tocando fora delas ou, no computador, com a tecla <kbd>Esc</kbd>.</li>
       </ul>
       <a class="um-top" href="#topo">↑ Topo</a>
@@ -1269,12 +1270,11 @@ Share — Refill tab
         <li>a quantidade atual (<b class="um-ui">current</b>) mudou nos dois lados: as variações se somam. Exemplo: havia 3; num aparelho alguém comprou 2 (ficou 5) e no outro alguém usou 1 (ficou 2). O resultado é 4;</li>
         <li>outro campo do mesmo item (nome, descrição, mínimo, favorito, estoque) mudou nos dois lados: vale o que foi salvo por último.</li>
       </ul>
-      <p>Durante a sincronização aparece <b class="um-ui">🔄 Syncing with Google Drive…</b>; depois, uma destas mensagens:</p>
+      <p>A sincronização acontece em silêncio, para não interromper o que você está fazendo: o andamento aparece só no pontinho do ícone do Drive, no rodapé (amarelo piscando enquanto sincroniza). Mensagens rápidas aparecem apenas quando algo muda na sua tela ou dá errado:</p>
       <ul>
-        <li><b class="um-ui">☁️ Synced to Drive ✓</b>: as alterações do aparelho foram enviadas;</li>
-        <li><b class="um-ui">☁️ Data updated from Drive ✓</b>: havia alterações só no Drive, e elas foram trazidas;</li>
+        <li><b class="um-ui">☁️ Data updated from Drive</b>: havia alterações só no Drive, e elas foram trazidas;</li>
         <li><b class="um-ui">☁️ N changes from another device merged ✓</b>: os dois lados tinham alterações, e elas foram juntadas;</li>
-        <li><b class="um-ui">☁️ Already in sync</b>: as duas já eram iguais.</li>
+        <li><b class="um-ui">⚠️ Drive sync failed: …</b>: a sincronização falhou (o pontinho fica vermelho).</li>
       </ul>
       <div class="um-box um-note">
         <span class="um-box-title">📝 Observação</span>
@@ -1305,7 +1305,7 @@ Share — Refill tab
       <h3 id="renovar-o-acesso">Renovar o acesso</h3>
       <p>Por segurança, o acesso que o Google concede vence a cada hora, mais ou menos. Quando isso acontece:</p>
       <ul>
-        <li>o selo do cabeçalho vira <b class="um-ui">⚠ reconnect</b> e aparece a faixa <b class="um-ui">⚠️ Drive access expired — tap "reconnect" to keep syncing</b>;</li>
+        <li>o selo do cabeçalho vira <b class="um-ui">⚠ reconnect</b> e aparece a mensagem <b class="um-ui">⚠️ Drive access expired — tap "reconnect" to keep syncing</b>;</li>
         <li>a sincronização automática para, mas você continua usando o app normalmente. Ao editar, aparece <b class="um-ui">Saved on this device only — tap "reconnect" to sync</b>: as alterações ficam no aparelho e vão para o Drive quando você reconectar.</li>
       </ul>
       <p>Na maioria das vezes você não precisa fazer nada: com internet, o próximo toque em qualquer parte do app renova o acesso sozinho. Se a janela do Google for fechada ou falhar, o app espera 2 minutos antes de tentar de novo. Para renovar na hora, toque no selo <b class="um-ui">⚠ reconnect</b>. Outra forma:</p>
@@ -1419,7 +1419,7 @@ Share — Refill tab
       <h4>Desfazer a importação</h4>
       <p>A lista que existia antes da importação fica guardada no aparelho. Para voltar a ela, toque em <b class="um-ui">⋯</b>, no cabeçalho, e em <b class="um-ui">↩️ Undo last import</b> (a opção só aparece depois de uma importação). Aparece <b class="um-ui">Previous list restored</b>.</p>
       <h4>Lembrete de backup</h4>
-      <p>Depois de 10 alterações, aparece a faixa <b class="um-ui">💾 Many changes made — save a backup now!</b> Toque nela para exportar na hora (<b class="um-ui">Backup saved successfully!</b>) ou no <b class="um-ui">✕</b> para dispensá-la por alguns minutos.</p>
+      <p>Depois de 10 alterações, aparece o aviso flutuante <b class="um-ui">💾 Many changes made — save a backup now!</b> Toque nela para exportar na hora (<b class="um-ui">Backup saved successfully!</b>) ou no <b class="um-ui">✕</b> para dispensá-la por alguns minutos.</p>
       <a class="um-top" href="#topo">↑ Topo</a>
 
       <!-- ═══════════════ 16 ═══════════════ -->
@@ -1585,7 +1585,7 @@ Share — Refill tab
 
   <footer class="um-footer">
     <p><a href="./index.html">← Voltar ao app</a> · <a href="./privacy.html">Privacidade</a> · <a href="./terms.html">Termos de uso</a></p>
-    <p>Manual gerado em 14/11/2026 a partir da versão do app 20260721 r45 (cache shoplist-v20260721-r57).</p>
+    <p>Manual gerado em 14/11/2026 a partir da versão do app 20260721 r45 (cache shoplist-v20260721-r58).</p>
   </footer>
 </div>
 
