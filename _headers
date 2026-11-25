@@ -1,0 +1,12 @@
+# Cabeçalhos HTTP do Cloudflare Pages (ignorado pelo Firebase).
+
+# O navegador deve sempre revalidar o service worker para detectar releases.
+/sw.js
+  Cache-Control: no-cache
+
+/manifest.json
+  Cache-Control: no-cache
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin

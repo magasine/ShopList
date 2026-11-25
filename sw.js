@@ -7,7 +7,7 @@
    detecte a mudança e dispare o fluxo de atualização no cliente.
    ────────────────────────────────────────────────────────────────────────── */
 
-const CACHE_VERSION = 'shoplist-v20260721-r59';   // ← incremente a cada release: v5, v6, ...
+const CACHE_VERSION = 'shoplist-v20261125-r60';   // ← incremente a cada release: v5, v6, ...
 const CACHE_NAME     = CACHE_VERSION;
 
 // Cache PRÓPRIO para fontes — desacoplado do CACHE_VERSION porque fontes
@@ -18,8 +18,7 @@ const FONT_CACHE = 'shoplist-fonts-v1';
 // Recursos do app shell para precache. Ajuste conforme os arquivos do projeto.
 const PRECACHE_URLS = [
   './',
-  './index.html',
-  './manual.html',
+  './manual',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
@@ -110,7 +109,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => {});
           return res;
         })
-        .catch(() => caches.match(req).then((cached) => cached || caches.match('./index.html')))
+        .catch(() => caches.match(req).then((cached) => cached || caches.match('./')))
     );
     return;
   }

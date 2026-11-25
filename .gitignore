@@ -12,6 +12,9 @@ yarn-error.log*
 firebase-debug.log*
 firebase-debug.*.log*
 
+# Build output (Cloudflare Pages — gerado por build.sh)
+dist/
+
 # Firebase cache
 .firebase/
 

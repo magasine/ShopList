@@ -56,32 +56,32 @@ All files must be in the **same folder** on the server.
 
 ## 🚀 Deployment
 
-The app must be served over HTTPS for the Service Worker to work. Choose any static hosting provider:
+The app must be served over HTTPS for the Service Worker to work.
 
-### GitHub Pages
+### Production: Cloudflare Pages
 
-1. Create a public repository and upload the 6 files to the root directory
-2. Go to **Settings → Pages → Source**: `main / root`
-3. Access `https://<user>.github.io/<repository>/index.html`
+Live at **<https://shoplist.magasine.com.br>**. The Pages project is connected to this repository and deploys `main` automatically (other branches get preview URLs).
 
-### Netlify (drag and drop)
+| Setting | Value |
+| --- | --- |
+| Build command | `sh build.sh` |
+| Build output directory | `dist` |
 
-1. Go to `netlify.com` → **Sites → Add new → Deploy manually**
-2. Drag the folder containing the 6 files
-3. URL generated automatically
+`build.sh` copies only the public files into `dist/`, so a new file that must go online has to be added to its list. HTTP headers live in [`_headers`](_headers).
 
-### Vercel (CLI)
+Internal links have no `.html` extension (`./manual`, `./privacy`): Cloudflare Pages redirects `page.html` → `page`, and the Service Worker must not cache redirected responses.
+
+### Legacy: Firebase Hosting (transition)
+
+The old address (`shop-list-30758.web.app`) stays online during the transition and shows a "Shop List has moved" notice, because local data does not follow the user to a new domain. `firebase.json` uses `cleanUrls` so the extensionless links work there too.
+
+### Local development
+
+Use a server that resolves extensionless URLs:
 
 ```bash
-npx vercel --prod
-```
-
-### Any HTTP server
-
-```bash
-# Python (local development)
-python3 -m http.server 8080
-# Open http://localhost:8080/index.html
+npx serve .
+# Open http://localhost:3000/
 ```
 
 > ⚠️ `file://` does not work for PWAs — always use an HTTP server, even locally.

@@ -3154,6 +3154,66 @@
       flex-shrink: 0;
     }
 
+    /* MOVED BANNER — só no domínio antigo (Firebase) */
+    #moved-banner {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      background: var(--warn-light);
+      padding: 10px 12px 10px 16px;
+      font-size: var(--fs-xs);
+      color: var(--warn);
+      font-weight: 500;
+    }
+
+    #moved-banner.visible {
+      display: flex;
+    }
+
+    #moved-banner .banner-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    #moved-banner .banner-text {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    #moved-banner .moved-cta {
+      background: var(--warn);
+      color: var(--surface);
+      border-radius: 7px;
+      padding: 5px 10px;
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    #moved-banner .moved-cta--go {
+      background: transparent;
+      color: var(--warn);
+      border: 1px solid var(--warn);
+    }
+
+    #moved-banner .banner-close {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
     /* SHARE BUTTON (cfg-icon.share) */
     .cfg-icon.share {
       background: var(--filter-ok-bg);
@@ -4722,6 +4782,19 @@
            o cabeçalho e a lista e, ao aparecer, deslocavam os itens sob o dedo.
            A sincronização não tem mais faixa: usa o pontinho do Drive e toasts. -->
       <div id="notice-dock">
+        <!-- Só no domínio antigo (Firebase): o app mudou de endereço e os dados
+             locais não acompanham (localStorage é por origem). Ver _initMovedNotice. -->
+        <div id="moved-banner">
+          <span class="banner-icon">🚚</span>
+          <span class="banner-text">
+            <strong>Shop List has moved</strong>
+            <span>Export each list here, then import it at the new address.</span>
+          </span>
+          <span class="moved-cta" onclick="exportMovedData()">Export</span>
+          <a class="moved-cta moved-cta--go" href="https://shoplist.magasine.com.br/" target="_blank" rel="noopener">Open</a>
+          <span class="banner-close" onclick="dismissMovedBanner(event)">✕</span>
+        </div>
+
         <div id="update-banner">
           <span class="banner-icon">🔄</span>
           <span class="banner-text">New version available!</span>
@@ -8241,7 +8314,7 @@
           <span id="manual-bar-title">User manual</span>
           <button id="manual-close" type="button" title="Close manual" aria-label="Close manual">✕</button>
         </div>
-        <iframe src="./manual.html?embed=1" title="Shop List user manual"></iframe>`;
+        <iframe src="./manual?embed=1" title="Shop List user manual"></iframe>`;
       document.body.appendChild(ov);
       ov.querySelector('#manual-close').addEventListener('click', () => history.back());
       history.pushState({ manual: true }, '');
@@ -9768,6 +9841,30 @@
       if (!isNaN(tab) && tab >= 0 && tab <= 2) switchTab(tab);
       if (params.get('action') === 'add') setTimeout(openAddModal, 350);
     })();
+
+    // ── Aviso de mudança de endereço (Firebase → Cloudflare Pages) ──────────
+    // localStorage é por origem: as listas guardadas no domínio antigo não
+    // aparecem no novo. Aqui o usuário exporta (lista ativa) e importa lá.
+    // Remover quando o domínio antigo for desativado.
+    const OLD_HOSTS = ['shop-list-30758.web.app', 'shop-list-30758.firebaseapp.com'];
+    const MOVED_DISMISS_KEY = 'ShopList_movedDismissed';
+    (function _initMovedNotice() {
+      if (!OLD_HOSTS.includes(location.hostname)) return;
+      try { if (sessionStorage.getItem(MOVED_DISMISS_KEY)) return; } catch (_) { }
+      const b = document.getElementById('moved-banner');
+      if (b) b.classList.add('visible');
+    })();
+
+    function exportMovedData() {
+      exportDataSilent();
+      toast('List exported — import it at shoplist.magasine.com.br');
+    }
+
+    function dismissMovedBanner(e) {
+      e.stopPropagation();
+      document.getElementById('moved-banner').classList.remove('visible');
+      try { sessionStorage.setItem(MOVED_DISMISS_KEY, '1'); } catch (_) { }   // volta na próxima sessão
+    }
 
     // ── Service Worker ───────────────────────────────────────
     let swRegistration = null;

@@ -3,7 +3,7 @@
   "short_name": "Shop List",
   "description": "Lista de compras e controle de estoque doméstico",
   "lang": "pt-BR",
-  "start_url": "./index.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
@@ -35,14 +35,14 @@
       "name": "Adicionar item",
       "short_name": "Adicionar",
       "description": "Abre o modal de novo item diretamente",
-      "url": "./index.html?action=add",
+      "url": "./?action=add",
       "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Lista de compras",
       "short_name": "Compras",
       "description": "Vai direto para a aba de reposição",
-      "url": "./index.html?tab=2",
+      "url": "./?tab=2",
       "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
     }
   ],

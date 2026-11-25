@@ -1,10 +1,18 @@
 {
   "hosting": {
     "public": ".",
+    "cleanUrls": true,
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "dist/**",
+      "build.sh",
+      "_headers",
+      "*.md",
+      "LICENSE",
+      "*-Shop-List.json",
+      "img_icon_ShopList.jpeg"
     ],
     "rewrites": [
       {
