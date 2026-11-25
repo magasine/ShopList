@@ -1,0 +1,15 @@
+// Cloudflare Workers (arquivos estáticos) — https://shoplist.magasine.com.br
+// O build automático do Cloudflare roda `npx wrangler deploy` a cada push no main.
+// `build.command` monta dist/ só com os arquivos públicos (ver build.sh) e
+// apenas dist/ é publicado: README, backups, .vscode etc. ficam de fora.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "shoplist",
+  "compatibility_date": "2026-11-23",
+  "build": {
+    "command": "sh build.sh"
+  },
+  "assets": {
+    "directory": "./dist"
+  }
+}

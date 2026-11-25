@@ -58,18 +58,13 @@ All files must be in the **same folder** on the server.
 
 The app must be served over HTTPS for the Service Worker to work.
 
-### Production: Cloudflare Pages
+### Production: Cloudflare Workers (static assets)
 
-Live at **<https://shoplist.magasine.com.br>**. The Pages project is connected to this repository and deploys `main` automatically (other branches get preview URLs).
-
-| Setting | Value |
-| --- | --- |
-| Build command | `sh build.sh` |
-| Build output directory | `dist` |
+Live at **<https://shoplist.magasine.com.br>**. The `shoplist` Worker is connected to this repository: every push to `main` runs `npx wrangler deploy`, which reads [`wrangler.jsonc`](wrangler.jsonc), runs `sh build.sh` and publishes only `dist/`.
 
 `build.sh` copies only the public files into `dist/`, so a new file that must go online has to be added to its list. HTTP headers live in [`_headers`](_headers).
 
-Internal links have no `.html` extension (`./manual`, `./privacy`): Cloudflare Pages redirects `page.html` → `page`, and the Service Worker must not cache redirected responses.
+Internal links have no `.html` extension (`./manual`, `./privacy`): Cloudflare redirects `page.html` → `page`, and the Service Worker must not cache redirected responses.
 
 ### Legacy: Firebase Hosting (transition)
 

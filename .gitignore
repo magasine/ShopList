@@ -14,6 +14,7 @@ firebase-debug.*.log*
 
 # Build output (Cloudflare Pages — gerado por build.sh)
 dist/
+.wrangler/
 
 # Firebase cache
 .firebase/
