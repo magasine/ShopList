@@ -257,7 +257,7 @@
   <div class="hero-inner">
     <div class="hero-label">Legal · Privacy</div>
     <h1>Privacy Policy</h1>
-    <div class="hero-meta">Last updated: June 2026 · Effective immediately</div>
+    <div class="hero-meta">Last updated: November 2026 · Effective immediately</div>
   </div>
 </div>
 
@@ -307,9 +307,10 @@
       entirely opt-in. If you choose to enable it:
     </p>
     <ul>
-      <li>The app requests OAuth 2.0 authorization directly from Google using two scopes:
-        <code style="font-family:var(--mono);font-size:12px">drive.file</code> (write access to files the app creates)
-        and <code style="font-family:var(--mono);font-size:12px">drive.readonly</code> (read access to files shared with you)</li>
+      <li>The app requests OAuth 2.0 authorization directly from Google using a single scope:
+        <code style="font-family:var(--mono);font-size:12px">drive.file</code>, which only gives access to files the
+        app creates or that you explicitly select with the Google Drive file picker (for example, a list someone
+        shared with you). The app cannot see any other file in your Drive.</li>
       <li>Your shopping list is saved as a JSON file in a folder named
         <code style="font-family:var(--mono);font-size:12px">_ShopList_Sync</code> in your Google Drive</li>
       <li>The app communicates directly with Google's servers — no data passes through our infrastructure</li>
